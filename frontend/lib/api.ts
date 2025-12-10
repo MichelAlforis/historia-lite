@@ -358,6 +358,7 @@ export async function signArmsDeal(data: {
   seller_id: string;
   buyer_id: string;
   value: number;
+  category?: string;
 }): Promise<{ success: boolean; message_fr: string; effects: Record<string, unknown> }> {
   const response = await api.post('/influence/arms-deal', data);
   return response.data;
@@ -384,5 +385,199 @@ export async function getReligions(): Promise<{ religions: Array<{ id: string; n
 // Get cultures reference data
 export async function getCultures(): Promise<{ cultures: Array<{ id: string; name: string; name_fr: string; language: string | null; soft_power_bonus: number }> }> {
   const response = await api.get('/influence/cultures');
+  return response.data;
+}
+
+// ============================================================================
+// SAVE/LOAD SYSTEM
+// ============================================================================
+
+export interface SaveMetadata {
+  id: string;
+  name: string;
+  created_at: string;
+  year: number;
+  player_country: string | null;
+  countries_count: number;
+  global_tension: number;
+  description: string | null;
+}
+
+export interface SavesList {
+  saves: SaveMetadata[];
+  total: number;
+}
+
+export interface SaveGameResponse {
+  success: boolean;
+  message: string;
+  save_id: string;
+  metadata: SaveMetadata;
+}
+
+export interface LoadGameResponse {
+  success: boolean;
+  message: string;
+  year: number;
+  countries_count: number;
+}
+
+// List all saves
+export async function listSaves(): Promise<SavesList> {
+  const response = await api.get('/saves/list');
+  return response.data;
+}
+
+// Save current game
+export async function saveGame(name: string, description?: string): Promise<SaveGameResponse> {
+  const response = await api.post('/saves/save', { name, description });
+  return response.data;
+}
+
+// Load a saved game
+export async function loadGame(saveId: string): Promise<LoadGameResponse> {
+  const response = await api.post(`/saves/load/${saveId}`);
+  return response.data;
+}
+
+// Delete a save
+export async function deleteSave(saveId: string): Promise<{ success: boolean; message: string }> {
+  const response = await api.delete(`/saves/${saveId}`);
+  return response.data;
+}
+
+// Get save metadata
+export async function getSaveMetadata(saveId: string): Promise<SaveMetadata> {
+  const response = await api.get(`/saves/${saveId}`);
+  return response.data;
+}
+
+// Export save as JSON
+export async function exportSave(saveId: string): Promise<{
+  metadata: SaveMetadata;
+  world_state: Record<string, unknown>;
+  settings: Record<string, unknown>;
+}> {
+  const response = await api.get(`/saves/${saveId}/export`);
+  return response.data;
+}
+
+// Import save from JSON
+export async function importSave(saveData: Record<string, unknown>): Promise<{
+  success: boolean;
+  message: string;
+  save_id: string;
+}> {
+  const response = await api.post('/saves/import', saveData);
+  return response.data;
+}
+
+// Create autosave
+export async function createAutosave(): Promise<{ success: boolean; message: string }> {
+  const response = await api.post('/saves/autosave');
+  return response.data;
+}
+
+// ============================================================================
+// DIPLOMATIC NEGOTIATIONS
+// ============================================================================
+
+export interface DiplomaticAgreementRequest {
+  initiator_id: string;
+  target_id: string;
+  agreement_type: string;
+  conditions_offered: Array<{
+    type: string;
+    category: string;
+    label: string;
+    label_fr: string;
+    value: number;
+  }>;
+  conditions_demanded: Array<{
+    type: string;
+    category: string;
+    label: string;
+    label_fr: string;
+    value: number;
+  }>;
+}
+
+export interface DiplomaticAgreementResponse {
+  id: string;
+  type: string;
+  initiator: string;
+  target: string;
+  status: string;
+  year_proposed: number;
+  year_expires: number;
+  acceptance_probability: number;
+  accepted: boolean;
+  rejection_reason?: string;
+  message_fr: string;
+}
+
+// Propose a diplomatic agreement
+export async function proposeDiplomaticAgreement(
+  data: DiplomaticAgreementRequest
+): Promise<DiplomaticAgreementResponse> {
+  const response = await api.post('/diplomacy/propose', data);
+  return response.data;
+}
+
+// Get active agreements for a country
+export async function getActiveAgreements(countryId: string): Promise<{
+  country_id: string;
+  agreements: DiplomaticAgreementResponse[];
+  total: number;
+}> {
+  const response = await api.get(`/diplomacy/agreements/${countryId}`);
+  return response.data;
+}
+
+// Get negotiation history
+export async function getNegotiationHistory(countryId: string): Promise<{
+  country_id: string;
+  history: Array<{
+    id: string;
+    year: number;
+    action: string;
+    actor: string;
+    details_fr: string;
+  }>;
+  total: number;
+}> {
+  const response = await api.get(`/diplomacy/history/${countryId}`);
+  return response.data;
+}
+
+// Cancel/terminate an agreement
+export async function terminateAgreement(agreementId: string): Promise<{
+  success: boolean;
+  message_fr: string;
+  diplomatic_cost: number;
+}> {
+  const response = await api.post(`/diplomacy/terminate/${agreementId}`);
+  return response.data;
+}
+
+// Get feasibility check for potential agreement
+export async function checkAgreementFeasibility(
+  initiatorId: string,
+  targetId: string,
+  agreementType: string
+): Promise<{
+  feasible: boolean;
+  reason_fr: string;
+  min_relation_required: number;
+  current_relation: number;
+  estimated_acceptance: number;
+}> {
+  const response = await api.get('/diplomacy/feasibility', {
+    params: {
+      initiator_id: initiatorId,
+      target_id: targetId,
+      agreement_type: agreementType,
+    },
+  });
   return response.data;
 }

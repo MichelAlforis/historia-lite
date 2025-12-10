@@ -166,7 +166,7 @@ export default function ZoneDetailModal({ zone, onClose }: ZoneDetailModalProps)
         {/* Tabs */}
         <div className="flex border-b border-gray-700 bg-gray-750">
           {([
-            { key: 'influence', label: 'Influence', icon: '&#127760;' },
+            { key: 'influence', label: 'Influence', icon: '&#127760;', count: undefined as number | undefined },
             { key: 'bases', label: `Bases`, count: breakdownData?.military_bases.length || 0, icon: '&#127981;' },
             { key: 'countries', label: `Pays`, count: zone.countries_in_zone.length, icon: '&#127988;' },
           ] as const).map(({ key, label, count, icon }) => (

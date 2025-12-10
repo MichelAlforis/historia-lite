@@ -634,3 +634,77 @@ export const COUNTRY_FLAGS: Record<string, string> = {
   ITA: '\ud83c\uddee\ud83c\uddf9',
   ESP: '\ud83c\uddea\ud83c\uddf8',
 };
+
+// =============================================================================
+// DIPLOMATIC NEGOTIATIONS SYSTEM
+// =============================================================================
+
+export type AgreementType =
+  | 'peace_treaty'
+  | 'trade_agreement'
+  | 'defensive_alliance'
+  | 'oil_agreement'
+  | 'development_program'
+  | 'non_aggression_pact'
+  | 'technology_transfer'
+  | 'military_access';
+
+export type NegotiationStatus = 'drafting' | 'proposed' | 'counter_offer' | 'accepted' | 'rejected' | 'expired';
+
+export interface AgreementCondition {
+  id: string;
+  type: 'demand' | 'offer';
+  category: 'economic' | 'military' | 'diplomatic' | 'resource' | 'territorial';
+  label: string;
+  label_fr: string;
+  value: number;
+  icon: string;
+}
+
+export interface DiplomaticAgreement {
+  id: string;
+  type: AgreementType;
+  initiator: string;
+  target: string;
+  status: NegotiationStatus;
+  year_proposed: number;
+  year_expires?: number;
+  conditions_offered: AgreementCondition[];
+  conditions_demanded: AgreementCondition[];
+  counter_conditions?: AgreementCondition[];
+  acceptance_probability: number;
+  rejection_reason?: string;
+}
+
+export interface NegotiationHistory {
+  id: string;
+  year: number;
+  action: 'proposed' | 'accepted' | 'rejected' | 'counter' | 'expired' | 'cancelled';
+  actor: string;
+  details: string;
+  details_fr: string;
+}
+
+// Agreement type display names (French)
+export const AGREEMENT_TYPE_NAMES: Record<AgreementType, string> = {
+  peace_treaty: 'Traite de paix',
+  trade_agreement: 'Accord commercial',
+  defensive_alliance: 'Alliance defensive',
+  oil_agreement: 'Accord petrolier',
+  development_program: 'Programme de developpement',
+  non_aggression_pact: 'Pacte de non-agression',
+  technology_transfer: 'Transfert technologique',
+  military_access: 'Acces militaire',
+};
+
+// Agreement type colors
+export const AGREEMENT_TYPE_COLORS: Record<AgreementType, string> = {
+  peace_treaty: 'bg-emerald-500',
+  trade_agreement: 'bg-blue-500',
+  defensive_alliance: 'bg-purple-500',
+  oil_agreement: 'bg-gray-800',
+  development_program: 'bg-amber-500',
+  non_aggression_pact: 'bg-gray-500',
+  technology_transfer: 'bg-cyan-500',
+  military_access: 'bg-red-500',
+};

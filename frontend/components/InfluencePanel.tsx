@@ -7,7 +7,7 @@ import {
   COUNTRY_FLAGS,
 } from '@/lib/types';
 import { getInfluenceZonesAdvanced } from '@/lib/api';
-import StatBar from './StatBar';
+import { StatBar } from './StatBar';
 import { InfluenceBreakdownMini } from './InfluenceBreakdownChart';
 
 interface InfluencePanelProps {
@@ -145,7 +145,7 @@ export default function InfluencePanel({ onZoneSelect }: InfluencePanelProps) {
           <div className="flex flex-wrap gap-2 items-center">
             <div className="flex gap-1">
               {([
-                { key: 'all', label: 'Toutes', icon: '&#127758;' },
+                { key: 'all', label: 'Toutes', icon: '&#127758;', count: zones.length },
                 { key: 'contested', label: `Contestees`, count: contestedCount, icon: '&#9876;' },
                 { key: 'oil', label: `Petrole`, count: oilZones, icon: '&#9981;' },
                 { key: 'strategic', label: 'Strategiques', count: strategicZones, icon: '&#9889;' },

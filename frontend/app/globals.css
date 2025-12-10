@@ -278,3 +278,774 @@ body {
 .tooltip {
   animation: tooltipFadeIn 0.15s ease-out forwards;
 }
+
+/* Notification animations */
+@keyframes shake {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-10deg); }
+  75% { transform: rotate(10deg); }
+}
+
+@keyframes ring {
+  0%, 100% { transform: rotate(0deg); }
+  10%, 30%, 50% { transform: rotate(-15deg); }
+  20%, 40% { transform: rotate(15deg); }
+  60% { transform: rotate(0deg); }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInLeft {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(100px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes shrink {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
+@keyframes bounce {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+}
+
+.animate-shake { animation: shake 0.5s ease-in-out; }
+.animate-ring { animation: ring 1s ease-in-out; }
+.animate-slideDown { animation: slideDown 0.3s ease-out forwards; }
+.animate-fadeInLeft { animation: fadeInLeft 0.3s ease-out forwards; }
+.animate-slideInRight { animation: slideInRight 0.5s ease-out forwards; }
+.animate-shrink { animation: shrink linear forwards; }
+.animate-bounce { animation: bounce 0.3s ease-in-out; }
+
+/* fadeInUp (same as slideUp but named differently) */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeInUp { animation: fadeInUp 0.3s ease-out both; }
+
+/* ============================================================================
+   DIPLOMATIC NEGOTIATIONS STYLES
+   ============================================================================ */
+
+.diplomatic-panel {
+  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+  border-radius: 12px;
+  padding: 16px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.diplomatic-panel .panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-shrink: 0;
+}
+
+.diplomatic-panel .header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.diplomatic-panel .header-icon {
+  font-size: 24px;
+}
+
+.diplomatic-panel .header-title h2 {
+  margin: 0;
+  font-size: 18px;
+  color: #f1f5f9;
+}
+
+.diplomatic-panel .player-badge {
+  font-size: 12px;
+  color: #94a3b8;
+  background: rgba(148, 163, 184, 0.1);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.diplomatic-panel .header-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.diplomatic-panel .tab {
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.diplomatic-panel .tab:hover {
+  background: rgba(148, 163, 184, 0.1);
+}
+
+.diplomatic-panel .tab.active {
+  background: rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
+}
+
+.diplomatic-panel .message {
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  text-align: center;
+  font-size: 14px;
+}
+
+.diplomatic-panel .message-success {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.diplomatic-panel .message-error {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.diplomatic-panel .message-info {
+  background: rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.diplomatic-panel .negotiation-content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.diplomatic-panel .step-select h3 {
+  color: #f1f5f9;
+  font-size: 16px;
+  margin: 0 0 12px 0;
+}
+
+.diplomatic-panel .search-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  background: #1e293b;
+  color: #f1f5f9;
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.diplomatic-panel .search-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+.diplomatic-panel .countries-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.diplomatic-panel .country-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid #334155;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  width: 100%;
+}
+
+.diplomatic-panel .country-card:hover {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: #3b82f6;
+}
+
+.diplomatic-panel .country-card.at-war {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.diplomatic-panel .country-flag {
+  font-size: 24px;
+}
+
+.diplomatic-panel .country-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.diplomatic-panel .country-name {
+  color: #f1f5f9;
+  font-weight: 500;
+}
+
+.diplomatic-panel .country-tier {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.diplomatic-panel .relation-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.diplomatic-panel .relation-badge.positive {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+}
+
+.diplomatic-panel .relation-badge.negative {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.diplomatic-panel .relation-badge.neutral {
+  background: rgba(148, 163, 184, 0.2);
+  color: #94a3b8;
+}
+
+.diplomatic-panel .step-negotiate {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.diplomatic-panel .target-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #334155;
+}
+
+.diplomatic-panel .back-btn {
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.diplomatic-panel .back-btn:hover {
+  background: rgba(148, 163, 184, 0.1);
+}
+
+.diplomatic-panel .target-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.diplomatic-panel .target-flag {
+  font-size: 24px;
+}
+
+.diplomatic-panel .target-name {
+  color: #f1f5f9;
+  font-weight: 500;
+}
+
+.diplomatic-panel .target-relation {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.diplomatic-panel .target-relation.positive {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+}
+
+.diplomatic-panel .target-relation.negative {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.diplomatic-panel .target-relation.neutral {
+  background: rgba(148, 163, 184, 0.2);
+  color: #94a3b8;
+}
+
+.diplomatic-panel .suggestions {
+  background: rgba(59, 130, 246, 0.05);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.diplomatic-panel .suggestions h4 {
+  color: #3b82f6;
+  font-size: 12px;
+  margin: 0 0 8px 0;
+  text-transform: uppercase;
+}
+
+.diplomatic-panel .suggestion-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  background: rgba(30, 41, 59, 0.5);
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  margin-bottom: 8px;
+  transition: all 0.2s;
+}
+
+.diplomatic-panel .suggestion-card:last-child {
+  margin-bottom: 0;
+}
+
+.diplomatic-panel .suggestion-card:hover {
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.diplomatic-panel .suggestion-icon {
+  font-size: 20px;
+}
+
+.diplomatic-panel .suggestion-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.diplomatic-panel .suggestion-name {
+  color: #f1f5f9;
+  font-weight: 500;
+}
+
+.diplomatic-panel .suggestion-reason {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.diplomatic-panel .agreement-types h4 {
+  color: #94a3b8;
+  font-size: 14px;
+  margin: 0 0 12px 0;
+}
+
+.diplomatic-panel .types-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.diplomatic-panel .type-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 8px;
+  background: rgba(30, 41, 59, 0.5);
+  border: 2px solid;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.diplomatic-panel .type-btn:hover:not(.disabled) {
+  background: rgba(59, 130, 246, 0.1);
+  transform: translateY(-2px);
+}
+
+.diplomatic-panel .type-btn.disabled {
+  cursor: not-allowed;
+}
+
+.diplomatic-panel .type-icon {
+  font-size: 24px;
+}
+
+.diplomatic-panel .type-name {
+  color: #f1f5f9;
+  font-size: 12px;
+  text-align: center;
+}
+
+.diplomatic-panel .show-more-btn {
+  width: 100%;
+  padding: 10px;
+  background: transparent;
+  border: 1px dashed #334155;
+  border-radius: 8px;
+  color: #64748b;
+  cursor: pointer;
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.diplomatic-panel .show-more-btn:hover {
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+
+.diplomatic-panel .conditions-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.diplomatic-panel .selected-type {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 8px;
+}
+
+.diplomatic-panel .selected-type .type-icon {
+  font-size: 20px;
+}
+
+.diplomatic-panel .selected-type .type-name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.diplomatic-panel .change-type-btn {
+  padding: 4px 8px;
+  background: transparent;
+  border: 1px solid #334155;
+  border-radius: 4px;
+  color: #64748b;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.diplomatic-panel .conditions-block {
+  background: rgba(30, 41, 59, 0.3);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.diplomatic-panel .conditions-block h4 {
+  margin: 0 0 10px 0;
+  font-size: 13px;
+  color: #94a3b8;
+}
+
+.diplomatic-panel .offers-block {
+  border-left: 3px solid #10b981;
+}
+
+.diplomatic-panel .demands-block {
+  border-left: 3px solid #f59e0b;
+}
+
+.diplomatic-panel .conditions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.diplomatic-panel .condition-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  background: rgba(15, 23, 42, 0.5);
+  border-radius: 6px;
+}
+
+.diplomatic-panel .condition-label {
+  color: #e2e8f0;
+  font-size: 13px;
+}
+
+.diplomatic-panel .condition-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.diplomatic-panel .condition-controls button {
+  width: 24px;
+  height: 24px;
+  border: 1px solid #334155;
+  background: transparent;
+  color: #94a3b8;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.diplomatic-panel .condition-controls button:hover {
+  background: rgba(148, 163, 184, 0.1);
+}
+
+.diplomatic-panel .condition-value {
+  width: 30px;
+  text-align: center;
+  color: #f1f5f9;
+  font-weight: 500;
+}
+
+.diplomatic-panel .remove-btn {
+  color: #ef4444 !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+
+.diplomatic-panel .add-condition {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.diplomatic-panel .add-btn {
+  padding: 6px 10px;
+  background: transparent;
+  border: 1px dashed #334155;
+  border-radius: 6px;
+  color: #64748b;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.diplomatic-panel .add-btn:hover {
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+
+.diplomatic-panel .proposal-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #334155;
+}
+
+.diplomatic-panel .probability-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.diplomatic-panel .probability-label {
+  color: #94a3b8;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.diplomatic-panel .probability-track {
+  flex: 1;
+  height: 8px;
+  background: #1e293b;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.diplomatic-panel .probability-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: all 0.3s;
+}
+
+.diplomatic-panel .probability-value {
+  color: #f1f5f9;
+  font-weight: 600;
+  font-size: 14px;
+  min-width: 40px;
+  text-align: right;
+}
+
+.diplomatic-panel .propose-btn {
+  width: 100%;
+  padding: 12px;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.diplomatic-panel .propose-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.diplomatic-panel .propose-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.diplomatic-panel .agreements-view {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.diplomatic-panel .empty-agreements {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: #64748b;
+}
+
+.diplomatic-panel .empty-agreements span {
+  font-size: 40px;
+  margin-bottom: 12px;
+}
+
+.diplomatic-panel .agreements-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.diplomatic-panel .agreement-card {
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.diplomatic-panel .agreement-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.diplomatic-panel .agreement-icon {
+  font-size: 24px;
+}
+
+.diplomatic-panel .agreement-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.diplomatic-panel .agreement-type {
+  color: #f1f5f9;
+  font-weight: 500;
+}
+
+.diplomatic-panel .agreement-target {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.diplomatic-panel .agreement-year {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.diplomatic-panel .terminate-btn {
+  width: 100%;
+  padding: 8px;
+  background: transparent;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 6px;
+  color: #ef4444;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.diplomatic-panel .terminate-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.diplomatic-panel .history-section {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #334155;
+}
+
+.diplomatic-panel .history-section h4 {
+  color: #94a3b8;
+  font-size: 14px;
+  margin: 0 0 12px 0;
+}
+
+.diplomatic-panel .history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.diplomatic-panel .history-item {
+  display: flex;
+  gap: 10px;
+  padding: 8px;
+  background: rgba(15, 23, 42, 0.5);
+  border-radius: 6px;
+}
+
+.diplomatic-panel .history-year {
+  color: #3b82f6;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.diplomatic-panel .history-text {
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.diplomatic-panel .empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.diplomatic-panel .empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.diplomatic-panel .empty-state h3 {
+  color: #f1f5f9;
+  margin: 0 0 8px 0;
+}
+
+.diplomatic-panel .empty-state p {
+  color: #64748b;
+  margin: 0;
+}

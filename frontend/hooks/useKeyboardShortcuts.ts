@@ -63,6 +63,7 @@ export function useHistoriaShortcuts({
   onToggleAutoPlay,
   onCloseModal,
   onNavigateTab,
+  onSave,
   enabled = true,
 }: {
   onTick?: () => void;
@@ -70,6 +71,7 @@ export function useHistoriaShortcuts({
   onToggleAutoPlay?: () => void;
   onCloseModal?: () => void;
   onNavigateTab?: (direction: 'left' | 'right') => void;
+  onSave?: () => void;
   enabled?: boolean;
 }) {
   const shortcuts: KeyboardShortcut[] = [];
@@ -122,6 +124,15 @@ export function useHistoriaShortcuts({
     });
   }
 
+  if (onSave) {
+    shortcuts.push({
+      key: 's',
+      ctrl: true,
+      action: onSave,
+      description: 'Sauvegarder (Ctrl+S)',
+    });
+  }
+
   useKeyboardShortcuts({ enabled, shortcuts });
 
   return shortcuts;
@@ -131,6 +142,7 @@ export function useHistoriaShortcuts({
 export const SHORTCUTS_HELP = [
   { keys: 'Espace', description: 'Avancer d\'un an' },
   { keys: 'P', description: 'Play/Pause automatique' },
+  { keys: 'Ctrl+S', description: 'Ouvrir les sauvegardes' },
   { keys: 'Esc', description: 'Fermer le modal actif' },
   { keys: 'Alt + Gauche/Droite', description: 'Naviguer entre onglets' },
   { keys: '1-4', description: 'Aller directement a un onglet' },

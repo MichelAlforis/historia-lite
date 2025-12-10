@@ -22,6 +22,7 @@ from api.summits_routes import router as summits_router
 from api.negotiations_routes import router as negotiations_router
 from api.currency_routes import router as currency_router
 from api.influence_routes import router as influence_router
+from api.saves_routes import router as saves_router
 
 # Configure logging
 logging.basicConfig(
@@ -57,6 +58,7 @@ app.include_router(summits_router)
 app.include_router(negotiations_router)
 app.include_router(currency_router)
 app.include_router(influence_router)
+app.include_router(saves_router)
 
 
 @app.get("/")
@@ -80,6 +82,7 @@ async def root():
             "negotiations": "/api/negotiations/*",
             "currency": "/api/currency/*",
             "influence": "/api/influence/*",
+            "saves": "/api/saves/*",
         },
     }
 
