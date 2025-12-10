@@ -1,0 +1,339 @@
+{
+  "scenarios": [
+    {
+      "id": "modern_2025",
+      "name": "Monde Moderne 2025",
+      "name_fr": "Monde Moderne 2025",
+      "description": "Le monde tel qu'il est en 2025. Tensions USA-Chine, guerre en Ukraine, montee des BRICS.",
+      "start_year": 2025,
+      "difficulty": "normal",
+      "duration": null,
+      "icon": "🌍",
+      "tags": ["actuel", "realiste"],
+      "recommended_countries": ["USA", "CHN", "RUS", "FRA", "DEU"],
+      "initial_state": {
+        "global_tension": 65,
+        "oil_price": 75
+      },
+      "active_conflicts": [
+        {"attacker": "RUS", "defender": "UKR", "type": "war", "intensity": "high"},
+        {"attacker": "ISR", "defender": "PSE", "type": "conflict", "intensity": "high"}
+      ],
+      "objectives": {
+        "USA": ["maintain_nato_unity", "contain_china", "energy_independence"],
+        "CHN": ["taiwan_reunification", "belt_and_road", "tech_supremacy"],
+        "RUS": ["ukraine_control", "break_nato", "eurasian_influence"],
+        "FRA": ["european_autonomy", "african_influence", "nuclear_modernization"],
+        "DEU": ["european_integration", "energy_transition", "eastern_stability"]
+      }
+    },
+    {
+      "id": "cold_war_1962",
+      "name": "Cold War - Cuban Crisis",
+      "name_fr": "Guerre Froide - Crise de Cuba",
+      "description": "Octobre 1962. Le monde au bord de la guerre nucleaire. Khrouchtchev vs Kennedy.",
+      "start_year": 1962,
+      "difficulty": "hard",
+      "duration": 30,
+      "icon": "☢️",
+      "tags": ["historique", "nucleaire", "guerre_froide"],
+      "recommended_countries": ["USA", "RUS"],
+      "initial_state": {
+        "global_tension": 95,
+        "oil_price": 3
+      },
+      "modified_countries": {
+        "RUS": {"name": "URSS", "flag": "☭", "ideology": "communist", "nuclear": 1500},
+        "USA": {"nuclear": 1000, "ideology": "capitalist"},
+        "CHN": {"tier": 2, "nuclear": 5, "ideology": "communist"},
+        "DEU": {"divided": true}
+      },
+      "disabled_countries": ["UKR", "BLR", "KAZ", "UZB", "GEO", "ARM", "AZE"],
+      "active_conflicts": [],
+      "blocs_override": {
+        "warsaw_pact": ["RUS", "POL", "DDR", "CZE", "HUN", "ROM", "BGR"],
+        "nato_1962": ["USA", "GBR", "FRA", "DEU", "ITA", "CAN", "NLD", "BEL", "NOR", "DNK", "PRT", "GRC", "TUR"]
+      },
+      "objectives": {
+        "USA": ["prevent_nuclear_war", "contain_communism", "defend_berlin", "moon_landing"],
+        "RUS": ["spread_communism", "match_usa_nuclear", "cuba_missiles", "space_race"]
+      },
+      "special_events": [
+        {"year": 1962, "month": 10, "event": "cuban_missile_crisis", "auto_trigger": true}
+      ]
+    },
+    {
+      "id": "ww3_scenario",
+      "name": "World War III",
+      "name_fr": "Troisieme Guerre Mondiale",
+      "description": "2027. L'invasion de Taiwan declenche un conflit global. OTAN vs Shanghai Cooperation.",
+      "start_year": 2027,
+      "difficulty": "extreme",
+      "duration": 10,
+      "icon": "💥",
+      "tags": ["hypothetique", "guerre", "nucleaire"],
+      "recommended_countries": ["USA", "CHN", "RUS"],
+      "initial_state": {
+        "global_tension": 100,
+        "oil_price": 200
+      },
+      "active_conflicts": [
+        {"attacker": "CHN", "defender": "TWN", "type": "war", "intensity": "maximum"},
+        {"attacker": "USA", "defender": "CHN", "type": "war", "intensity": "high"},
+        {"attacker": "RUS", "defender": "POL", "type": "war", "intensity": "medium"}
+      ],
+      "objectives": {
+        "USA": ["defend_taiwan", "defeat_china", "prevent_nuclear"],
+        "CHN": ["capture_taiwan", "expel_usa_pacific", "survive"],
+        "RUS": ["support_china", "weaken_nato", "territorial_gains"]
+      }
+    },
+    {
+      "id": "multipolar_2040",
+      "name": "Multipolar World 2040",
+      "name_fr": "Monde Multipolaire 2040",
+      "description": "2040. Les BRICS dominent l'economie. Le dollar a perdu son hegemonie. L'UE est fragmentee.",
+      "start_year": 2040,
+      "difficulty": "normal",
+      "icon": "🌐",
+      "tags": ["futur", "economique"],
+      "recommended_countries": ["CHN", "IND", "USA", "BRA"],
+      "initial_state": {
+        "global_tension": 50,
+        "oil_price": 40
+      },
+      "modified_countries": {
+        "CHN": {"tier": 1, "economy": 95, "military": 90},
+        "IND": {"tier": 1, "economy": 85, "military": 75},
+        "USA": {"economy": 75, "military": 85},
+        "BRA": {"tier": 2, "economy": 70}
+      },
+      "currency_changes": {
+        "CNY": {"reserve_status": "major", "petro_agreements": ["SAU", "IRN", "VEN"]},
+        "USD": {"reserve_status": "regional"}
+      },
+      "objectives": {
+        "CHN": ["global_leadership", "yuan_hegemony", "tech_dominance"],
+        "IND": ["regional_power", "pakistan_resolution", "economic_growth"],
+        "USA": ["rebuild_influence", "tech_competition", "alliance_renewal"]
+      }
+    },
+    {
+      "id": "climate_crisis",
+      "name": "Climate Collapse 2050",
+      "name_fr": "Effondrement Climatique 2050",
+      "description": "2050. Catastrophe climatique. Migrations massives, guerres de l'eau, effondrement economique.",
+      "start_year": 2050,
+      "difficulty": "extreme",
+      "icon": "🔥",
+      "tags": ["futur", "climat", "survie"],
+      "recommended_countries": ["USA", "CHN"],
+      "initial_state": {
+        "global_tension": 80,
+        "oil_price": 10,
+        "climate_crisis": true
+      },
+      "modified_countries": {
+        "BGD": {"stability": 10, "crisis": "flooding"},
+        "EGY": {"stability": 20, "crisis": "water"},
+        "PAK": {"stability": 15, "crisis": "heat"},
+        "NLD": {"stability": 30, "crisis": "sea_level"}
+      },
+      "global_effects": {
+        "food_crisis": ["AFR", "SAS", "MEN"],
+        "water_wars": ["NLE", "CAS", "MEN"],
+        "mass_migration": {"from": ["AFR", "SAS"], "to": ["EUR", "NAM"]}
+      },
+      "objectives": {
+        "USA": ["secure_borders", "food_security", "climate_leadership"],
+        "EUR": ["manage_migration", "green_transition", "stability"],
+        "CHN": ["water_security", "africa_resources", "tech_solutions"]
+      }
+    },
+    {
+      "id": "sandbox",
+      "name": "Sandbox Mode",
+      "name_fr": "Mode Bac a Sable",
+      "description": "Mode libre. Configurez le monde comme vous le souhaitez, sans objectifs.",
+      "start_year": 2025,
+      "difficulty": "custom",
+      "icon": "🎮",
+      "tags": ["libre", "custom"],
+      "recommended_countries": ["USA", "CHN", "RUS", "FRA", "GBR", "DEU", "JPN", "IND"],
+      "initial_state": {
+        "global_tension": 50,
+        "oil_price": 70
+      },
+      "objectives": {},
+      "customizable": true
+    }
+  ],
+  "objectives_catalog": {
+    "maintain_nato_unity": {
+      "name": "Maintenir l'unite de l'OTAN",
+      "description": "Garder tous les membres actuels de l'OTAN dans l'alliance",
+      "type": "alliance",
+      "difficulty": "medium",
+      "points": 100,
+      "check": {"bloc": "NATO", "min_members": 30}
+    },
+    "contain_china": {
+      "name": "Contenir la Chine",
+      "description": "Empecher la Chine de dominer plus de 3 zones d'influence en Asie-Pacifique",
+      "type": "influence",
+      "difficulty": "hard",
+      "points": 150,
+      "check": {"country": "CHN", "max_zones": 3, "region": "asia_pacific"}
+    },
+    "taiwan_reunification": {
+      "name": "Reunification de Taiwan",
+      "description": "Integrer Taiwan a la Chine (pacifiquement ou par la force)",
+      "type": "territorial",
+      "difficulty": "extreme",
+      "points": 300,
+      "check": {"annex": "TWN"}
+    },
+    "belt_and_road": {
+      "name": "Route de la Soie",
+      "description": "Avoir une influence economique majeure dans 15+ pays",
+      "type": "economic",
+      "difficulty": "medium",
+      "points": 200,
+      "check": {"economic_influence": 15}
+    },
+    "ukraine_control": {
+      "name": "Controler l'Ukraine",
+      "description": "Obtenir le controle ou la neutralite de l'Ukraine",
+      "type": "territorial",
+      "difficulty": "hard",
+      "points": 200,
+      "check": {"country": "UKR", "status": ["puppet", "neutral", "annexed"]}
+    },
+    "break_nato": {
+      "name": "Briser l'OTAN",
+      "description": "Provoquer le retrait d'au moins 5 membres de l'OTAN",
+      "type": "alliance",
+      "difficulty": "extreme",
+      "points": 400,
+      "check": {"bloc": "NATO", "lost_members": 5}
+    },
+    "european_autonomy": {
+      "name": "Autonomie Europeenne",
+      "description": "Creer une force de defense europeenne independante",
+      "type": "military",
+      "difficulty": "hard",
+      "points": 250,
+      "check": {"create_bloc": "EU_DEFENSE"}
+    },
+    "african_influence": {
+      "name": "Influence Africaine",
+      "description": "Maintenir ou etendre l'influence francaise en Afrique (5+ zones)",
+      "type": "influence",
+      "difficulty": "medium",
+      "points": 150,
+      "check": {"zones_dominated": 5, "region": "africa"}
+    },
+    "energy_independence": {
+      "name": "Independance Energetique",
+      "description": "Reduire la dependance aux importations de petrole de 50%",
+      "type": "economic",
+      "difficulty": "medium",
+      "points": 150,
+      "check": {"oil_import_reduction": 50}
+    },
+    "tech_supremacy": {
+      "name": "Suprematie Technologique",
+      "description": "Depasser les USA en score technologique",
+      "type": "technology",
+      "difficulty": "extreme",
+      "points": 350,
+      "check": {"tech_score": "surpass_USA"}
+    },
+    "prevent_nuclear_war": {
+      "name": "Eviter la Guerre Nucleaire",
+      "description": "Terminer le scenario sans utilisation d'armes nucleaires",
+      "type": "survival",
+      "difficulty": "hard",
+      "points": 500,
+      "check": {"no_nuclear_use": true}
+    },
+    "spread_communism": {
+      "name": "Etendre le Communisme",
+      "description": "Convertir 10+ pays au communisme",
+      "type": "ideology",
+      "difficulty": "hard",
+      "points": 300,
+      "check": {"ideology_spread": "communist", "count": 10}
+    },
+    "moon_landing": {
+      "name": "Conquete de la Lune",
+      "description": "Etre le premier pays a envoyer un homme sur la Lune",
+      "type": "prestige",
+      "difficulty": "hard",
+      "points": 250,
+      "check": {"first_moon_landing": true}
+    },
+    "global_leadership": {
+      "name": "Leadership Mondial",
+      "description": "Avoir le score de puissance le plus eleve au monde",
+      "type": "power",
+      "difficulty": "extreme",
+      "points": 500,
+      "check": {"highest_power_score": true}
+    },
+    "survive": {
+      "name": "Survie",
+      "description": "Maintenir une stabilite nationale au-dessus de 30%",
+      "type": "survival",
+      "difficulty": "hard",
+      "points": 200,
+      "check": {"min_stability": 30}
+    },
+    "defend_taiwan": {
+      "name": "Defendre Taiwan",
+      "description": "Empecher l'annexion de Taiwan par la Chine",
+      "type": "defense",
+      "difficulty": "hard",
+      "points": 300,
+      "check": {"country": "TWN", "independent": true}
+    },
+    "yuan_hegemony": {
+      "name": "Hegemonie du Yuan",
+      "description": "Faire du Yuan la premiere monnaie de reserve mondiale",
+      "type": "economic",
+      "difficulty": "extreme",
+      "points": 400,
+      "check": {"currency": "CNY", "reserve_rank": 1}
+    },
+    "regional_power": {
+      "name": "Puissance Regionale",
+      "description": "Dominer l'influence dans sa region geographique",
+      "type": "influence",
+      "difficulty": "medium",
+      "points": 200,
+      "check": {"regional_dominance": true}
+    }
+  },
+  "difficulty_modifiers": {
+    "easy": {
+      "player_bonus": 1.2,
+      "ai_penalty": 0.8,
+      "event_frequency": 0.7
+    },
+    "normal": {
+      "player_bonus": 1.0,
+      "ai_penalty": 1.0,
+      "event_frequency": 1.0
+    },
+    "hard": {
+      "player_bonus": 0.9,
+      "ai_penalty": 1.1,
+      "event_frequency": 1.2
+    },
+    "extreme": {
+      "player_bonus": 0.7,
+      "ai_penalty": 1.3,
+      "event_frequency": 1.5
+    }
+  }
+}

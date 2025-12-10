@@ -4,7 +4,7 @@ Simulateur geopolitique moderne modelisant les relations internationales, confli
 
 ## Stack Technique
 
-- **Frontend**: Next.js 15 + React 18 + Zustand + Tailwind CSS
+- **Frontend**: Next.js 14 + React 18 + Zustand + Tailwind CSS
 - **Backend**: FastAPI + Pydantic
 - **AI**: Ollama (qwen2.5:3b) pour decisions avancees
 
@@ -233,11 +233,21 @@ cd backend && pip install -r requirements.txt
   - Alt+fleches: Navigation onglets
 - [x] Modal d'aide raccourcis
 
-### Phase 9: Persistence et Sauvegarde (EN COURS)
-- [ ] Sauvegarde/chargement de parties
-- [ ] Historique des evenements en base de donnees
-- [ ] Export de parties (JSON)
-- [ ] Replay de parties
+### Phase 9: Persistence et Sauvegarde (COMPLETE)
+- [x] **SaveLoadPanel** - Interface sauvegarde/chargement:
+  - Liste des sauvegardes avec preview
+  - Creation de nouvelle sauvegarde
+  - Chargement avec confirmation
+  - Suppression avec confirmation
+  - Export JSON
+- [x] **Backend API** - Persistence des parties:
+  - `GET /saves` - Liste des sauvegardes
+  - `POST /saves` - Creer sauvegarde
+  - `GET /saves/{id}` - Charger sauvegarde
+  - `DELETE /saves/{id}` - Supprimer
+  - `GET /saves/{id}/export` - Export JSON
+- [x] Raccourci Ctrl+S pour sauvegarde rapide
+- [x] Autosave optionnel
 
 ### Phase 10: Negociations Diplomatiques (COMPLETE)
 - [x] Interface de negociation interactive (DiplomaticNegotiations.tsx)
@@ -262,11 +272,26 @@ cd backend && pip install -r requirements.txt
 - [x] Onglets: Nouvelle negoce / Accords actifs / Historique
 - [x] Interface 3 etapes: Selection pays > Type accord > Conditions
 
-### Phase 11: Scenarios et Objectifs (PLANIFIE)
-- [ ] Scenarios historiques predefinis (Guerre Froide, etc.)
-- [ ] Objectifs par pays (domination regionale, etc.)
-- [ ] Conditions de victoire
-- [ ] Mode campagne
+### Phase 11: Scenarios et Objectifs (COMPLETE)
+- [x] **6 scenarios predefinis**:
+  - Monde Moderne 2025 (situation actuelle)
+  - Guerre Froide 1962 (Crise de Cuba)
+  - WW3 2027 (invasion Taiwan)
+  - Monde Multipolaire 2040 (BRICS dominants)
+  - Effondrement Climatique 2050 (crise globale)
+  - Mode Bac a Sable (libre)
+- [x] **18+ objectifs** avec systeme de points:
+  - Objectifs d'alliance (maintenir OTAN, etc.)
+  - Objectifs territoriaux (reunification Taiwan, etc.)
+  - Objectifs economiques (hegemonie monetaire, etc.)
+  - Objectifs de survie (eviter guerre nucleaire, etc.)
+- [x] **ScenarioSelector** - Interface selection scenario:
+  - Selection du scenario avec preview
+  - Choix du pays joueur recommande
+  - Preview des objectifs
+  - Mode observateur disponible
+- [x] **Niveaux de difficulte**: easy, normal, hard, extreme, custom
+- [x] Modificateurs de difficulte (bonus joueur, penalite IA)
 
 ### Phase 12: Multijoueur (FUTUR)
 - [ ] WebSocket pour temps reel

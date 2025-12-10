@@ -708,3 +708,100 @@ export const AGREEMENT_TYPE_COLORS: Record<AgreementType, string> = {
   technology_transfer: 'bg-cyan-500',
   military_access: 'bg-red-500',
 };
+
+// =============================================================================
+// SCENARIOS & OBJECTIVES SYSTEM
+// =============================================================================
+
+export type ScenarioDifficulty = 'easy' | 'normal' | 'hard' | 'extreme' | 'custom';
+
+export interface ScenarioSummary {
+  id: string;
+  name: string;
+  name_fr: string;
+  description: string;
+  start_year: number;
+  difficulty: ScenarioDifficulty;
+  duration: number | null;
+  icon: string;
+  tags: string[];
+}
+
+export interface ScenarioDetail extends ScenarioSummary {
+  initial_state: Record<string, unknown>;
+  objectives: Record<string, string[]>;
+  active_conflicts: Array<{
+    attacker: string;
+    defender: string;
+    type: string;
+    intensity: string;
+  }>;
+  modified_countries: Record<string, Record<string, unknown>>;
+  recommended_countries: string[];
+  customizable: boolean;
+}
+
+export interface ObjectiveSummary {
+  id: string;
+  name: string;
+  description: string;
+  type: string;
+  difficulty: string;
+  points: number;
+}
+
+export interface ObjectiveProgress {
+  objective_id: string;
+  name: string;
+  description: string;
+  progress: number;
+  completed: boolean;
+  points: number;
+}
+
+export interface ScenarioInitData {
+  scenario_id: string;
+  scenario_name: string;
+  start_year: number;
+  difficulty: string;
+  difficulty_modifiers: Record<string, number>;
+  initial_state: Record<string, unknown>;
+  active_conflicts: Array<Record<string, unknown>>;
+  modified_countries: Record<string, Record<string, unknown>>;
+  player_country: string | null;
+  objectives: string[];
+  duration: number | null;
+}
+
+// Scenario difficulty colors
+export const DIFFICULTY_COLORS: Record<ScenarioDifficulty, string> = {
+  easy: 'bg-green-500',
+  normal: 'bg-blue-500',
+  hard: 'bg-orange-500',
+  extreme: 'bg-red-600',
+  custom: 'bg-purple-500',
+};
+
+// Scenario difficulty names (French)
+export const DIFFICULTY_NAMES: Record<ScenarioDifficulty, string> = {
+  easy: 'Facile',
+  normal: 'Normal',
+  hard: 'Difficile',
+  extreme: 'Extreme',
+  custom: 'Personnalise',
+};
+
+// Objective type icons
+export const OBJECTIVE_TYPE_ICONS: Record<string, string> = {
+  alliance: '\ud83e\udd1d',
+  influence: '\ud83c\udf0d',
+  territorial: '\ud83d\uddfa\ufe0f',
+  economic: '\ud83d\udcb0',
+  military: '\u2694\ufe0f',
+  technology: '\ud83d\ude80',
+  survival: '\ud83d\udee1\ufe0f',
+  ideology: '\u2728',
+  prestige: '\ud83c\udfc6',
+  power: '\ud83d\udc51',
+  defense: '\ud83d\udee1\ufe0f',
+};

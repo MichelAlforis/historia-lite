@@ -17,9 +17,10 @@ import InfluenceHistory from '@/components/InfluenceHistory';
 import NotificationCenter from '@/components/NotificationCenter';
 import PlayerSelector from '@/components/PlayerSelector';
 import SaveLoadPanel from '@/components/SaveLoadPanel';
+import ScenarioSelector from '@/components/ScenarioSelector';
 import { useHistoriaShortcuts, SHORTCUTS_HELP } from '@/hooks/useKeyboardShortcuts';
 import { InfluenceZone, COUNTRY_FLAGS } from '@/lib/types';
-import { getInfluenceZonesAdvanced } from '@/lib/api';
+import { getInfluenceZonesAdvanced, startScenario } from '@/lib/api';
 
 // Tab configuration with icons, colors, and descriptions
 const TABS_CONFIG = [
@@ -85,6 +86,7 @@ export default function GameApp() {
   const [previousZones, setPreviousZones] = useState<InfluenceZone[]>([]);
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
   const [showSaveLoad, setShowSaveLoad] = useState(false);
+  const [showScenarioSelector, setShowScenarioSelector] = useState(false);
   const [zonesLoading, setZonesLoading] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const prevYearRef = useRef<number | null>(null);
@@ -200,7 +202,9 @@ export default function GameApp() {
 
   // Close all modals
   const handleCloseModals = useCallback(() => {
-    if (showSaveLoad) {
+    if (showScenarioSelector) {
+      setShowScenarioSelector(false);
+    } else if (showSaveLoad) {
       setShowSaveLoad(false);
     } else if (selectedZone) {
       setSelectedZone(null);
@@ -209,7 +213,17 @@ export default function GameApp() {
     } else if (showShortcutsHelp) {
       setShowShortcutsHelp(false);
     }
-  }, [showSaveLoad, selectedZone, selectedCountry, showShortcutsHelp, selectCountry]);
+  }, [showScenarioSelector, showSaveLoad, selectedZone, selectedCountry, showShortcutsHelp, selectCountry]);
+
+  // Start scenario handler
+  const handleStartScenario = useCallback(async (scenarioId: string, playerCountryId?: string) => {
+    await startScenario(scenarioId, playerCountryId);
+    await fetchWorldState();
+    await loadZones();
+    if (playerCountryId) {
+      selectCountry(playerCountryId);
+    }
+  }, [fetchWorldState, loadZones, selectCountry]);
 
   // Open save panel
   const handleOpenSaveLoad = useCallback(() => {
@@ -333,6 +347,15 @@ export default function GameApp() {
               selectedCountry={selectedCountry}
               onSelectCountry={(country) => selectCountry(country?.id || null)}
             />
+
+            {/* Scenario selector button */}
+            <button
+              onClick={() => setShowScenarioSelector(true)}
+              className="p-2.5 rounded-xl bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white transition-all"
+              title="Choisir un scenario"
+            >
+              {'🎬'}
+            </button>
 
             {/* Save/Load button */}
             <button
@@ -680,6 +703,14 @@ export default function GameApp() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Scenario Selector modal */}
+      {showScenarioSelector && (
+        <ScenarioSelector
+          onScenarioStart={handleStartScenario}
+          onClose={() => setShowScenarioSelector(false)}
+        />
       )}
 
     </div>

@@ -23,6 +23,8 @@ from api.negotiations_routes import router as negotiations_router
 from api.currency_routes import router as currency_router
 from api.influence_routes import router as influence_router
 from api.saves_routes import router as saves_router
+from api.scenarios_routes import router as scenarios_router
+from api.multiplayer_routes import router as multiplayer_router
 
 # Configure logging
 logging.basicConfig(
@@ -59,6 +61,8 @@ app.include_router(negotiations_router)
 app.include_router(currency_router)
 app.include_router(influence_router)
 app.include_router(saves_router)
+app.include_router(scenarios_router)
+app.include_router(multiplayer_router)
 
 
 @app.get("/")
@@ -83,6 +87,8 @@ async def root():
             "currency": "/api/currency/*",
             "influence": "/api/influence/*",
             "saves": "/api/saves/*",
+            "scenarios": "/api/scenarios/*",
+            "multiplayer": "/api/multiplayer/*",
         },
     }
 

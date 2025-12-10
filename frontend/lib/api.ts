@@ -19,6 +19,10 @@ import {
   MilitaryBase,
   InfluenceRanking,
   PowerGlobalInfluence,
+  ScenarioSummary,
+  ScenarioDetail,
+  ObjectiveSummary,
+  ScenarioInitData,
 } from './types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api';
@@ -579,5 +583,39 @@ export async function checkAgreementFeasibility(
       agreement_type: agreementType,
     },
   });
+  return response.data;
+}
+
+// ============================================================================
+// SCENARIOS SYSTEM
+// ============================================================================
+
+// Get all available scenarios
+export async function getScenarios(): Promise<{ scenarios: ScenarioSummary[]; total: number }> {
+  const response = await api.get('/scenarios/');
+  return response.data;
+}
+
+// Get scenario details
+export async function getScenario(scenarioId: string): Promise<ScenarioDetail> {
+  const response = await api.get(`/scenarios/${scenarioId}`);
+  return response.data;
+}
+
+// Start a scenario
+export async function startScenario(
+  scenarioId: string,
+  playerCountryId?: string
+): Promise<ScenarioInitData> {
+  const response = await api.post('/scenarios/start', {
+    scenario_id: scenarioId,
+    player_country_id: playerCountryId,
+  });
+  return response.data;
+}
+
+// Get objectives catalog
+export async function getObjectivesCatalog(): Promise<{ objectives: ObjectiveSummary[]; total: number }> {
+  const response = await api.get('/scenarios/objectives/catalog');
   return response.data;
 }
