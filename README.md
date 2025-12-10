@@ -318,6 +318,16 @@ cd backend && pip install -r requirements.txt
   - ChatPanel - Chat diplomatique
   - CreateLobbyModal - Creation salon
 
+### Phase 13: Ameliorations Futures (PLANIFIE)
+- [ ] **Carte geographique reelle** (Leaflet/MapLibre)
+- [ ] **Graphiques temporels avances** (Chart.js/Recharts)
+- [ ] **Export donnees** (CSV, PDF, rapports)
+- [ ] **Mode comparaison** pays cote-a-cote
+- [ ] **Replay de parties** sauvegardees
+- [ ] **IA Ollama avancee** pour decisions strategiques
+- [ ] **Evenements historiques** scripts
+- [ ] **Tutoriel interactif** pour nouveaux joueurs
+
 ---
 
 ## Captures d'ecran
