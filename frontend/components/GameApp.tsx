@@ -18,6 +18,7 @@ import NotificationCenter from '@/components/NotificationCenter';
 import PlayerSelector from '@/components/PlayerSelector';
 import SaveLoadPanel from '@/components/SaveLoadPanel';
 import ScenarioSelector from '@/components/ScenarioSelector';
+import { MultiplayerPanel } from '@/components/multiplayer';
 import { useHistoriaShortcuts, SHORTCUTS_HELP } from '@/hooks/useKeyboardShortcuts';
 import { InfluenceZone, COUNTRY_FLAGS } from '@/lib/types';
 import { getInfluenceZonesAdvanced, startScenario } from '@/lib/api';
@@ -87,6 +88,7 @@ export default function GameApp() {
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
   const [showSaveLoad, setShowSaveLoad] = useState(false);
   const [showScenarioSelector, setShowScenarioSelector] = useState(false);
+  const [showMultiplayer, setShowMultiplayer] = useState(false);
   const [zonesLoading, setZonesLoading] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const prevYearRef = useRef<number | null>(null);
@@ -202,7 +204,9 @@ export default function GameApp() {
 
   // Close all modals
   const handleCloseModals = useCallback(() => {
-    if (showScenarioSelector) {
+    if (showMultiplayer) {
+      setShowMultiplayer(false);
+    } else if (showScenarioSelector) {
       setShowScenarioSelector(false);
     } else if (showSaveLoad) {
       setShowSaveLoad(false);
@@ -213,7 +217,7 @@ export default function GameApp() {
     } else if (showShortcutsHelp) {
       setShowShortcutsHelp(false);
     }
-  }, [showScenarioSelector, showSaveLoad, selectedZone, selectedCountry, showShortcutsHelp, selectCountry]);
+  }, [showMultiplayer, showScenarioSelector, showSaveLoad, selectedZone, selectedCountry, showShortcutsHelp, selectCountry]);
 
   // Start scenario handler
   const handleStartScenario = useCallback(async (scenarioId: string, playerCountryId?: string) => {
@@ -355,6 +359,15 @@ export default function GameApp() {
               title="Choisir un scenario"
             >
               {'🎬'}
+            </button>
+
+            {/* Multiplayer button */}
+            <button
+              onClick={() => setShowMultiplayer(true)}
+              className="p-2.5 rounded-xl bg-purple-800 text-purple-300 hover:bg-purple-700 hover:text-white transition-all"
+              title="Mode Multijoueur"
+            >
+              {'🎮'}
             </button>
 
             {/* Save/Load button */}
@@ -710,6 +723,18 @@ export default function GameApp() {
         <ScenarioSelector
           onScenarioStart={handleStartScenario}
           onClose={() => setShowScenarioSelector(false)}
+        />
+      )}
+
+      {/* Multiplayer Panel */}
+      {showMultiplayer && (
+        <MultiplayerPanel
+          countries={world.countries}
+          onStartGame={() => {
+            setShowMultiplayer(false);
+            // Could integrate with game state for multiplayer mode
+          }}
+          onClose={() => setShowMultiplayer(false)}
         />
       )}
 

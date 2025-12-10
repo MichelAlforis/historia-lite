@@ -1,4 +1,2 @@
 """Historia Lite - API Routes"""
-from .routes import router
-
-__all__ = ["router"]
+# Routes are imported directly in main.py

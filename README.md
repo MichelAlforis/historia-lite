@@ -293,11 +293,30 @@ cd backend && pip install -r requirements.txt
 - [x] **Niveaux de difficulte**: easy, normal, hard, extreme, custom
 - [x] Modificateurs de difficulte (bonus joueur, penalite IA)
 
-### Phase 12: Multijoueur (FUTUR)
-- [ ] WebSocket pour temps reel
-- [ ] Parties multijoueurs
-- [ ] Chat diplomatique
-- [ ] Tours simultanes ou tour par tour
+### Phase 12: Multijoueur (COMPLETE)
+- [x] **WebSocket temps reel** (FastAPI WebSocket)
+- [x] **Systeme de lobbies**:
+  - Creation/gestion de salons
+  - Limite joueurs configurable (2-8)
+  - Selection de pays avant partie
+  - Statut pret/pas pret
+- [x] **Chat diplomatique**:
+  - Messages publics dans le salon
+  - Messages prives entre joueurs
+  - Historique des conversations
+- [x] **Modes de jeu**:
+  - Mode simultane (tous jouent en meme temps)
+  - Mode tour par tour (timer configurable)
+- [x] **Synchronisation**:
+  - Etat du monde partage
+  - Actions en temps reel
+  - Detection fin de tour collective
+- [x] **Interface frontend**:
+  - MultiplayerPanel - Ecran principal
+  - LobbyList - Liste des salons
+  - LobbyRoom - Salle d'attente
+  - ChatPanel - Chat diplomatique
+  - CreateLobbyModal - Creation salon
 
 ---
 
