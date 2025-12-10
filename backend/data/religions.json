@@ -1,0 +1,98 @@
+[
+  {
+    "id": "christian_catholic",
+    "name": "Catholic Christianity",
+    "name_fr": "Christianisme catholique",
+    "major_regions": ["western_europe", "south_america", "central_america"],
+    "primary_countries": ["ITA", "ESP", "FRA", "POL", "BRA", "MEX", "ARG", "PHL"],
+    "influence_power": "ITA"
+  },
+  {
+    "id": "christian_protestant",
+    "name": "Protestant Christianity",
+    "name_fr": "Christianisme protestant",
+    "major_regions": ["north_america", "nordic", "western_europe"],
+    "primary_countries": ["USA", "GBR", "DEU", "SWE", "NOR", "DNK", "AUS", "CAN"],
+    "influence_power": "USA"
+  },
+  {
+    "id": "christian_orthodox",
+    "name": "Orthodox Christianity",
+    "name_fr": "Christianisme orthodoxe",
+    "major_regions": ["eastern_europe", "caucasus"],
+    "primary_countries": ["RUS", "GRC", "SRB", "UKR", "GEO", "ARM", "BGR", "ROU"],
+    "influence_power": "RUS"
+  },
+  {
+    "id": "muslim_sunni",
+    "name": "Sunni Islam",
+    "name_fr": "Islam sunnite",
+    "major_regions": ["middle_east_gulf", "north_africa", "west_africa", "south_asia", "southeast_asia"],
+    "primary_countries": ["SAU", "EGY", "TUR", "IDN", "PAK", "NGA", "MAR", "DZA", "BNG", "MYS"],
+    "influence_power": "SAU"
+  },
+  {
+    "id": "muslim_shia",
+    "name": "Shia Islam",
+    "name_fr": "Islam chiite",
+    "major_regions": ["middle_east_gulf", "levant"],
+    "primary_countries": ["IRN", "IRQ", "LBN", "BHR"],
+    "influence_power": "IRN"
+  },
+  {
+    "id": "buddhist",
+    "name": "Buddhism",
+    "name_fr": "Bouddhisme",
+    "major_regions": ["east_asia", "southeast_asia", "south_asia"],
+    "primary_countries": ["THA", "MMR", "VNM", "KHM", "LAO", "LKA", "JPN", "BTN", "MNG"],
+    "influence_power": null
+  },
+  {
+    "id": "hindu",
+    "name": "Hinduism",
+    "name_fr": "Hindouisme",
+    "major_regions": ["south_asia"],
+    "primary_countries": ["IND", "NPL"],
+    "influence_power": "IND"
+  },
+  {
+    "id": "jewish",
+    "name": "Judaism",
+    "name_fr": "Judaisme",
+    "major_regions": ["levant"],
+    "primary_countries": ["ISR"],
+    "influence_power": "ISR"
+  },
+  {
+    "id": "confucian",
+    "name": "Confucianism/Folk Religion",
+    "name_fr": "Confucianisme/Religion traditionnelle",
+    "major_regions": ["east_asia"],
+    "primary_countries": ["CHN", "VNM", "KOR", "TWN", "SGP"],
+    "influence_power": "CHN"
+  },
+  {
+    "id": "shinto",
+    "name": "Shinto",
+    "name_fr": "Shintoisme",
+    "major_regions": ["east_asia"],
+    "primary_countries": ["JPN"],
+    "influence_power": "JPN"
+  },
+  {
+    "id": "secular",
+    "name": "Secular/Atheist",
+    "name_fr": "Laique/Athee",
+    "major_regions": ["east_asia", "western_europe", "nordic"],
+    "primary_countries": ["CHN", "PRK", "CZE", "EST"],
+    "influence_power": null
+  },
+  {
+    "id": "animist",
+    "name": "Traditional/Animist",
+    "name_fr": "Traditionnel/Animiste",
+    "major_regions": ["west_africa", "east_africa", "southern_africa"],
+    "primary_countries": [],
+    "influence_power": null
+  }
+]

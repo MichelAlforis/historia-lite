@@ -1,0 +1,45 @@
+"""Configuration centralisee pour Historia Lite"""
+import os
+from typing import List
+
+from pydantic_settings import BaseSettings
+
+
+class Settings(BaseSettings):
+    """Configuration de l'application Historia Lite"""
+
+    # API Configuration
+    api_host: str = "0.0.0.0"
+    api_port: int = 8001
+    api_reload: bool = False
+    debug: bool = False
+
+    # CORS Configuration
+    cors_origins: List[str] = [
+        "http://localhost:3001",
+        "http://127.0.0.1:3001",
+        "https://historia.alforis.fr",
+    ]
+
+    # Ollama Configuration
+    ollama_url: str = "http://localhost:11434"
+    ollama_model: str = "qwen2.5:3b"
+    ollama_timeout: float = 30.0
+    ollama_tiers: List[int] = [1, 2]
+
+    # Game Configuration
+    default_seed: int = 42
+    tick_interval: float = 1.0
+
+    # Logging
+    log_level: str = "INFO"
+
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+        case_sensitive = False
+        extra = "ignore"
+
+
+# Singleton instance
+settings = Settings()

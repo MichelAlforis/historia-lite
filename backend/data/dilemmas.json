@@ -1,0 +1,385 @@
+{
+  "dilemmas": [
+    {
+      "id": "energy_crisis",
+      "type": "economic_crisis",
+      "title": "Energy Crisis",
+      "title_fr": "Crise Energetique",
+      "description": "Energy prices have skyrocketed, threatening your economy.",
+      "description_fr": "Les prix de l'energie ont explose, menacant votre economie.",
+      "trigger_condition": "oil_price > 150 and resources < 30",
+      "choices": [
+        {
+          "id": 1,
+          "label": "Nationalize Energy",
+          "label_fr": "Nationaliser l'energie",
+          "description": "Take control of energy companies",
+          "description_fr": "Prendre le controle des compagnies energetiques",
+          "effects": {"resources": 15, "economy": -10},
+          "relation_effects": {"USA": -15, "EU": -10}
+        },
+        {
+          "id": 2,
+          "label": "Green Transition",
+          "label_fr": "Transition verte",
+          "description": "Accelerate renewable energy development",
+          "description_fr": "Accelerer le developpement des energies renouvelables",
+          "effects": {"technology": 5, "economy": -5},
+          "relation_effects": {"EU": 10}
+        },
+        {
+          "id": 3,
+          "label": "Import Deals",
+          "label_fr": "Accords d'importation",
+          "description": "Negotiate with major energy producers",
+          "description_fr": "Negocier avec les grands producteurs d'energie",
+          "effects": {"economy": -5},
+          "relation_effects": {"SAU": 10, "RUS": 10}
+        }
+      ]
+    },
+    {
+      "id": "cyber_attack",
+      "type": "war_declaration",
+      "title": "Major Cyber Attack",
+      "title_fr": "Cyberattaque Majeure",
+      "description": "Critical infrastructure has been targeted by hackers.",
+      "description_fr": "Les infrastructures critiques ont ete ciblees par des hackers.",
+      "trigger_condition": "cyber_attack_received",
+      "choices": [
+        {
+          "id": 1,
+          "label": "Retaliate",
+          "label_fr": "Riposter",
+          "description": "Launch counter-cyber operations",
+          "description_fr": "Lancer des operations de contre-cyberattaque",
+          "effects": {"technology": -5, "military": 5},
+          "relation_effects": {}
+        },
+        {
+          "id": 2,
+          "label": "Defensive Measures",
+          "label_fr": "Mesures defensives",
+          "description": "Strengthen cyber defenses",
+          "description_fr": "Renforcer les defenses cyber",
+          "effects": {"technology": 5, "economy": -5},
+          "relation_effects": {}
+        },
+        {
+          "id": 3,
+          "label": "International Response",
+          "label_fr": "Reponse internationale",
+          "description": "Coordinate with allies",
+          "description_fr": "Coordonner avec les allies",
+          "effects": {"soft_power": 5},
+          "relation_effects": {"USA": 5, "EU": 5}
+        }
+      ]
+    },
+    {
+      "id": "refugee_crisis",
+      "type": "revolution_risk",
+      "title": "Refugee Crisis",
+      "title_fr": "Crise des Refugies",
+      "description": "Millions of refugees are seeking asylum in your country.",
+      "description_fr": "Des millions de refugies cherchent asile dans votre pays.",
+      "trigger_condition": "neighbor_at_war",
+      "choices": [
+        {
+          "id": 1,
+          "label": "Open Borders",
+          "label_fr": "Frontieres ouvertes",
+          "description": "Accept refugees with full support",
+          "description_fr": "Accepter les refugies avec un soutien complet",
+          "effects": {"economy": -10, "soft_power": 15, "stability": -5},
+          "relation_effects": {"EU": 10}
+        },
+        {
+          "id": 2,
+          "label": "Controlled Entry",
+          "label_fr": "Entree controlee",
+          "description": "Limited acceptance with screening",
+          "description_fr": "Acceptation limitee avec verification",
+          "effects": {"economy": -5, "stability": -2},
+          "relation_effects": {}
+        },
+        {
+          "id": 3,
+          "label": "Close Borders",
+          "label_fr": "Fermer les frontieres",
+          "description": "Refuse entry to refugees",
+          "description_fr": "Refuser l'entree aux refugies",
+          "effects": {"stability": 5, "soft_power": -15},
+          "relation_effects": {"EU": -10}
+        }
+      ]
+    },
+    {
+      "id": "trade_war",
+      "type": "sanctions_imposed",
+      "title": "Trade War Escalation",
+      "title_fr": "Escalade de la Guerre Commerciale",
+      "description": "A major trading partner has raised tariffs dramatically.",
+      "description_fr": "Un partenaire commercial majeur a augmente les tarifs de facon spectaculaire.",
+      "trigger_condition": "tariff_war",
+      "choices": [
+        {
+          "id": 1,
+          "label": "Retaliate",
+          "label_fr": "Riposter",
+          "description": "Impose counter-tariffs",
+          "description_fr": "Imposer des contre-tarifs",
+          "effects": {"economy": -10},
+          "relation_effects": {}
+        },
+        {
+          "id": 2,
+          "label": "Negotiate",
+          "label_fr": "Negocier",
+          "description": "Seek a bilateral agreement",
+          "description_fr": "Chercher un accord bilateral",
+          "effects": {"soft_power": 5},
+          "relation_effects": {}
+        },
+        {
+          "id": 3,
+          "label": "Diversify",
+          "label_fr": "Diversifier",
+          "description": "Find alternative trading partners",
+          "description_fr": "Trouver des partenaires commerciaux alternatifs",
+          "effects": {"economy": -5},
+          "relation_effects": {"CHN": 10, "IND": 10}
+        }
+      ]
+    },
+    {
+      "id": "territorial_dispute",
+      "type": "ultimatum_received",
+      "title": "Territorial Dispute",
+      "title_fr": "Dispute Territoriale",
+      "description": "A neighbor is claiming part of your territory.",
+      "description_fr": "Un voisin revendique une partie de votre territoire.",
+      "trigger_condition": "territorial_claim",
+      "choices": [
+        {
+          "id": 1,
+          "label": "Military Buildup",
+          "label_fr": "Renforcement militaire",
+          "description": "Deploy troops to the border",
+          "description_fr": "Deployer des troupes a la frontiere",
+          "effects": {"military": 10, "economy": -5, "stability": -5},
+          "relation_effects": {}
+        },
+        {
+          "id": 2,
+          "label": "International Court",
+          "label_fr": "Cour internationale",
+          "description": "Take the case to international arbitration",
+          "description_fr": "Porter l'affaire devant l'arbitrage international",
+          "effects": {"soft_power": 10},
+          "relation_effects": {"EU": 5, "USA": 5}
+        },
+        {
+          "id": 3,
+          "label": "Compromise",
+          "label_fr": "Compromis",
+          "description": "Offer to share the disputed area",
+          "description_fr": "Proposer de partager la zone disputee",
+          "effects": {"stability": -10, "soft_power": -5},
+          "relation_effects": {}
+        }
+      ]
+    },
+    {
+      "id": "nuclear_proliferation",
+      "type": "nuclear_threat",
+      "title": "Nuclear Ambitions",
+      "title_fr": "Ambitions Nucleaires",
+      "description": "Your scientists report they can develop nuclear weapons.",
+      "description_fr": "Vos scientifiques rapportent qu'ils peuvent developper des armes nucleaires.",
+      "trigger_condition": "technology > 60 and nuclear == 0",
+      "choices": [
+        {
+          "id": 1,
+          "label": "Start Program",
+          "label_fr": "Demarrer le programme",
+          "description": "Begin secret nuclear weapons development",
+          "description_fr": "Commencer le developpement secret d'armes nucleaires",
+          "effects": {"nuclear": 10, "economy": -10},
+          "relation_effects": {"USA": -20, "EU": -15},
+          "starts_project": "nuclear_program"
+        },
+        {
+          "id": 2,
+          "label": "Civil Nuclear",
+          "label_fr": "Nucleaire civil",
+          "description": "Develop nuclear energy instead",
+          "description_fr": "Developper l'energie nucleaire a la place",
+          "effects": {"resources": 10, "technology": 5},
+          "relation_effects": {"USA": 5}
+        },
+        {
+          "id": 3,
+          "label": "Reject",
+          "label_fr": "Rejeter",
+          "description": "Maintain non-proliferation commitment",
+          "description_fr": "Maintenir l'engagement de non-proliferation",
+          "effects": {"soft_power": 10},
+          "relation_effects": {"USA": 10, "EU": 10}
+        }
+      ]
+    },
+    {
+      "id": "democratic_movement",
+      "type": "revolution_risk",
+      "title": "Democratic Movement",
+      "title_fr": "Mouvement Democratique",
+      "description": "Citizens are demanding democratic reforms.",
+      "description_fr": "Les citoyens demandent des reformes democratiques.",
+      "trigger_condition": "regime != 'democracy' and stability < 40",
+      "choices": [
+        {
+          "id": 1,
+          "label": "Suppress",
+          "label_fr": "Reprimer",
+          "description": "Use force to end protests",
+          "description_fr": "Utiliser la force pour mettre fin aux manifestations",
+          "effects": {"stability": 15, "soft_power": -20},
+          "relation_effects": {"USA": -20, "EU": -20}
+        },
+        {
+          "id": 2,
+          "label": "Partial Reforms",
+          "label_fr": "Reformes partielles",
+          "description": "Allow some political freedoms",
+          "description_fr": "Permettre quelques libertes politiques",
+          "effects": {"stability": 5, "soft_power": 5},
+          "relation_effects": {"USA": 5, "EU": 5}
+        },
+        {
+          "id": 3,
+          "label": "Full Transition",
+          "label_fr": "Transition complete",
+          "description": "Hold free elections",
+          "description_fr": "Organiser des elections libres",
+          "effects": {"stability": -10, "soft_power": 15},
+          "relation_effects": {"USA": 20, "EU": 20}
+        }
+      ]
+    },
+    {
+      "id": "space_race",
+      "type": "project_milestone",
+      "title": "Space Race Opportunity",
+      "title_fr": "Opportunite de Course Spatiale",
+      "description": "A rival nation is about to achieve a major space milestone.",
+      "description_fr": "Une nation rivale est sur le point d'atteindre un jalon spatial majeur.",
+      "trigger_condition": "rival_space_program_advanced",
+      "choices": [
+        {
+          "id": 1,
+          "label": "Accelerate Program",
+          "label_fr": "Accelerer le programme",
+          "description": "Double investment to catch up",
+          "description_fr": "Doubler l'investissement pour rattraper",
+          "effects": {"economy": -15, "technology": 10},
+          "relation_effects": {}
+        },
+        {
+          "id": 2,
+          "label": "Cooperation",
+          "label_fr": "Cooperation",
+          "description": "Propose joint space mission",
+          "description_fr": "Proposer une mission spatiale conjointe",
+          "effects": {"soft_power": 10},
+          "relation_effects": {}
+        },
+        {
+          "id": 3,
+          "label": "Different Focus",
+          "label_fr": "Focus different",
+          "description": "Focus on unique achievements",
+          "description_fr": "Se concentrer sur des realisations uniques",
+          "effects": {"technology": 5},
+          "relation_effects": {}
+        }
+      ]
+    },
+    {
+      "id": "pandemic_outbreak",
+      "type": "economic_crisis",
+      "title": "Pandemic Outbreak",
+      "title_fr": "Epidemie Pandemique",
+      "description": "A deadly disease is spreading rapidly.",
+      "description_fr": "Une maladie mortelle se propage rapidement.",
+      "trigger_condition": "random_pandemic",
+      "choices": [
+        {
+          "id": 1,
+          "label": "Strict Lockdown",
+          "label_fr": "Confinement strict",
+          "description": "Close borders and restrict movement",
+          "description_fr": "Fermer les frontieres et restreindre les mouvements",
+          "effects": {"economy": -20, "stability": -10},
+          "relation_effects": {}
+        },
+        {
+          "id": 2,
+          "label": "Balanced Approach",
+          "label_fr": "Approche equilibree",
+          "description": "Targeted restrictions with economic support",
+          "description_fr": "Restrictions ciblees avec soutien economique",
+          "effects": {"economy": -10, "stability": -5},
+          "relation_effects": {}
+        },
+        {
+          "id": 3,
+          "label": "Minimal Restrictions",
+          "label_fr": "Restrictions minimales",
+          "description": "Prioritize economy over containment",
+          "description_fr": "Prioriser l'economie sur le confinement",
+          "effects": {"economy": -5, "stability": -15},
+          "relation_effects": {}
+        }
+      ]
+    },
+    {
+      "id": "military_alliance_pressure",
+      "type": "alliance_request",
+      "title": "Alliance Pressure",
+      "title_fr": "Pression d'Alliance",
+      "description": "A major power is pressuring you to join their military alliance.",
+      "description_fr": "Une grande puissance vous presse de rejoindre leur alliance militaire.",
+      "trigger_condition": "alliance_offer_received",
+      "choices": [
+        {
+          "id": 1,
+          "label": "Join Alliance",
+          "label_fr": "Rejoindre l'alliance",
+          "description": "Accept full membership",
+          "description_fr": "Accepter l'adhesion complete",
+          "effects": {"military": 10, "soft_power": -5},
+          "relation_effects": {}
+        },
+        {
+          "id": 2,
+          "label": "Observer Status",
+          "label_fr": "Statut d'observateur",
+          "description": "Maintain flexibility with limited ties",
+          "description_fr": "Maintenir la flexibilite avec des liens limites",
+          "effects": {},
+          "relation_effects": {}
+        },
+        {
+          "id": 3,
+          "label": "Decline",
+          "label_fr": "Decliner",
+          "description": "Maintain neutrality",
+          "description_fr": "Maintenir la neutralite",
+          "effects": {"soft_power": 5},
+          "relation_effects": {}
+        }
+      ]
+    }
+  ]
+}

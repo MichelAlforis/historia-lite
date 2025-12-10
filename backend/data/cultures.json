@@ -1,0 +1,202 @@
+[
+  {
+    "id": "anglo",
+    "name": "Anglo-Saxon",
+    "name_fr": "Anglo-saxonne",
+    "language": "english",
+    "major_regions": ["north_america", "oceania", "western_europe"],
+    "primary_countries": ["USA", "GBR", "CAN", "AUS", "NZL", "IRL"],
+    "influence_power": "USA",
+    "soft_power_bonus": 20
+  },
+  {
+    "id": "franco",
+    "name": "Francophone",
+    "name_fr": "Francophone",
+    "language": "french",
+    "major_regions": ["western_europe", "west_africa", "north_africa"],
+    "primary_countries": ["FRA", "BEL", "CHE", "CAN", "SEN", "CIV", "MAR", "DZA", "TUN"],
+    "influence_power": "FRA",
+    "soft_power_bonus": 15
+  },
+  {
+    "id": "hispano",
+    "name": "Hispanic",
+    "name_fr": "Hispanique",
+    "language": "spanish",
+    "major_regions": ["south_america", "central_america"],
+    "primary_countries": ["ESP", "MEX", "ARG", "COL", "PER", "CHL", "VEN", "CUB"],
+    "influence_power": "ESP",
+    "soft_power_bonus": 10
+  },
+  {
+    "id": "lusophone",
+    "name": "Lusophone",
+    "name_fr": "Lusophone",
+    "language": "portuguese",
+    "major_regions": ["south_america", "southern_africa", "west_africa"],
+    "primary_countries": ["BRA", "PRT", "AGO", "MOZ"],
+    "influence_power": "BRA",
+    "soft_power_bonus": 8
+  },
+  {
+    "id": "germanic",
+    "name": "Germanic",
+    "name_fr": "Germanique",
+    "language": "german",
+    "major_regions": ["western_europe"],
+    "primary_countries": ["DEU", "AUT", "CHE"],
+    "influence_power": "DEU",
+    "soft_power_bonus": 12
+  },
+  {
+    "id": "slav_east",
+    "name": "East Slavic",
+    "name_fr": "Slave orientale",
+    "language": "russian",
+    "major_regions": ["eastern_europe", "central_asia", "caucasus"],
+    "primary_countries": ["RUS", "UKR", "BLR", "KAZ", "KGZ"],
+    "influence_power": "RUS",
+    "soft_power_bonus": 10
+  },
+  {
+    "id": "slav_west",
+    "name": "West Slavic",
+    "name_fr": "Slave occidentale",
+    "language": "polish",
+    "major_regions": ["eastern_europe"],
+    "primary_countries": ["POL", "CZE", "SVK"],
+    "influence_power": null,
+    "soft_power_bonus": 5
+  },
+  {
+    "id": "slav_south",
+    "name": "South Slavic",
+    "name_fr": "Slave meridionale",
+    "language": "serbian",
+    "major_regions": ["eastern_europe"],
+    "primary_countries": ["SRB", "HRV", "BIH", "SVN", "MKD", "MNE", "BGR"],
+    "influence_power": null,
+    "soft_power_bonus": 3
+  },
+  {
+    "id": "arab",
+    "name": "Arab",
+    "name_fr": "Arabe",
+    "language": "arabic",
+    "major_regions": ["middle_east_gulf", "north_africa", "levant"],
+    "primary_countries": ["SAU", "EGY", "IRQ", "SYR", "JOR", "LBN", "ARE", "KWT", "QAT", "BHR", "OMN", "YEM", "LBY", "TUN", "DZA", "MAR"],
+    "influence_power": "SAU",
+    "soft_power_bonus": 10
+  },
+  {
+    "id": "persian",
+    "name": "Persian",
+    "name_fr": "Persane",
+    "language": "farsi",
+    "major_regions": ["middle_east_gulf", "central_asia"],
+    "primary_countries": ["IRN", "AFG", "TJK"],
+    "influence_power": "IRN",
+    "soft_power_bonus": 8
+  },
+  {
+    "id": "turkic",
+    "name": "Turkic",
+    "name_fr": "Turque",
+    "language": "turkish",
+    "major_regions": ["middle_east_gulf", "central_asia", "caucasus"],
+    "primary_countries": ["TUR", "AZE", "TKM", "UZB", "KAZ", "KGZ"],
+    "influence_power": "TUR",
+    "soft_power_bonus": 10
+  },
+  {
+    "id": "sino",
+    "name": "Sinosphere",
+    "name_fr": "Sinosphere",
+    "language": "mandarin",
+    "major_regions": ["east_asia"],
+    "primary_countries": ["CHN", "TWN", "SGP", "HKG", "MAC"],
+    "influence_power": "CHN",
+    "soft_power_bonus": 15
+  },
+  {
+    "id": "japanese",
+    "name": "Japanese",
+    "name_fr": "Japonaise",
+    "language": "japanese",
+    "major_regions": ["east_asia"],
+    "primary_countries": ["JPN"],
+    "influence_power": "JPN",
+    "soft_power_bonus": 18
+  },
+  {
+    "id": "korean",
+    "name": "Korean",
+    "name_fr": "Coreenne",
+    "language": "korean",
+    "major_regions": ["east_asia"],
+    "primary_countries": ["KOR", "PRK"],
+    "influence_power": "KOR",
+    "soft_power_bonus": 15
+  },
+  {
+    "id": "indian",
+    "name": "Indian Subcontinent",
+    "name_fr": "Sous-continent indien",
+    "language": "hindi",
+    "major_regions": ["south_asia"],
+    "primary_countries": ["IND", "PAK", "BNG", "NPL", "LKA"],
+    "influence_power": "IND",
+    "soft_power_bonus": 12
+  },
+  {
+    "id": "southeast_asian",
+    "name": "Southeast Asian",
+    "name_fr": "Asie du Sud-Est",
+    "language": null,
+    "major_regions": ["southeast_asia"],
+    "primary_countries": ["THA", "VNM", "IDN", "MYS", "PHL", "MMR", "KHM", "LAO", "SGP"],
+    "influence_power": null,
+    "soft_power_bonus": 5
+  },
+  {
+    "id": "african_west",
+    "name": "West African",
+    "name_fr": "Ouest-africaine",
+    "language": null,
+    "major_regions": ["west_africa"],
+    "primary_countries": ["NGA", "GHA", "SEN", "CIV", "MLI", "BFA", "NER"],
+    "influence_power": "NGA",
+    "soft_power_bonus": 5
+  },
+  {
+    "id": "african_east",
+    "name": "East African",
+    "name_fr": "Est-africaine",
+    "language": "swahili",
+    "major_regions": ["east_africa"],
+    "primary_countries": ["KEN", "TZA", "UGA", "ETH", "RWA"],
+    "influence_power": null,
+    "soft_power_bonus": 3
+  },
+  {
+    "id": "african_south",
+    "name": "Southern African",
+    "name_fr": "Afrique australe",
+    "language": null,
+    "major_regions": ["southern_africa"],
+    "primary_countries": ["ZAF", "ZWE", "BWA", "NAM", "ZMB"],
+    "influence_power": "ZAF",
+    "soft_power_bonus": 5
+  },
+  {
+    "id": "latin",
+    "name": "Latin/Romance",
+    "name_fr": "Latine",
+    "language": null,
+    "major_regions": ["western_europe"],
+    "primary_countries": ["ITA", "ROU"],
+    "influence_power": null,
+    "soft_power_bonus": 8
+  }
+]

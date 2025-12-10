@@ -1,0 +1,275 @@
+{
+  "summit_types": [
+    {
+      "id": "g7",
+      "name": "G7 Summit",
+      "name_fr": "Sommet du G7",
+      "frequency": "annual",
+      "bloc_id": "G7",
+      "mandatory_participants": ["USA", "GBR", "FRA", "DEU", "ITA", "JPN", "CAN"],
+      "rotating_host": true,
+      "host_order": ["USA", "GBR", "CAN", "FRA", "DEU", "ITA", "JPN"],
+      "agenda_topics": ["economy", "security", "climate", "ukraine", "china"],
+      "effects": {
+        "relation_bonus_participants": 3,
+        "soft_power_host": 5,
+        "global_tension_reduction": 2
+      },
+      "can_invite_guests": true,
+      "max_guests": 3,
+      "description_fr": "Coordination annuelle des 7 grandes democraties industrialisees"
+    },
+    {
+      "id": "g20",
+      "name": "G20 Summit",
+      "name_fr": "Sommet du G20",
+      "frequency": "annual",
+      "bloc_id": "G20",
+      "mandatory_participants": ["USA", "CHN", "JPN", "DEU", "GBR", "FRA", "IND", "ITA", "BRA", "CAN", "RUS", "KOR", "AUS", "MEX", "IDN", "SAU", "TUR", "ARG", "ZAF"],
+      "rotating_host": true,
+      "agenda_topics": ["economy", "trade", "climate", "development", "debt"],
+      "effects": {
+        "relation_bonus_participants": 2,
+        "soft_power_host": 8,
+        "global_tension_reduction": 3,
+        "economy_bonus_all": 1
+      },
+      "can_invite_guests": false,
+      "description_fr": "Forum economique des 20 principales economies mondiales"
+    },
+    {
+      "id": "brics",
+      "name": "BRICS Summit",
+      "name_fr": "Sommet des BRICS",
+      "frequency": "annual",
+      "bloc_id": "BRICS",
+      "mandatory_participants": ["CHN", "RUS", "IND", "BRA", "ZAF", "IRN", "SAU", "ARE", "EGY", "ETH"],
+      "rotating_host": true,
+      "host_order": ["CHN", "RUS", "IND", "BRA", "ZAF"],
+      "agenda_topics": ["dedollarization", "trade", "development", "alternative_institutions"],
+      "effects": {
+        "relation_bonus_participants": 3,
+        "soft_power_host": 5,
+        "trade_bonus_bloc": 2
+      },
+      "can_invite_guests": true,
+      "max_guests": 5,
+      "description_fr": "Alternative au systeme occidental, discussions sur monnaie commune"
+    },
+    {
+      "id": "cop",
+      "name": "UN Climate Change Conference",
+      "name_fr": "Conference des Nations Unies sur le Climat",
+      "frequency": "annual",
+      "bloc_id": null,
+      "mandatory_participants": "all",
+      "rotating_host": true,
+      "agenda_topics": ["emissions", "green_finance", "adaptation", "loss_and_damage"],
+      "effects": {
+        "soft_power_host": 10,
+        "global_tension_reduction": 1
+      },
+      "resolutions_possible": [
+        {
+          "id": "emission_reduction",
+          "name_fr": "Reduction des emissions",
+          "requires_majority": 0.66,
+          "effects": {"global_stability": 2, "economy_penalty_noncompliant": -2}
+        },
+        {
+          "id": "green_fund",
+          "name_fr": "Fonds vert pour le climat",
+          "requires_majority": 0.5,
+          "effects": {"soft_power_contributors": 3}
+        }
+      ],
+      "description_fr": "Conference mondiale sur le changement climatique"
+    },
+    {
+      "id": "eu_summit",
+      "name": "European Council Summit",
+      "name_fr": "Sommet du Conseil Europeen",
+      "frequency": "quarterly",
+      "bloc_id": "EU",
+      "mandatory_participants": ["FRA", "DEU", "ITA", "ESP", "NLD", "POL", "SWE"],
+      "rotating_host": true,
+      "agenda_topics": ["integration", "budget", "migration", "defense", "expansion"],
+      "effects": {
+        "relation_bonus_participants": 2,
+        "soft_power_host": 3
+      },
+      "resolutions_possible": [
+        {
+          "id": "sanction_country",
+          "name_fr": "Sanctions contre un pays tiers",
+          "requires_majority": 1.0,
+          "effects": {"target_economy": -10}
+        },
+        {
+          "id": "defense_spending",
+          "name_fr": "Augmentation budget defense",
+          "requires_majority": 0.66,
+          "effects": {"military_all": 2, "economy_all": -1}
+        }
+      ],
+      "description_fr": "Reunion trimestrielle des chefs d'Etat de l'UE"
+    },
+    {
+      "id": "nato_summit",
+      "name": "NATO Summit",
+      "name_fr": "Sommet de l'OTAN",
+      "frequency": "annual",
+      "bloc_id": "NATO",
+      "mandatory_participants": ["USA", "GBR", "FRA", "DEU", "ITA", "ESP", "NLD", "POL", "TUR", "CAN", "SWE"],
+      "rotating_host": true,
+      "agenda_topics": ["defense", "russia", "china", "spending", "expansion"],
+      "effects": {
+        "relation_bonus_participants": 3,
+        "soft_power_host": 5,
+        "military_bonus_bloc": 2
+      },
+      "resolutions_possible": [
+        {
+          "id": "article5_reaffirm",
+          "name_fr": "Reaffirmation Article 5",
+          "requires_majority": 1.0,
+          "effects": {"defense_bonus_all": 5}
+        },
+        {
+          "id": "new_member",
+          "name_fr": "Admission nouveau membre",
+          "requires_majority": 1.0,
+          "effects": {}
+        }
+      ],
+      "description_fr": "Sommet annuel de l'Alliance atlantique"
+    },
+    {
+      "id": "opec",
+      "name": "OPEC+ Meeting",
+      "name_fr": "Reunion OPEP+",
+      "frequency": "biannual",
+      "bloc_id": "OPEC",
+      "mandatory_participants": ["SAU", "IRN", "ARE", "NGA", "RUS"],
+      "rotating_host": false,
+      "default_host": "SAU",
+      "agenda_topics": ["production", "prices", "market_share"],
+      "effects": {
+        "relation_bonus_participants": 2
+      },
+      "resolutions_possible": [
+        {
+          "id": "cut_production",
+          "name_fr": "Reduction de production",
+          "requires_majority": 0.66,
+          "effects": {"oil_price": 15, "economy_importers": -3}
+        },
+        {
+          "id": "increase_production",
+          "name_fr": "Augmentation de production",
+          "requires_majority": 0.66,
+          "effects": {"oil_price": -10, "economy_importers": 2}
+        }
+      ],
+      "description_fr": "Coordination des pays producteurs de petrole"
+    },
+    {
+      "id": "asean",
+      "name": "ASEAN Summit",
+      "name_fr": "Sommet de l'ASEAN",
+      "frequency": "biannual",
+      "bloc_id": "ASEAN",
+      "mandatory_participants": ["IDN", "VNM", "THA"],
+      "rotating_host": true,
+      "agenda_topics": ["trade", "china", "south_china_sea", "economy"],
+      "effects": {
+        "relation_bonus_participants": 3,
+        "soft_power_host": 3,
+        "trade_bonus_bloc": 2
+      },
+      "description_fr": "Sommet de l'Association des nations du Sud-Est asiatique"
+    },
+    {
+      "id": "sco",
+      "name": "SCO Summit",
+      "name_fr": "Sommet de l'OCS",
+      "frequency": "annual",
+      "bloc_id": "SCO",
+      "mandatory_participants": ["CHN", "RUS", "IND", "PAK", "IRN"],
+      "rotating_host": true,
+      "agenda_topics": ["security", "counterterrorism", "trade", "connectivity"],
+      "effects": {
+        "relation_bonus_participants": 3,
+        "soft_power_host": 4
+      },
+      "description_fr": "Sommet de l'Organisation de Cooperation de Shanghai"
+    },
+    {
+      "id": "un_general",
+      "name": "UN General Assembly",
+      "name_fr": "Assemblee Generale de l'ONU",
+      "frequency": "annual",
+      "bloc_id": null,
+      "mandatory_participants": "all",
+      "rotating_host": false,
+      "default_host": "USA",
+      "location": "New York",
+      "agenda_topics": ["peace", "development", "human_rights", "crises"],
+      "effects": {
+        "soft_power_speakers": 2,
+        "global_tension_reduction": 1
+      },
+      "description_fr": "Assemblee annuelle de tous les pays membres de l'ONU"
+    }
+  ],
+  "special_events": [
+    {
+      "id": "world_cup",
+      "name": "FIFA World Cup",
+      "name_fr": "Coupe du Monde FIFA",
+      "frequency": "every_4_years",
+      "start_year": 2026,
+      "selection_body": "FIFA",
+      "effects": {
+        "soft_power_host": 20,
+        "economy_host": 5,
+        "stability_host": 5
+      },
+      "host_requirements": {
+        "economy": 50,
+        "stability": 40
+      },
+      "description_fr": "Plus grand evenement sportif mondial"
+    },
+    {
+      "id": "olympics",
+      "name": "Olympic Games",
+      "name_fr": "Jeux Olympiques",
+      "frequency": "every_4_years",
+      "start_year": 2028,
+      "selection_body": "IOC",
+      "effects": {
+        "soft_power_host": 25,
+        "economy_host": 3,
+        "stability_host": 5
+      },
+      "host_requirements": {
+        "economy": 55,
+        "stability": 50
+      },
+      "description_fr": "Jeux Olympiques d'ete"
+    },
+    {
+      "id": "nobel",
+      "name": "Nobel Prizes",
+      "name_fr": "Prix Nobel",
+      "frequency": "annual",
+      "location": "Stockholm/Oslo",
+      "effects": {
+        "soft_power_winners": 3,
+        "technology_science_winner": 2
+      },
+      "description_fr": "Prix internationaux prestigieux"
+    }
+  ]
+}

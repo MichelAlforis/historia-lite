@@ -1,0 +1,280 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 15, 23, 42;
+  --background-end-rgb: 30, 41, 59;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+      to bottom,
+      rgb(var(--background-start-rgb)),
+      rgb(var(--background-end-rgb))
+    );
+  min-height: 100vh;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* Stat bar animation */
+.stat-bar {
+  transition: width 0.3s ease-in-out;
+}
+
+/* Event log animation */
+.event-item {
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Country card hover effect */
+.country-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.country-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Fade in animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* Slide up animation */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slideUp {
+  animation: slideUp 0.3s ease-out forwards;
+}
+
+/* Slide in from left */
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slideInLeft {
+  animation: slideInLeft 0.3s ease-out forwards;
+}
+
+/* Scale in animation */
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-scaleIn {
+  animation: scaleIn 0.2s ease-out forwards;
+}
+
+/* Pulse glow animation for important elements */
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(139, 92, 246, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.6);
+  }
+}
+
+.animate-pulseGlow {
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+/* Shimmer loading effect */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Progress bar fill animation */
+@keyframes fillBar {
+  from {
+    width: 0%;
+  }
+}
+
+.animate-fillBar {
+  animation: fillBar 0.5s ease-out forwards;
+}
+
+/* Zone card stagger animation */
+.zone-card {
+  animation: slideUp 0.3s ease-out forwards;
+  opacity: 0;
+}
+
+/* Base row stagger animation */
+.base-row {
+  animation: slideInLeft 0.3s ease-out forwards;
+  opacity: 0;
+}
+
+/* Modal backdrop */
+.modal-backdrop {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+/* Modal content */
+.modal-content {
+  animation: scaleIn 0.2s ease-out forwards;
+}
+
+/* Smooth scrollbar for specific elements */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: rgb(31, 41, 55);
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgb(75, 85, 99);
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgb(107, 114, 128);
+}
+
+/* Influence type colors (utility classes) */
+.influence-military { color: #ef4444; }
+.influence-economic { color: #22c55e; }
+.influence-monetary { color: #eab308; }
+.influence-cultural { color: #8b5cf6; }
+.influence-religious { color: #f97316; }
+.influence-petro { color: #171717; }
+.influence-colonial { color: #6b7280; }
+.influence-diplomatic { color: #3b82f6; }
+
+/* Background variants */
+.bg-influence-military { background-color: rgba(239, 68, 68, 0.2); }
+.bg-influence-economic { background-color: rgba(34, 197, 94, 0.2); }
+.bg-influence-monetary { background-color: rgba(234, 179, 8, 0.2); }
+.bg-influence-cultural { background-color: rgba(139, 92, 246, 0.2); }
+.bg-influence-religious { background-color: rgba(249, 115, 22, 0.2); }
+.bg-influence-petro { background-color: rgba(23, 23, 23, 0.4); }
+.bg-influence-colonial { background-color: rgba(107, 114, 128, 0.2); }
+.bg-influence-diplomatic { background-color: rgba(59, 130, 246, 0.2); }
+
+/* Contested badge animation */
+@keyframes contestedPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.contested-badge {
+  animation: contestedPulse 1.5s ease-in-out infinite;
+}
+
+/* Status indicator colors */
+.status-dominated {
+  border-left-color: #22c55e;
+}
+
+.status-contested {
+  border-left-color: #eab308;
+}
+
+.status-highly-contested {
+  border-left-color: #f97316;
+}
+
+/* Tooltip animation */
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tooltip {
+  animation: tooltipFadeIn 0.15s ease-out forwards;
+}

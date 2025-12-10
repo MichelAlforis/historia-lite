@@ -1,0 +1,205 @@
+"""Country model for Historia Lite"""
+from typing import Dict, List, Optional, Literal
+from pydantic import BaseModel, Field
+
+
+# Alignment targets for Tier 4 countries
+AlignmentTarget = Literal["USA", "CHN", "RUS", "EU", "NONE"]
+
+# Religious/cultural categories
+Religion = Literal[
+    "secular",        # Secular state (France, USA)
+    "christian",      # Christian majority
+    "muslim",         # Muslim majority
+    "hindu",          # Hindu majority (India)
+    "buddhist",       # Buddhist majority
+    "jewish",         # Jewish state (Israel)
+    "orthodox",       # Orthodox Christian (Russia, Greece)
+    "mixed"           # Multi-religious
+]
+
+
+class SocialProfile(BaseModel):
+    """Social/cultural profile that affects reactions to certain policies"""
+    religion: Religion = "secular"
+    conservatism: int = Field(default=50, ge=0, le=100)  # 0=progressive, 100=conservative
+    religiosity: int = Field(default=50, ge=0, le=100)   # 0=secular, 100=very religious
+    nationalism: int = Field(default=50, ge=0, le=100)   # 0=globalist, 100=nationalist
+
+
+class Personality(BaseModel):
+    """AI personality traits that influence decision-making"""
+    aggression: int = Field(default=50, ge=0, le=100)
+    expansionism: int = Field(default=50, ge=0, le=100)
+    diplomacy: int = Field(default=50, ge=0, le=100)
+    risk_tolerance: int = Field(default=50, ge=0, le=100)
+
+
+class Country(BaseModel):
+    """Represents a nation in the simulation"""
+    id: str
+    name: str
+    name_fr: str
+    flag: str = ""
+    tier: int = Field(default=3, ge=1, le=3)
+
+    # Core stats (0-100)
+    population: int = Field(default=50, ge=0, le=100)
+    economy: int = Field(default=50, ge=0, le=100)
+    military: int = Field(default=50, ge=0, le=100)
+    nuclear: int = Field(default=0, ge=0, le=100)
+    technology: int = Field(default=50, ge=0, le=100)
+    stability: int = Field(default=50, ge=0, le=100)
+    soft_power: int = Field(default=50, ge=0, le=100)
+    resources: int = Field(default=50, ge=0, le=100)
+
+    # AI behavior
+    personality: Personality = Field(default_factory=Personality)
+
+    # Social/cultural profile
+    social_profile: SocialProfile = Field(default_factory=SocialProfile)
+
+    # Political system
+    regime: str = "democracy"
+
+    # Alliances and blocs
+    blocs: List[str] = Field(default_factory=list)
+
+    # Diplomatic relations (-100 to +100)
+    relations: Dict[str, int] = Field(default_factory=dict)
+
+    # Conflict state
+    sanctions_on: List[str] = Field(default_factory=list)
+    at_war: List[str] = Field(default_factory=list)
+    allies: List[str] = Field(default_factory=list)
+    rivals: List[str] = Field(default_factory=list)
+
+    # Influence
+    sphere_of_influence: List[str] = Field(default_factory=list)
+    under_influence_of: Dict[str, int] = Field(default_factory=dict)
+
+    # Player control
+    is_player: bool = False
+
+    def get_power_score(self) -> int:
+        """Calculate overall power score"""
+        return (
+            self.economy * 0.25 +
+            self.military * 0.25 +
+            self.technology * 0.15 +
+            self.population * 0.10 +
+            self.nuclear * 0.10 +
+            self.soft_power * 0.10 +
+            self.resources * 0.05
+        )
+
+    def is_nuclear_power(self) -> bool:
+        """Check if country has nuclear weapons"""
+        return self.nuclear > 0
+
+    def get_relation(self, other_id: str) -> int:
+        """Get relation with another country"""
+        return self.relations.get(other_id, 0)
+
+    def modify_relation(self, other_id: str, delta: int) -> None:
+        """Modify relation with another country"""
+        current = self.relations.get(other_id, 0)
+        self.relations[other_id] = max(-100, min(100, current + delta))
+
+    def is_ally(self, other_id: str) -> bool:
+        """Check if allied with another country"""
+        return other_id in self.allies
+
+    def is_at_war(self, other_id: str) -> bool:
+        """Check if at war with another country"""
+        return other_id in self.at_war
+
+    def is_rival(self, other_id: str) -> bool:
+        """Check if rival of another country"""
+        return other_id in self.rivals
+
+    def shares_bloc(self, other: "Country") -> bool:
+        """Check if both countries share a bloc"""
+        return bool(set(self.blocs) & set(other.blocs))
+
+    def is_tier4(self) -> bool:
+        """Check if this is a Tier 4 country"""
+        return False
+
+
+class Tier4Country(BaseModel):
+    """
+    Simplified country model for Tier 4 (secondary states).
+    Has fewer stats and simpler mechanics than main Country class.
+    """
+    id: str
+    name: str
+    name_fr: str
+    flag: str = ""
+    tier: int = Field(default=4, ge=4, le=4)
+    region: str = ""  # africa, asia, middle_east, latam, europe, oceania
+
+    # Simplified stats (4 instead of 8)
+    economy: int = Field(default=25, ge=0, le=100)
+    stability: int = Field(default=40, ge=0, le=100)
+    population: int = Field(default=15, ge=0, le=100)
+    military: int = Field(default=15, ge=0, le=100)
+
+    # Alignment system (-100 = pro-West, +100 = pro-China/Russia)
+    alignment: int = Field(default=0, ge=-100, le=100)
+    alignment_target: AlignmentTarget = "NONE"
+
+    # Strategic resources (optional)
+    strategic_resource: Optional[str] = None  # oil, minerals, agriculture, none
+
+    # Relations with major powers only
+    relations: Dict[str, int] = Field(default_factory=dict)
+
+    # Neighbors (for regional interactions)
+    neighbors: List[str] = Field(default_factory=list)
+
+    # Under influence of which power
+    under_influence_of: Optional[str] = None
+
+    # Conflict state (simplified)
+    in_crisis: bool = False
+    crisis_type: Optional[str] = None  # coup, civil_unrest, economic_collapse
+
+    def is_tier4(self) -> bool:
+        """Check if this is a Tier 4 country"""
+        return True
+
+    def get_power_score(self) -> int:
+        """Calculate simplified power score"""
+        return (
+            self.economy * 0.35 +
+            self.military * 0.30 +
+            self.stability * 0.20 +
+            self.population * 0.15
+        )
+
+    def get_alignment_label(self) -> str:
+        """Get human-readable alignment label"""
+        if self.alignment <= -60:
+            return "pro_west"
+        elif self.alignment <= -20:
+            return "west_leaning"
+        elif self.alignment < 20:
+            return "neutral"
+        elif self.alignment < 60:
+            return "east_leaning"
+        else:
+            return "pro_east"
+
+    def get_relation(self, other_id: str) -> int:
+        """Get relation with a major power"""
+        return self.relations.get(other_id, 0)
+
+    def modify_relation(self, other_id: str, delta: int) -> None:
+        """Modify relation with a major power"""
+        current = self.relations.get(other_id, 0)
+        self.relations[other_id] = max(-100, min(100, current + delta))
+
+    def shift_alignment(self, delta: int) -> None:
+        """Shift alignment towards East (+) or West (-)"""
+        self.alignment = max(-100, min(100, self.alignment + delta))
