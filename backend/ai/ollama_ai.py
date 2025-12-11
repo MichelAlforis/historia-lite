@@ -1,10 +1,17 @@
-"""Ollama LLM integration for Historia Lite AI decisions"""
+"""Ollama LLM integration for Historia Lite AI decisions
+
+Timeline Backbone Integration:
+- AI reads 3-month window for tactical decisions
+- AI reads 6-month window for doctrinal changes
+- AI reads 12-month window for strategic alliances
+- Critical events (importance=5) always visible as "ruptures"
+"""
 import asyncio
 import logging
 import httpx
 import json
 import time
-from typing import Optional, Dict, Any, List, Tuple
+from typing import Optional, Dict, Any, List, Tuple, TYPE_CHECKING
 from dataclasses import dataclass, field
 from collections import OrderedDict
 
@@ -12,6 +19,9 @@ from config import settings
 from engine.country import Country
 from engine.world import World
 from engine.events import Event
+
+if TYPE_CHECKING:
+    from engine.timeline import TimelineManager
 
 logger = logging.getLogger(__name__)
 
@@ -187,9 +197,17 @@ class OllamaAI:
         return []
 
     async def make_decision(
-        self, country: Country, world: World
+        self,
+        country: Country,
+        world: World,
+        timeline: Optional["TimelineManager"] = None
     ) -> Optional[Dict[str, Any]]:
-        """Ask Ollama to make a decision for a country (with caching and fallback)"""
+        """Ask Ollama to make a decision for a country (with caching and fallback)
+
+        Timeline Integration:
+        - If timeline provided, includes multi-window context (3/6/12 months)
+        - AI makes decisions informed by recent events
+        """
 
         # Check cache first
         cached = self.cache.get(country, world)
@@ -199,8 +217,8 @@ class OllamaAI:
         # Rate limit
         await self.rate_limiter.wait(key="ollama")
 
-        # Build context prompt
-        prompt = self._build_prompt(country, world)
+        # Build context prompt (with timeline if available)
+        prompt = self._build_prompt(country, world, timeline)
 
         try:
             async with httpx.AsyncClient() as client:
@@ -318,8 +336,20 @@ class OllamaAI:
             "cache_stats": self.cache.get_stats(),
         }
 
-    def _build_prompt(self, country: Country, world: World) -> str:
-        """Build the decision prompt for Ollama"""
+    def _build_prompt(
+        self,
+        country: Country,
+        world: World,
+        timeline: Optional["TimelineManager"] = None
+    ) -> str:
+        """Build the decision prompt for Ollama with multi-window timeline context
+
+        Timeline Windows (Timeline Backbone design):
+        - 3 months: Immediate tactical context
+        - 6 months: Doctrinal changes
+        - 12 months: Strategic alliances
+        - Critical events: Major ruptures (always visible)
+        """
 
         # Get relevant neighbors and rivals
         rivals_info = []
@@ -349,8 +379,57 @@ class OllamaAI:
         if country.sanctions_on:
             sanctions_info = f"\nSanctions actives contre: {', '.join(country.sanctions_on)}"
 
+        # Timeline context (multi-window)
+        timeline_context = ""
+        if timeline:
+            ctx = timeline.get_ai_context_multi_window(world.current_date, country.id)
+
+            # Format tactical events (3 months)
+            tactical = ctx.get("windows", {}).get("tactical_3m", [])
+            if tactical:
+                timeline_context += "\n=== EVENEMENTS RECENTS (3 mois) - Decisions tactiques ===\n"
+                for e in tactical[:5]:
+                    affects = " [TE CONCERNE]" if e.get("affects_observer") else ""
+                    timeline_context += f"- {e['date']}: [{e['actor']}] {e['title']} (imp:{e['importance']}){affects}\n"
+
+            # Format doctrinal events (6 months)
+            doctrinal = ctx.get("windows", {}).get("doctrinal_6m", [])
+            if doctrinal:
+                timeline_context += "\n=== EVENEMENTS MOYENS (6 mois) - Changements doctrinaux ===\n"
+                for e in doctrinal[:3]:
+                    affects = " [TE CONCERNE]" if e.get("affects_observer") else ""
+                    timeline_context += f"- {e['date']}: [{e['actor']}] {e['title']}{affects}\n"
+
+            # Format critical events (ruptures)
+            critical = ctx.get("windows", {}).get("critical_all", [])
+            if critical:
+                timeline_context += "\n=== RUPTURES MAJEURES (evenements critiques) ===\n"
+                for e in critical[:3]:
+                    timeline_context += f"* {e['date']}: {e['title']} [IMPORTANCE 5]\n"
+
+            # Preparation states
+            preps = ctx.get("preparation_states", {})
+            if preps:
+                mil_prep = preps.get("military_mobilization", 0)
+                dip_prep = preps.get("diplomatic_channels", 0)
+                if mil_prep > 30 or dip_prep > 30:
+                    timeline_context += f"\n=== ETAT DE PREPARATION ===\n"
+                    if mil_prep > 30:
+                        timeline_context += f"- Mobilisation militaire: {mil_prep}%\n"
+                    if dip_prep > 30:
+                        timeline_context += f"- Canaux diplomatiques: {dip_prep}%\n"
+
+            # Memory scores (sentiment towards other powers)
+            memory = ctx.get("country_memory", {})
+            if memory and memory.get("total_weighted_impact", 0) > 5:
+                timeline_context += f"\n=== MEMOIRE DES EVENEMENTS ===\n"
+                if memory.get("conflicts_suffered", 0) > 2:
+                    timeline_context += f"- Conflits subis: impact eleve\n"
+                if memory.get("conflicts_initiated", 0) > 2:
+                    timeline_context += f"- Conflits inities: posture agressive\n"
+
         # Build the prompt
-        prompt = f"""Tu es le dirigeant de {country.name_fr} en {world.year}.
+        prompt = f"""Tu es le dirigeant de {country.name_fr} en {world.date_display}.
 
 SITUATION DE TON PAYS:
 - Population: {country.population}/100
@@ -374,7 +453,9 @@ RIVAUX:
 CONTEXTE MONDIAL:
 - Prix du petrole: {world.oil_price}$/baril
 - Tension mondiale: {world.global_tension}/100
-- Annee: {world.year}
+- Date: {world.date_display}
+- DEFCON: {world.defcon_level}
+{timeline_context}
 
 ACTIONS POSSIBLES:
 1. ECONOMIE - Developper l'economie (+3 eco)
@@ -387,11 +468,17 @@ ACTIONS POSSIBLES:
 8. NUCLEAIRE - Developper le programme nucleaire (+5 nuc, -10 soft power)
 9. RIEN - Maintenir le statu quo
 
+INSTRUCTIONS:
+- Tiens compte des evenements recents dans ta decision
+- Les evenements qui te concernent directement [TE CONCERNE] sont prioritaires
+- Si des ruptures majeures ont eu lieu, adapte ta strategie en consequence
+- Si ta preparation militaire/diplomatique est elevee, tu peux agir plus rapidement
+
 Reponds UNIQUEMENT avec ce format JSON:
 {{"action": "NOM_ACTION", "cible": "CODE_PAYS_SI_APPLICABLE", "raison": "explication courte"}}
 
-Exemple: {{"action": "SANCTIONS", "cible": "USA", "raison": "Represailles contre les sanctions americaines"}}
-Exemple: {{"action": "ECONOMIE", "cible": null, "raison": "L'economie doit etre prioritaire"}}
+Exemple: {{"action": "SANCTIONS", "cible": "USA", "raison": "Represailles suite aux sanctions du mois dernier"}}
+Exemple: {{"action": "ECONOMIE", "cible": null, "raison": "Priorite a l'economie apres la crise recente"}}
 
 Ta decision:"""
 

@@ -137,6 +137,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
   autoPlay: false,
   speed: 1,
 
+  // Timeline State (NEW)
+  year: 2025,
+  month: 1,
+  day: 1,
+  dateDisplay: 'January 2025',
+  dateDisplayFr: 'Janvier 2025',
+  timeline: [],
+  timelineLoading: false,
+  viewingDate: null,
+  unreadEventCount: 0,
+  timelineModalOpen: false,
+
   // Tier 4/5/6 Countries
   tier4Countries: [],
   tier5Countries: [],
@@ -170,7 +182,27 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const world = await api.getWorldState();
-      set({ world, isLoading: false });
+      // Extract timeline data from world state
+      const monthNames = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      const monthNamesFr = [
+        'Janvier', 'Fevrier', 'Mars', 'Avril', 'Mai', 'Juin',
+        'Juillet', 'Aout', 'Septembre', 'Octobre', 'Novembre', 'Decembre'
+      ];
+      const year = world.year || 2025;
+      const month = (world as { month?: number }).month || 1;
+      set({
+        world,
+        year,
+        month,
+        day: 1,
+        dateDisplay: `${monthNames[month - 1]} ${year}`,
+        dateDisplayFr: `${monthNamesFr[month - 1]} ${year}`,
+        unreadEventCount: (world as { unread_events?: number }).unread_events || 0,
+        isLoading: false
+      });
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Erreur de connexion au serveur',
@@ -257,6 +289,265 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   // Clear error message
   clearError: () => set({ error: null }),
+
+  // =========================================================================
+  // TIMELINE ACTIONS (NEW)
+  // =========================================================================
+
+  // Advance simulation by one month
+  advanceMonth: async () => {
+    const { timeline, eventHistory } = get();
+    set({ isLoading: true, error: null });
+    try {
+      const result = await api.advanceMonth();
+
+      // Extract new timeline events
+      const newTimelineEvents: TimelineEvent[] = (result.timeline_events || []).map((te: {
+        id: string;
+        date: string;
+        actor_country: string;
+        title_fr: string;
+        type: string;
+        importance: number;
+      }) => ({
+        id: te.id,
+        date: {
+          year: result.year,
+          month: result.month,
+          day: parseInt(te.date.split('-')[2]) || 1,
+          display: te.date,
+          display_fr: te.date,
+        },
+        actor_country: te.actor_country,
+        target_countries: [],
+        title: te.title_fr,
+        title_fr: te.title_fr,
+        description: '',
+        description_fr: '',
+        type: te.type as TimelineEvent['type'],
+        source: 'procedural' as TimelineEvent['source'],
+        importance: te.importance,
+        read: false,
+        caused_by: null,
+        triggers: [],
+      }));
+
+      // Add new events to timeline
+      const updatedTimeline = [...timeline, ...newTimelineEvents];
+
+      // Update month names
+      const monthNames = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      const monthNamesFr = [
+        'Janvier', 'Fevrier', 'Mars', 'Avril', 'Mai', 'Juin',
+        'Juillet', 'Aout', 'Septembre', 'Octobre', 'Novembre', 'Decembre'
+      ];
+
+      set({
+        year: result.year,
+        month: result.month,
+        dateDisplay: `${monthNames[result.month - 1]} ${result.year}`,
+        dateDisplayFr: `${monthNamesFr[result.month - 1]} ${result.year}`,
+        timeline: updatedTimeline,
+        unreadEventCount: result.unread_events || newTimelineEvents.length,
+        recentTickEvents: result.events || [],
+        showEventToast: (result.events || []).length > 0,
+        eventHistory: [...(result.events || []), ...eventHistory].slice(0, 100),
+      });
+
+      await get().fetchWorldState();
+      return result;
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : 'Erreur lors de la simulation',
+        isLoading: false
+      });
+      return null;
+    }
+  },
+
+  // Fetch timeline events
+  fetchTimeline: async (params?: { year?: number; month?: number }) => {
+    set({ timelineLoading: true });
+    try {
+      const result = await api.getTimelineEvents({
+        start_year: params?.year,
+        start_month: params?.month,
+        limit: 200,
+      });
+      set({
+        timeline: result.events,
+        timelineLoading: false,
+      });
+    } catch {
+      set({ timelineLoading: false });
+    }
+  },
+
+  // Fetch events for a specific month
+  fetchTimelineForMonth: async (year: number, month: number): Promise<TimelineEvent[]> => {
+    try {
+      const result = await api.getTimelineEventsByMonth(year, month);
+      return result.events;
+    } catch {
+      return [];
+    }
+  },
+
+  // Set the date being viewed in the timeline modal
+  setViewingDate: (date: GameDate | null) => {
+    set({ viewingDate: date });
+  },
+
+  // Navigate to previous month in timeline
+  goToPreviousMonth: () => {
+    const { viewingDate, year, month } = get();
+    const currentViewYear = viewingDate?.year ?? year;
+    const currentViewMonth = viewingDate?.month ?? month;
+
+    let newMonth = currentViewMonth - 1;
+    let newYear = currentViewYear;
+    if (newMonth < 1) {
+      newMonth = 12;
+      newYear -= 1;
+    }
+
+    // Don't go before game start (2025-01)
+    if (newYear < 2025 || (newYear === 2025 && newMonth < 1)) {
+      return;
+    }
+
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    const monthNamesFr = [
+      'Janvier', 'Fevrier', 'Mars', 'Avril', 'Mai', 'Juin',
+      'Juillet', 'Aout', 'Septembre', 'Octobre', 'Novembre', 'Decembre'
+    ];
+
+    set({
+      viewingDate: {
+        year: newYear,
+        month: newMonth,
+        day: 1,
+        display: `${monthNames[newMonth - 1]} ${newYear}`,
+        display_fr: `${monthNamesFr[newMonth - 1]} ${newYear}`,
+      },
+    });
+  },
+
+  // Navigate to next month (or advance game if at current date)
+  goToNextMonth: async () => {
+    const { viewingDate, year, month, advanceMonth: advanceMonthAction } = get();
+    const currentViewYear = viewingDate?.year ?? year;
+    const currentViewMonth = viewingDate?.month ?? month;
+
+    // If viewing current date, advance the game
+    if (currentViewYear === year && currentViewMonth === month) {
+      await advanceMonthAction();
+      return;
+    }
+
+    // Otherwise, navigate forward in timeline
+    let newMonth = currentViewMonth + 1;
+    let newYear = currentViewYear;
+    if (newMonth > 12) {
+      newMonth = 1;
+      newYear += 1;
+    }
+
+    // Don't go beyond current game date
+    if (newYear > year || (newYear === year && newMonth > month)) {
+      // Reset to current date
+      set({ viewingDate: null });
+      return;
+    }
+
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    const monthNamesFr = [
+      'Janvier', 'Fevrier', 'Mars', 'Avril', 'Mai', 'Juin',
+      'Juillet', 'Aout', 'Septembre', 'Octobre', 'Novembre', 'Decembre'
+    ];
+
+    set({
+      viewingDate: {
+        year: newYear,
+        month: newMonth,
+        day: 1,
+        display: `${monthNames[newMonth - 1]} ${newYear}`,
+        display_fr: `${monthNamesFr[newMonth - 1]} ${newYear}`,
+      },
+    });
+  },
+
+  // Mark events as read
+  markEventsAsRead: async (eventIds?: string[]) => {
+    try {
+      const result = await api.markTimelineEventsRead(eventIds);
+      set({ unreadEventCount: result.unread_remaining });
+
+      // Update timeline events to mark as read
+      if (eventIds) {
+        const { timeline } = get();
+        set({
+          timeline: timeline.map(e =>
+            eventIds.includes(e.id) ? { ...e, read: true } : e
+          ),
+        });
+      } else {
+        // Mark all as read
+        const { timeline } = get();
+        set({
+          timeline: timeline.map(e => ({ ...e, read: true })),
+        });
+      }
+    } catch {
+      // Silent fail
+    }
+  },
+
+  // Open timeline modal
+  openTimelineModal: () => {
+    set({ timelineModalOpen: true });
+  },
+
+  // Close timeline modal
+  closeTimelineModal: () => {
+    set({ timelineModalOpen: false, viewingDate: null });
+  },
+
+  // Get events for the currently viewing month
+  getEventsForViewingMonth: () => {
+    const { timeline, viewingDate, year, month } = get();
+    const viewYear = viewingDate?.year ?? year;
+    const viewMonth = viewingDate?.month ?? month;
+
+    return timeline.filter(
+      e => e.date.year === viewYear && e.date.month === viewMonth
+    ).sort((a, b) => (a.date.day || 0) - (b.date.day || 0));
+  },
+
+  // Check if can navigate backward
+  canGoBack: () => {
+    const { viewingDate, year, month } = get();
+    const viewYear = viewingDate?.year ?? year;
+    const viewMonth = viewingDate?.month ?? month;
+    // Can go back if not at game start (2025-01)
+    return viewYear > 2025 || (viewYear === 2025 && viewMonth > 1);
+  },
+
+  // Check if can navigate forward (always true - will advance game if at current)
+  canGoForward: () => true,
+
+  // =========================================================================
+  // TIER 4/5/6 ACTIONS
+  // =========================================================================
 
   // Fetch Tier 4 countries
   fetchTier4Countries: async () => {

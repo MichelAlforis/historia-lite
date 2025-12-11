@@ -1,11 +1,20 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useGameStore } from '@/stores/gameStore';
 import { COUNTRY_FLAGS } from '@/lib/types';
 import { Send, Loader2, ChevronDown, Plus, MessageCircle, Clock, Check, ThumbsUp, ThumbsDown, Minus, Mic } from 'lucide-react';
 
+// ============================================================================
+// Constants (TIER 4: No magic numbers)
+// ============================================================================
+const MAX_MESSAGE_LENGTH = 500;
+const FOCUS_DELAY_MS = 50;
+const API_BASE = process.env.NEXT_PUBLIC_HISTORIA_API_URL || 'http://localhost:8001/api';
+
+// ============================================================================
 // Types
+// ============================================================================
 interface Dialogue {
   id: string;
   title: string;
@@ -30,8 +39,11 @@ interface DialogueDropupProps {
 
 type ViewMode = 'list' | 'select-countries' | 'chat';
 
+// ============================================================================
+// Component
+// ============================================================================
 export default function DialogueDropup({ isOpen, onClose }: DialogueDropupProps) {
-  const { world, playerCountryId, pendingDilemmas, resolvePlayerDilemma, isLoading } = useGameStore();
+  const { world, playerCountryId, pendingDilemmas, isLoading } = useGameStore();
 
   // State
   const [dialogues, setDialogues] = useState<Dialogue[]>([]);
@@ -39,23 +51,271 @@ export default function DialogueDropup({ isOpen, onClose }: DialogueDropupProps)
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
   const [message, setMessage] = useState('');
+  const [isAIThinking, setIsAIThinking] = useState(false);
 
+  // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const focusTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Get current year from world
   const currentYear = world?.year || 2025;
+
+  // ============================================================================
+  // TIER 1: Memoized computed values
+  // ============================================================================
+  const selectedDialogue = useMemo(() =>
+    dialogues.find(d => d.id === selectedDialogueId),
+    [dialogues, selectedDialogueId]
+  );
+
+  const ongoingDialogues = useMemo(() =>
+    dialogues.filter(d => d.status === 'ongoing'),
+    [dialogues]
+  );
+
+  const requestedDialogues = useMemo(() =>
+    dialogues.filter(d => d.status === 'requested'),
+    [dialogues]
+  );
+
+  const pastDialogues = useMemo(() =>
+    dialogues.filter(d => d.status === 'past'),
+    [dialogues]
+  );
+
+  const availableCountries = useMemo(() =>
+    world?.countries.filter(c => c.id !== playerCountryId) || [],
+    [world, playerCountryId]
+  );
+
+  const isInputDisabled = useMemo(() =>
+    isLoading || isAIThinking,
+    [isLoading, isAIThinking]
+  );
+
+  const isSendDisabled = useMemo(() =>
+    !message.trim() || isLoading || isAIThinking,
+    [message, isLoading, isAIThinking]
+  );
+
+  // ============================================================================
+  // TIER 1.3: Real AI API call
+  // ============================================================================
+  const callDiplomaticAI = useCallback(async (
+    targetCountryId: string,
+    playerMessage: string,
+    action: string = 'diplomatic_discussion'
+  ): Promise<string> => {
+    if (!playerCountryId) return '';
+
+    try {
+      const response = await fetch(
+        `${API_BASE}/ai-advisor/dialogue/${playerCountryId}/${targetCountryId}?action=${action}`,
+        { method: 'GET' }
+      );
+
+      if (!response.ok) {
+        throw new Error('API error');
+      }
+
+      const data = await response.json();
+      if (data.success && data.dialogue) {
+        return data.dialogue.message || data.dialogue.content || '';
+      }
+
+      // Fallback response if API fails
+      return `La délégation de ${targetCountryId} prend note de votre message.`;
+    } catch (error) {
+      console.error('Error calling diplomatic AI:', error);
+      return `La délégation de ${targetCountryId} réfléchit à votre proposition.`;
+    }
+  }, [playerCountryId]);
+
+  // ============================================================================
+  // TIER 1: Memoized handlers (prevent re-renders)
+  // ============================================================================
+  const toggleCountry = useCallback((countryId: string) => {
+    setSelectedCountries(prev =>
+      prev.includes(countryId)
+        ? prev.filter(id => id !== countryId)
+        : [...prev, countryId]
+    );
+  }, []);
+
+  const handleStartNewChat = useCallback(() => {
+    setSelectedCountries([]);
+    setViewMode('select-countries');
+  }, []);
+
+  const handleCreateDialogue = useCallback(() => {
+    if (selectedCountries.length === 0) return;
+
+    const countryNames = selectedCountries
+      .map(id => world?.countries.find(c => c.id === id)?.name || id)
+      .join(', ');
+
+    const newDialogue: Dialogue = {
+      id: `chat-${Date.now()}`,
+      title: `Discussion avec ${countryNames}`,
+      date: currentYear,
+      status: 'ongoing',
+      participants: selectedCountries,
+      messages: [],
+      attitudes: Object.fromEntries(selectedCountries.map(id => [id, 'neutral' as const]))
+    };
+
+    setDialogues(prev => [...prev, newDialogue]);
+    setSelectedDialogueId(newDialogue.id);
+    setViewMode('chat');
+  }, [selectedCountries, world, currentYear]);
+
+  const handleSendMessage = useCallback(async () => {
+    if (!message.trim() || !selectedDialogueId) return;
+
+    const msgContent = message.slice(0, MAX_MESSAGE_LENGTH); // TIER 2: Input validation
+    const playerMsg: DialogueMessage = {
+      id: `msg-${Date.now()}`,
+      senderId: 'player',
+      content: msgContent,
+      timestamp: new Date()
+    };
+
+    // Add player message
+    setDialogues(prev => prev.map(d =>
+      d.id === selectedDialogueId
+        ? { ...d, messages: [...d.messages, playerMsg] }
+        : d
+    ));
+
+    setMessage('');
+
+    // Get AI response from participant
+    const dialogue = dialogues.find(d => d.id === selectedDialogueId);
+    if (dialogue && dialogue.participants.length > 0) {
+      setIsAIThinking(true);
+
+      try {
+        const responderId = dialogue.participants[Math.floor(Math.random() * dialogue.participants.length)];
+        const aiResponse = await callDiplomaticAI(responderId, msgContent, 'diplomatic_discussion');
+
+        const aiMsg: DialogueMessage = {
+          id: `msg-${Date.now()}-ai`,
+          senderId: responderId,
+          content: aiResponse,
+          timestamp: new Date()
+        };
+
+        setDialogues(prev => prev.map(d =>
+          d.id === selectedDialogueId
+            ? { ...d, messages: [...d.messages, aiMsg] }
+            : d
+        ));
+
+        // Update attitude based on response sentiment (simple heuristic)
+        const positiveWords = ['acceptons', 'accord', 'bienvenu', 'favorable', 'coopération'];
+        const negativeWords = ['refusons', 'inacceptable', 'hostile', 'menace', 'sanctions'];
+
+        let newAttitude: 'positive' | 'negative' | 'neutral' = 'neutral';
+        const lowerResponse = aiResponse.toLowerCase();
+        if (positiveWords.some(word => lowerResponse.includes(word))) {
+          newAttitude = 'positive';
+        } else if (negativeWords.some(word => lowerResponse.includes(word))) {
+          newAttitude = 'negative';
+        }
+
+        setDialogues(prev => prev.map(d =>
+          d.id === selectedDialogueId
+            ? { ...d, attitudes: { ...d.attitudes, [responderId]: newAttitude } }
+            : d
+        ));
+      } finally {
+        setIsAIThinking(false);
+      }
+    }
+  }, [message, selectedDialogueId, dialogues, callDiplomaticAI]);
+
+  const handleGiveFloor = useCallback(async (countryId: string) => {
+    if (!selectedDialogueId) return;
+
+    setIsAIThinking(true);
+    try {
+      const aiResponse = await callDiplomaticAI(countryId, 'general_statement', 'general');
+
+      const aiMsg: DialogueMessage = {
+        id: `msg-${Date.now()}-floor`,
+        senderId: countryId,
+        content: aiResponse,
+        timestamp: new Date()
+      };
+
+      setDialogues(prev => prev.map(d =>
+        d.id === selectedDialogueId
+          ? { ...d, messages: [...d.messages, aiMsg] }
+          : d
+      ));
+    } finally {
+      setIsAIThinking(false);
+    }
+  }, [selectedDialogueId, callDiplomaticAI]);
+
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    // TIER 2: Input validation - limit length
+    const value = e.target.value.slice(0, MAX_MESSAGE_LENGTH);
+    setMessage(value);
+  }, []);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+    if (e.key === 'Escape') {
+      if (viewMode !== 'list') {
+        setViewMode('list');
+      } else {
+        onClose();
+      }
+    }
+  }, [handleSendMessage, viewMode, onClose]);
+
+  const handleSelectDialogue = useCallback((id: string) => {
+    setSelectedDialogueId(id);
+    setViewMode('chat');
+  }, []);
+
+  const handleCancelSelection = useCallback(() => {
+    setViewMode('list');
+  }, []);
+
+  // ============================================================================
+  // TIER 1: Effects with proper cleanup (memory leaks fix)
+  // ============================================================================
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [dialogues]);
 
-  // Focus input when in chat mode
+  // TIER 1: Focus input when in chat mode (with cleanup)
   useEffect(() => {
-    if (viewMode === 'chat' && isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 100);
+    if (viewMode === 'chat' && isOpen && inputRef.current) {
+      // Clear any existing timeout
+      if (focusTimeoutRef.current) {
+        clearTimeout(focusTimeoutRef.current);
+      }
+      focusTimeoutRef.current = setTimeout(() => {
+        inputRef.current?.focus();
+      }, FOCUS_DELAY_MS);
     }
+
+    // Cleanup on unmount or when dependencies change
+    return () => {
+      if (focusTimeoutRef.current) {
+        clearTimeout(focusTimeoutRef.current);
+        focusTimeoutRef.current = null;
+      }
+    };
   }, [viewMode, isOpen]);
 
   // Convert pending dilemmas to dialogues
@@ -82,171 +342,49 @@ export default function DialogueDropup({ isOpen, onClose }: DialogueDropupProps)
     });
   }, [pendingDilemmas, currentYear]);
 
+  // ============================================================================
+  // TIER 2: Memoized sub-components
+  // ============================================================================
+  const AttitudeIcon = useCallback(({ attitude }: { attitude: 'positive' | 'negative' | 'neutral' }) => {
+    if (attitude === 'positive') return <ThumbsUp className="w-3 h-3 text-emerald-500" aria-label="Attitude positive" />;
+    if (attitude === 'negative') return <ThumbsDown className="w-3 h-3 text-rose-500" aria-label="Attitude négative" />;
+    return <Minus className="w-3 h-3 text-stone-400" aria-label="Attitude neutre" />;
+  }, []);
+
+  // ============================================================================
+  // Render
+  // ============================================================================
   if (!isOpen) return null;
-
-  const selectedDialogue = dialogues.find(d => d.id === selectedDialogueId);
-
-  // Filter dialogues by status
-  const ongoingDialogues = dialogues.filter(d => d.status === 'ongoing');
-  const requestedDialogues = dialogues.filter(d => d.status === 'requested');
-  const pastDialogues = dialogues.filter(d => d.status === 'past');
-
-  // Available countries for selection
-  const availableCountries = world?.countries.filter(c => c.id !== playerCountryId) || [];
-
-  // Toggle country selection
-  const toggleCountry = (countryId: string) => {
-    setSelectedCountries(prev =>
-      prev.includes(countryId)
-        ? prev.filter(id => id !== countryId)
-        : [...prev, countryId]
-    );
-  };
-
-  // Start new chat
-  const handleStartNewChat = () => {
-    setSelectedCountries([]);
-    setViewMode('select-countries');
-  };
-
-  // Create dialogue with selected countries
-  const handleCreateDialogue = () => {
-    if (selectedCountries.length === 0) return;
-
-    const newDialogue: Dialogue = {
-      id: `chat-${Date.now()}`,
-      title: `Discussion avec ${selectedCountries.map(id => world?.countries.find(c => c.id === id)?.name || id).join(', ')}`,
-      date: currentYear,
-      status: 'ongoing',
-      participants: selectedCountries,
-      messages: [],
-      attitudes: Object.fromEntries(selectedCountries.map(id => [id, 'neutral' as const]))
-    };
-
-    setDialogues(prev => [...prev, newDialogue]);
-    setSelectedDialogueId(newDialogue.id);
-    setViewMode('chat');
-  };
-
-  // Send message
-  const handleSendMessage = async () => {
-    if (!message.trim() || !selectedDialogueId) return;
-
-    const playerMsg: DialogueMessage = {
-      id: `msg-${Date.now()}`,
-      senderId: 'player',
-      content: message,
-      timestamp: new Date()
-    };
-
-    // Add player message
-    setDialogues(prev => prev.map(d =>
-      d.id === selectedDialogueId
-        ? { ...d, messages: [...d.messages, playerMsg] }
-        : d
-    ));
-
-    setMessage('');
-
-    // Simulate AI responses from participants
-    const dialogue = dialogues.find(d => d.id === selectedDialogueId);
-    if (dialogue && dialogue.participants.length > 0) {
-      // Simulate delay for AI thinking
-      setTimeout(() => {
-        const responderId = dialogue.participants[Math.floor(Math.random() * dialogue.participants.length)];
-        const responses = [
-          "Nous sommes disposes a discuter de cette proposition.",
-          "Cette initiative merite une reflexion approfondie.",
-          "Nous avons des reserves concernant cette approche.",
-          "Cela pourrait etre benefique pour nos deux nations.",
-          "Nous devons consulter nos allies avant de repondre.",
-        ];
-        const aiMsg: DialogueMessage = {
-          id: `msg-${Date.now()}-ai`,
-          senderId: responderId,
-          content: responses[Math.floor(Math.random() * responses.length)],
-          timestamp: new Date()
-        };
-
-        setDialogues(prev => prev.map(d =>
-          d.id === selectedDialogueId
-            ? { ...d, messages: [...d.messages, aiMsg] }
-            : d
-        ));
-
-        // Update attitude randomly
-        const attitudes = ['positive', 'negative', 'neutral'] as const;
-        setDialogues(prev => prev.map(d =>
-          d.id === selectedDialogueId
-            ? { ...d, attitudes: { ...d.attitudes, [responderId]: attitudes[Math.floor(Math.random() * 3)] } }
-            : d
-        ));
-      }, 1000);
-    }
-  };
-
-  // Give floor to specific country
-  const handleGiveFloor = (countryId: string) => {
-    if (!selectedDialogueId) return;
-
-    const country = world?.countries.find(c => c.id === countryId);
-    const responses = [
-      `${country?.name || countryId} prend la parole: Nous apprecions cette opportunite de dialogue.`,
-      `${country?.name || countryId} declare: Notre position reste ferme sur ce sujet.`,
-      `${country?.name || countryId} affirme: Nous sommes ouverts a des compromis.`,
-    ];
-
-    const aiMsg: DialogueMessage = {
-      id: `msg-${Date.now()}-floor`,
-      senderId: countryId,
-      content: responses[Math.floor(Math.random() * responses.length)],
-      timestamp: new Date()
-    };
-
-    setDialogues(prev => prev.map(d =>
-      d.id === selectedDialogueId
-        ? { ...d, messages: [...d.messages, aiMsg] }
-        : d
-    ));
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-    if (e.key === 'Escape') {
-      if (viewMode !== 'list') {
-        setViewMode('list');
-      } else {
-        onClose();
-      }
-    }
-  };
-
-  // Attitude icon
-  const AttitudeIcon = ({ attitude }: { attitude: 'positive' | 'negative' | 'neutral' }) => {
-    if (attitude === 'positive') return <ThumbsUp className="w-3 h-3 text-emerald-500" />;
-    if (attitude === 'negative') return <ThumbsDown className="w-3 h-3 text-rose-500" />;
-    return <Minus className="w-3 h-3 text-stone-400" />;
-  };
 
   return (
     <>
-      {/* Backdrop */}
+      {/* Backdrop - click to close */}
       <div
         className="fixed inset-0 z-30"
         onClick={onClose}
+        role="presentation"
+        aria-hidden="true"
       />
 
       {/* Drop-up panel */}
-      <div className="fixed bottom-16 left-1/2 -translate-x-1/2 z-40 w-full max-w-2xl">
-        <div className="bg-white rounded-2xl shadow-2xl border border-stone-200 overflow-hidden mx-4">
+      <div
+        className="fixed bottom-16 left-1/2 -translate-x-1/2 z-40 w-full max-w-2xl px-4
+          sm:max-w-xl md:max-w-2xl"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="dialogue-dropup-title"
+      >
+        <div className="bg-white rounded-2xl shadow-2xl border border-stone-200 overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-2 border-b border-stone-100">
             <div className="flex items-center gap-2">
-              <MessageCircle className="w-4 h-4 text-sky-500" />
-              <span className="text-xs font-medium text-stone-500 uppercase tracking-wide">Dialogues</span>
+              <MessageCircle className="w-4 h-4 text-sky-500" aria-hidden="true" />
+              <span
+                id="dialogue-dropup-title"
+                className="text-xs font-medium text-stone-500 uppercase tracking-wide"
+              >
+                Dialogues
+              </span>
               {ongoingDialogues.length > 0 && (
                 <span className="px-1.5 py-0.5 bg-sky-100 text-sky-600 rounded text-xs">
                   {ongoingDialogues.length}
@@ -256,37 +394,44 @@ export default function DialogueDropup({ isOpen, onClose }: DialogueDropupProps)
             <button
               onClick={onClose}
               className="p-1 hover:bg-stone-100 rounded-lg transition"
+              aria-label="Fermer le panneau de dialogues"
             >
-              <ChevronDown className="w-4 h-4 text-stone-400" />
+              <ChevronDown className="w-4 h-4 text-stone-400" aria-hidden="true" />
             </button>
           </div>
 
           {/* Content - 2 columns */}
-          <div className="flex h-80">
+          <div className="flex h-80 sm:h-72 md:h-80">
             {/* Sidebar */}
-            <div className="w-48 border-r border-stone-100 bg-stone-50 overflow-y-auto">
+            <div
+              className="w-40 sm:w-44 md:w-48 border-r border-stone-100 bg-stone-50 overflow-y-auto"
+              role="navigation"
+              aria-label="Liste des dialogues"
+            >
               {/* Start new chat button */}
               <button
                 onClick={handleStartNewChat}
                 className="w-full flex items-center gap-2 px-3 py-2 text-sky-600 hover:bg-sky-50 transition text-sm"
+                aria-label="Commencer une nouvelle discussion"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-4 h-4" aria-hidden="true" />
                 <span>Nouvelle discussion</span>
               </button>
 
               {/* Ongoing */}
               {ongoingDialogues.length > 0 && (
-                <div>
+                <div role="group" aria-label="Dialogues en cours">
                   <div className="px-3 py-1.5 text-xs font-medium text-stone-500 uppercase tracking-wide bg-stone-100">
                     En cours
                   </div>
                   {ongoingDialogues.map(d => (
                     <button
                       key={d.id}
-                      onClick={() => { setSelectedDialogueId(d.id); setViewMode('chat'); }}
+                      onClick={() => handleSelectDialogue(d.id)}
                       className={`w-full text-left px-3 py-2 hover:bg-white transition ${
                         selectedDialogueId === d.id ? 'bg-white border-l-2 border-sky-500' : ''
                       }`}
+                      aria-selected={selectedDialogueId === d.id}
                     >
                       <div className="text-sm text-stone-700 truncate">{d.title}</div>
                       <div className="text-xs text-stone-400">{d.date}</div>
@@ -297,20 +442,21 @@ export default function DialogueDropup({ isOpen, onClose }: DialogueDropupProps)
 
               {/* Requested */}
               {requestedDialogues.length > 0 && (
-                <div>
+                <div role="group" aria-label="Demandes de dialogue">
                   <div className="px-3 py-1.5 text-xs font-medium text-stone-500 uppercase tracking-wide bg-stone-100">
                     Demande
                   </div>
                   {requestedDialogues.map(d => (
                     <button
                       key={d.id}
-                      onClick={() => { setSelectedDialogueId(d.id); setViewMode('chat'); }}
+                      onClick={() => handleSelectDialogue(d.id)}
                       className={`w-full text-left px-3 py-2 hover:bg-white transition ${
                         selectedDialogueId === d.id ? 'bg-white border-l-2 border-amber-500' : ''
                       }`}
+                      aria-selected={selectedDialogueId === d.id}
                     >
                       <div className="flex items-center gap-1">
-                        <Clock className="w-3 h-3 text-amber-500" />
+                        <Clock className="w-3 h-3 text-amber-500" aria-hidden="true" />
                         <span className="text-sm text-stone-700 truncate">{d.title}</span>
                       </div>
                       <div className="text-xs text-stone-400">{d.date}</div>
@@ -321,20 +467,21 @@ export default function DialogueDropup({ isOpen, onClose }: DialogueDropupProps)
 
               {/* Past */}
               {pastDialogues.length > 0 && (
-                <div>
+                <div role="group" aria-label="Dialogues passés">
                   <div className="px-3 py-1.5 text-xs font-medium text-stone-500 uppercase tracking-wide bg-stone-100">
                     Passe
                   </div>
                   {pastDialogues.map(d => (
                     <button
                       key={d.id}
-                      onClick={() => { setSelectedDialogueId(d.id); setViewMode('chat'); }}
+                      onClick={() => handleSelectDialogue(d.id)}
                       className={`w-full text-left px-3 py-2 hover:bg-white transition ${
                         selectedDialogueId === d.id ? 'bg-white border-l-2 border-stone-400' : ''
                       }`}
+                      aria-selected={selectedDialogueId === d.id}
                     >
                       <div className="flex items-center gap-1">
-                        <Check className="w-3 h-3 text-stone-400" />
+                        <Check className="w-3 h-3 text-stone-400" aria-hidden="true" />
                         <span className="text-sm text-stone-500 truncate">{d.title}</span>
                       </div>
                       <div className="text-xs text-stone-400">{d.date}</div>
@@ -354,7 +501,7 @@ export default function DialogueDropup({ isOpen, onClose }: DialogueDropupProps)
             {/* Main content area */}
             <div className="flex-1 flex flex-col bg-stone-50">
               {viewMode === 'list' && !selectedDialogueId && (
-                <div className="flex-1 flex items-center justify-center text-stone-400 text-sm">
+                <div className="flex-1 flex items-center justify-center text-stone-400 text-sm p-4 text-center">
                   Selectionnez un dialogue ou commencez une nouvelle discussion
                 </div>
               )}
@@ -365,7 +512,7 @@ export default function DialogueDropup({ isOpen, onClose }: DialogueDropupProps)
                     Selectionnez les pays participants
                   </h3>
                   <div className="flex-1 overflow-y-auto">
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {availableCountries.map(country => (
                         <button
                           key={country.id}
@@ -375,8 +522,9 @@ export default function DialogueDropup({ isOpen, onClose }: DialogueDropupProps)
                               ? 'bg-sky-100 text-sky-700 ring-2 ring-sky-300'
                               : 'bg-white hover:bg-stone-100 text-stone-700'
                           }`}
+                          aria-pressed={selectedCountries.includes(country.id)}
                         >
-                          <span className="text-lg">{COUNTRY_FLAGS[country.id] || '🏳️'}</span>
+                          <span className="text-lg" aria-hidden="true">{COUNTRY_FLAGS[country.id] || '🏳️'}</span>
                           <span className="truncate">{country.name}</span>
                         </button>
                       ))}
@@ -384,7 +532,7 @@ export default function DialogueDropup({ isOpen, onClose }: DialogueDropupProps)
                   </div>
                   <div className="flex justify-between items-center mt-4 pt-3 border-t border-stone-200">
                     <button
-                      onClick={() => setViewMode('list')}
+                      onClick={handleCancelSelection}
                       className="px-4 py-2 text-stone-600 hover:text-stone-800 transition text-sm"
                     >
                       Annuler
@@ -406,7 +554,7 @@ export default function DialogueDropup({ isOpen, onClose }: DialogueDropupProps)
                   {/* Participants header with attitudes */}
                   {selectedDialogue.participants.length > 0 && (
                     <div className="px-4 py-2 border-b border-stone-200 bg-white">
-                      <div className="flex items-center gap-3 flex-wrap">
+                      <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                         {selectedDialogue.participants.map(countryId => {
                           const country = world?.countries.find(c => c.id === countryId);
                           const attitude = selectedDialogue.attitudes[countryId] || 'neutral';
@@ -414,13 +562,20 @@ export default function DialogueDropup({ isOpen, onClose }: DialogueDropupProps)
                             <button
                               key={countryId}
                               onClick={() => handleGiveFloor(countryId)}
-                              className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-stone-50 hover:bg-stone-100 transition"
+                              disabled={isAIThinking}
+                              className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-stone-50
+                                hover:bg-stone-100 transition disabled:opacity-50"
                               title={`Donner la parole a ${country?.name || countryId}`}
+                              aria-label={`Donner la parole a ${country?.name || countryId}`}
                             >
-                              <span className="text-lg">{COUNTRY_FLAGS[countryId] || '🏳️'}</span>
-                              <span className="text-xs text-stone-600">{country?.name || countryId}</span>
+                              <span className="text-base sm:text-lg" aria-hidden="true">
+                                {COUNTRY_FLAGS[countryId] || '🏳️'}
+                              </span>
+                              <span className="text-xs text-stone-600 hidden sm:inline">
+                                {country?.name || countryId}
+                              </span>
                               <AttitudeIcon attitude={attitude} />
-                              <Mic className="w-3 h-3 text-stone-400" />
+                              <Mic className="w-3 h-3 text-stone-400" aria-hidden="true" />
                             </button>
                           );
                         })}
@@ -429,7 +584,12 @@ export default function DialogueDropup({ isOpen, onClose }: DialogueDropupProps)
                   )}
 
                   {/* Messages */}
-                  <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                  <div
+                    className="flex-1 overflow-y-auto p-3 space-y-2"
+                    role="log"
+                    aria-live="polite"
+                    aria-label="Historique des messages"
+                  >
                     {selectedDialogue.messages.length === 0 && (
                       <div className="text-center text-stone-400 text-sm py-8">
                         Commencez la discussion...
@@ -457,7 +617,7 @@ export default function DialogueDropup({ isOpen, onClose }: DialogueDropupProps)
                           }`}>
                             {!isPlayer && !isSystem && (
                               <div className="flex items-center gap-1 mb-1 text-xs text-stone-500">
-                                <span>{COUNTRY_FLAGS[msg.senderId] || '🏳️'}</span>
+                                <span aria-hidden="true">{COUNTRY_FLAGS[msg.senderId] || '🏳️'}</span>
                                 <span>{country?.name || msg.senderId}</span>
                               </div>
                             )}
@@ -466,6 +626,17 @@ export default function DialogueDropup({ isOpen, onClose }: DialogueDropupProps)
                         </div>
                       );
                     })}
+
+                    {/* AI thinking indicator */}
+                    {isAIThinking && (
+                      <div className="flex justify-start">
+                        <div className="bg-stone-100 rounded-xl px-3 py-2 flex items-center gap-2">
+                          <Loader2 className="w-4 h-4 animate-spin text-sky-500" aria-hidden="true" />
+                          <span className="text-sm text-stone-500">Reflexion en cours...</span>
+                        </div>
+                      </div>
+                    )}
+
                     <div ref={messagesEndRef} />
                   </div>
 
@@ -476,28 +647,43 @@ export default function DialogueDropup({ isOpen, onClose }: DialogueDropupProps)
                         ref={inputRef}
                         type="text"
                         value={message}
-                        onChange={(e) => setMessage(e.target.value)}
+                        onChange={handleInputChange}
                         onKeyDown={handleKeyDown}
                         placeholder="Ecrivez votre message..."
+                        maxLength={MAX_MESSAGE_LENGTH}
                         className="flex-1 px-3 py-2 bg-stone-50 rounded-xl border-none text-sm
                           text-stone-800 placeholder-stone-400
                           focus:outline-none focus:ring-2 focus:ring-sky-200"
-                        disabled={isLoading}
+                        disabled={isInputDisabled}
+                        aria-label="Message diplomatique"
+                        aria-describedby="dialogue-char-count"
                       />
                       <button
                         onClick={handleSendMessage}
-                        disabled={!message.trim() || isLoading}
+                        disabled={isSendDisabled}
                         className="p-2 bg-sky-500 text-white rounded-xl
                           hover:bg-sky-600 transition
                           disabled:opacity-50 disabled:cursor-not-allowed"
+                        aria-label="Envoyer le message"
                       >
-                        {isLoading ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
+                        {isAIThinking ? (
+                          <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
                         ) : (
-                          <Send className="w-4 h-4" />
+                          <Send className="w-4 h-4" aria-hidden="true" />
                         )}
                       </button>
                     </div>
+                    {/* Character count (TIER 2) */}
+                    {message.length > MAX_MESSAGE_LENGTH * 0.8 && (
+                      <div
+                        id="dialogue-char-count"
+                        className={`text-xs mt-1 text-right ${
+                          message.length >= MAX_MESSAGE_LENGTH ? 'text-rose-500' : 'text-stone-400'
+                        }`}
+                      >
+                        {message.length}/{MAX_MESSAGE_LENGTH}
+                      </div>
+                    )}
                   </div>
                 </>
               )}

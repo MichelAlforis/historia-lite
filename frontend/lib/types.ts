@@ -1632,6 +1632,23 @@ export type TimelineEventSource =
   | 'ai_generated'
   | 'system';
 
+export type EventFamily =
+  | 'structural'   // Long-term shifts (elections, treaties)
+  | 'tactical'     // Short-term actions (sanctions, deployments)
+  | 'opportunity'  // Windows of action (summits, crises)
+  | 'escalation'   // Rising tensions (military buildups)
+  | 'narrative'    // Story-driven events (AI-generated arcs)
+  | 'player';      // Player decisions
+
+export interface CausalLink {
+  event_id: string;
+  title: string;
+  title_fr: string;
+  date: GameDate;
+  link_type: 'direct' | 'indirect' | 'probable';
+  strength: number;  // 0.0 - 1.0
+}
+
 export interface TimelineEvent {
   id: string;
   date: GameDate;
@@ -1644,9 +1661,16 @@ export interface TimelineEvent {
   type: TimelineEventType;
   source: TimelineEventSource;
   importance: number;  // 1-5 (5 = critical)
+  family: EventFamily;
   read: boolean;
   caused_by: string | null;
   triggers: string[];
+  // Causal chain visualization
+  caused_by_chain: CausalLink[];  // Previous causes (up to 3)
+  effects_chain: CausalLink[];    // Probable effects (up to 3)
+  // Ripple effects
+  ripple_weight: number;
+  ripple_targets: string[];
 }
 
 export interface TimelineEventBrief {

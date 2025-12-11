@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, memo } from 'react';
 import { useGameStore } from '@/stores/gameStore';
 import { COUNTRY_FLAGS } from '@/lib/types';
 import dynamic from 'next/dynamic';
-import { Zap, MessageCircle, Lightbulb, FastForward, Loader2, X, History, Users, Clock, ChevronRight, Grid3X3, Map } from 'lucide-react';
+import { Zap, MessageCircle, Lightbulb, Loader2, X, Users, ChevronRight, ChevronLeft, Grid3X3, Map, Calendar } from 'lucide-react';
 import { useMemo } from 'react';
 
 // Static components (lightweight, always needed)
@@ -95,13 +95,26 @@ export default function PaxPage() {
     fetchRegions,
     checkPlayerCountry,
     selectPlayerCountry,
-    advanceToNextEvent,
     fetchPendingDilemmas,
     resetWorld,
     clearError,
     recentTickEvents,
     showEventToast,
     dismissEventToast,
+    // Timeline state (NEW)
+    year,
+    month,
+    dateDisplayFr,
+    viewingDate,
+    unreadEventCount,
+    timelineModalOpen,
+    // Timeline actions (NEW)
+    advanceMonth,
+    goToPreviousMonth,
+    goToNextMonth,
+    openTimelineModal,
+    closeTimelineModal,
+    canGoBack,
   } = useGameStore();
 
   // Modal states
@@ -160,16 +173,6 @@ export default function PaxPage() {
     await selectPlayerCountry(countryId);
   };
 
-  // Handle advance to next event
-  const handleAdvance = async () => {
-    await advanceToNextEvent();
-    // Refresh scenario status after advancing
-    await fetchScenarioStatus();
-    // Check for new dilemmas after advancing
-    if (pendingDilemmas.length > 0) {
-      setShowDiscuter(true);
-    }
-  };
 
   // Handle restart game
   const handleRestart = useCallback(async () => {
@@ -282,7 +285,7 @@ export default function PaxPage() {
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-sm border-b border-stone-200 px-6 py-3">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          {/* Player country + Year */}
+          {/* Player country + Timeline Navigation */}
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-3">
               <span className="text-3xl">{COUNTRY_FLAGS[playerCountryId] || '🏳️'}</span>
@@ -293,8 +296,48 @@ export default function PaxPage() {
                 <span className="text-xs text-stone-500">Votre nation</span>
               </div>
             </div>
-            <div className="text-4xl font-extralight text-stone-700">
-              {world.year}
+
+            {/* Timeline Navigation: ◀ Date ▶ */}
+            <div className="flex items-center gap-2 bg-stone-100 rounded-xl px-2 py-1">
+              {/* Previous month button */}
+              <button
+                onClick={goToPreviousMonth}
+                disabled={!canGoBack()}
+                className="p-2 hover:bg-white rounded-lg transition disabled:opacity-30 disabled:cursor-not-allowed"
+                title="Mois precedent"
+              >
+                <ChevronLeft className="w-5 h-5 text-stone-600" />
+              </button>
+
+              {/* Current date - clickable to open timeline modal */}
+              <button
+                onClick={openTimelineModal}
+                className="min-w-[140px] text-center px-3 py-1 hover:bg-white rounded-lg transition group"
+                title="Ouvrir la chronologie"
+              >
+                <span className="text-xl font-light text-stone-700 group-hover:text-indigo-600 transition">
+                  {viewingDate ? viewingDate.display_fr : dateDisplayFr}
+                </span>
+                {unreadEventCount > 0 && (
+                  <span className="ml-2 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold bg-rose-500 text-white rounded-full">
+                    {unreadEventCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Next month / Advance button */}
+              <button
+                onClick={goToNextMonth}
+                disabled={isLoading}
+                className="p-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition disabled:opacity-50"
+                title={viewingDate ? "Mois suivant" : "Avancer d'un mois"}
+              >
+                {isLoading ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <ChevronRight className="w-5 h-5" />
+                )}
+              </button>
             </div>
           </div>
 
@@ -364,33 +407,20 @@ export default function PaxPage() {
               </button>
             </div>
 
-            {/* Chronologie button with Avancer */}
-            <div className="flex items-center gap-1 bg-stone-100 rounded-xl p-1">
-              <button
-                onClick={() => setShowEventHistory(true)}
-                className="flex items-center gap-2 px-3 py-2 hover:bg-white rounded-lg transition"
-                title="Chronologie"
-              >
-                <Clock className="w-4 h-4 text-stone-500" />
-                <span className="text-sm font-medium text-stone-600">Chronologie</span>
-              </button>
-              <button
-                onClick={handleAdvance}
-                disabled={isLoading}
-                className="flex items-center gap-1 px-3 py-2 bg-rose-500 text-white rounded-lg
-                  hover:bg-rose-600 transition disabled:opacity-50"
-                title="Avancer d'un an"
-              >
-                {isLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <>
-                    <ChevronRight className="w-4 h-4" />
-                    <span className="text-sm font-medium">Avancer</span>
-                  </>
-                )}
-              </button>
-            </div>
+            {/* Timeline button (opens full history modal) */}
+            <button
+              onClick={openTimelineModal}
+              className="flex items-center gap-2 px-3 py-2 bg-stone-100 hover:bg-white rounded-xl transition"
+              title="Voir toute la chronologie"
+            >
+              <Calendar className="w-4 h-4 text-stone-500" />
+              <span className="text-sm font-medium text-stone-600">Historique</span>
+              {unreadEventCount > 0 && (
+                <span className="px-1.5 py-0.5 text-xs font-bold bg-rose-500 text-white rounded-full">
+                  {unreadEventCount}
+                </span>
+              )}
+            </button>
           </div>
         </div>
       </header>

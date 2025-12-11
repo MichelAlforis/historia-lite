@@ -35,6 +35,32 @@ class Personality(BaseModel):
     risk_tolerance: int = Field(default=50, ge=0, le=100)
 
 
+class MemoryScore(BaseModel):
+    """
+    Weighted temporal memory of events involving another country.
+    Influences: diplomacy, aggression, alliances, stability, perception.
+    Updated by TimelineManager based on events.
+    """
+    positive: float = 0.0       # Positive events (treaties, aid, cooperation)
+    negative: float = 0.0       # Negative events (sanctions, attacks, betrayals)
+    conflicts: float = 0.0      # Conflicts suffered/initiated
+    diplomatic: float = 0.0     # Diplomatic interactions (positive or negative)
+    last_updated_month: int = 0  # For decay calculation
+
+    def get_net_sentiment(self) -> float:
+        """Get net sentiment towards this country (-100 to +100 scale)"""
+        raw = (self.positive - self.negative + self.diplomatic - self.conflicts * 2)
+        return max(-100.0, min(100.0, raw))
+
+    def decay(self, months_passed: int = 1) -> None:
+        """Apply natural memory decay over time"""
+        decay_rate = 0.95 ** months_passed  # 5% decay per month
+        self.positive *= decay_rate
+        self.negative *= decay_rate
+        self.conflicts *= decay_rate
+        self.diplomatic *= decay_rate
+
+
 class Country(BaseModel):
     """Represents a nation in the simulation"""
     id: str
@@ -67,6 +93,10 @@ class Country(BaseModel):
 
     # Diplomatic relations (-100 to +100)
     relations: Dict[str, int] = Field(default_factory=dict)
+
+    # Temporal memory of other countries (Timeline Backbone)
+    # Maps country_id -> MemoryScore
+    memory_scores: Dict[str, MemoryScore] = Field(default_factory=dict)
 
     # Conflict state
     sanctions_on: List[str] = Field(default_factory=list)
@@ -122,6 +152,54 @@ class Country(BaseModel):
         """Check if both countries share a bloc"""
         return bool(set(self.blocs) & set(other.blocs))
 
+    # =========================================================================
+    # MEMORY SYSTEM (Timeline Backbone)
+    # =========================================================================
+
+    def get_memory_of(self, country_id: str) -> MemoryScore:
+        """Get memory score for another country (creates if doesn't exist)"""
+        if country_id not in self.memory_scores:
+            self.memory_scores[country_id] = MemoryScore()
+        return self.memory_scores[country_id]
+
+    def update_memory(
+        self,
+        country_id: str,
+        positive: float = 0,
+        negative: float = 0,
+        conflicts: float = 0,
+        diplomatic: float = 0,
+        current_month: int = 0
+    ) -> None:
+        """Update memory score for another country based on an event"""
+        memory = self.get_memory_of(country_id)
+        memory.positive += positive
+        memory.negative += negative
+        memory.conflicts += conflicts
+        memory.diplomatic += diplomatic
+        if current_month > 0:
+            memory.last_updated_month = current_month
+
+    def get_memory_sentiment(self, country_id: str) -> float:
+        """Get net sentiment towards another country from memory"""
+        if country_id not in self.memory_scores:
+            return 0.0
+        return self.memory_scores[country_id].get_net_sentiment()
+
+    def decay_all_memories(self, months_passed: int = 1) -> None:
+        """Apply natural decay to all memories"""
+        for memory in self.memory_scores.values():
+            memory.decay(months_passed)
+
+    def get_combined_relation(self, country_id: str) -> float:
+        """
+        Get combined relation score (base relation + memory sentiment).
+        Memory adds ±30 max to the base relation.
+        """
+        base = self.get_relation(country_id)
+        memory_bonus = self.get_memory_sentiment(country_id) * 0.3  # Max ±30
+        return max(-100, min(100, base + memory_bonus))
+
     def is_tier4(self) -> bool:
         """Check if this is a Tier 4 country"""
         return False
@@ -154,6 +232,9 @@ class Tier4Country(BaseModel):
 
     # Relations with major powers only
     relations: Dict[str, int] = Field(default_factory=dict)
+
+    # Simplified memory (major powers only) - Timeline Backbone
+    memory_scores: Dict[str, MemoryScore] = Field(default_factory=dict)
 
     # Neighbors (for regional interactions)
     neighbors: List[str] = Field(default_factory=list)
@@ -203,6 +284,37 @@ class Tier4Country(BaseModel):
     def shift_alignment(self, delta: int) -> None:
         """Shift alignment towards East (+) or West (-)"""
         self.alignment = max(-100, min(100, self.alignment + delta))
+
+    # Memory system (simplified for Tier 4)
+    def get_memory_of(self, country_id: str) -> MemoryScore:
+        """Get memory score for a major power"""
+        if country_id not in self.memory_scores:
+            self.memory_scores[country_id] = MemoryScore()
+        return self.memory_scores[country_id]
+
+    def update_memory(
+        self,
+        country_id: str,
+        positive: float = 0,
+        negative: float = 0,
+        conflicts: float = 0,
+        diplomatic: float = 0,
+        current_month: int = 0
+    ) -> None:
+        """Update memory score for a major power"""
+        memory = self.get_memory_of(country_id)
+        memory.positive += positive
+        memory.negative += negative
+        memory.conflicts += conflicts
+        memory.diplomatic += diplomatic
+        if current_month > 0:
+            memory.last_updated_month = current_month
+
+    def get_memory_sentiment(self, country_id: str) -> float:
+        """Get net sentiment towards a major power from memory"""
+        if country_id not in self.memory_scores:
+            return 0.0
+        return self.memory_scores[country_id].get_net_sentiment()
 
 
 class Tier5Country(BaseModel):

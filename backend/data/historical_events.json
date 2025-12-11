@@ -1,13 +1,31 @@
 {
+  "_meta": {
+    "version": "2.0",
+    "description": "Historical events with Timeline Backbone support",
+    "fields": {
+      "month_trigger": "Month (1-12) when event triggers",
+      "day_trigger": "Day (1-28) when event triggers (optional)",
+      "family": "Event family: structural, tactical, opportunity, escalation, narrative",
+      "importance": "1-5 scale (5=critical/rupture)",
+      "chain_next": "ID of event this triggers",
+      "chain_prev": "ID of event that triggers this",
+      "ripple_weight": "How much this propagates (0.5-2.0)",
+      "time_window_months": "How long event stays active in memory"
+    }
+  },
   "events": [
     {
       "id": "taiwan_election_2024",
       "year_trigger": 2024,
+      "month_trigger": 1,
+      "day_trigger": 13,
       "type": "political",
-      "title": "Elections presidentielle a Taiwan",
+      "family": "structural",
+      "importance": 4,
+      "title": "Taiwan Presidential Election",
       "title_fr": "Elections presidentielle a Taiwan",
-      "description": "Taiwan holds presidential elections with candidates ranging from pro-independence to pro-unification.",
-      "description_fr": "Taiwan organise des elections presidentielles avec des candidats allant de l'independance au rapprochement avec la Chine.",
+      "description": "Taiwan holds presidential elections. Lai Ching-te of the DPP wins, continuing the pro-sovereignty stance. Beijing issues strong warnings.",
+      "description_fr": "Taiwan organise des elections presidentielles. Lai Ching-te du DPP remporte la victoire, poursuivant la ligne pro-souverainete. Pekin emet de vives mises en garde.",
       "probability": 100,
       "effects": {
         "countries": {
@@ -17,16 +35,22 @@
         "global_tension": 5
       },
       "conditions": {},
+      "chain_next": "china_taiwan_exercises",
+      "ripple_weight": 1.5,
+      "time_window_months": 12,
       "tags": ["asia", "taiwan", "china", "elections"]
     },
     {
       "id": "ukraine_counteroffensive",
       "year_trigger": 2025,
+      "month_trigger": 3,
       "type": "military",
+      "family": "escalation",
+      "importance": 5,
       "title": "Ukraine Counteroffensive Operations",
       "title_fr": "Operations de contre-offensive ukrainienne",
-      "description": "Ukraine continues military operations to regain territory.",
-      "description_fr": "L'Ukraine poursuit ses operations militaires pour reconquerir son territoire.",
+      "description": "Ukraine launches spring counteroffensive operations with Western-supplied equipment. Intense fighting along the Zaporizhzhia front.",
+      "description_fr": "L'Ukraine lance des operations de contre-offensive printanieres avec des equipements fournis par l'Occident. Combats intenses sur le front de Zaporijjia.",
       "probability": 80,
       "effects": {
         "countries": {
@@ -38,16 +62,22 @@
       "conditions": {
         "countries_at_war": ["UKR", "RUS"]
       },
+      "ripple_weight": 2.0,
+      "time_window_months": 6,
       "tags": ["europe", "ukraine", "russia", "war"]
     },
     {
       "id": "brics_expansion_2025",
       "year_trigger": 2025,
+      "month_trigger": 8,
+      "day_trigger": 22,
       "type": "diplomatic",
+      "family": "structural",
+      "importance": 4,
       "title": "BRICS Expansion Summit",
       "title_fr": "Sommet d'expansion des BRICS",
-      "description": "BRICS considers new members including Saudi Arabia, UAE, Egypt, Ethiopia, Iran, and Argentina.",
-      "description_fr": "Les BRICS envisagent de nouveaux membres dont l'Arabie Saoudite, les EAU, l'Egypte, l'Ethiopie, l'Iran et l'Argentine.",
+      "description": "BRICS summit in Johannesburg welcomes new members: Saudi Arabia, UAE, Egypt, Ethiopia, and Iran. This marks a significant shift toward a multipolar world order.",
+      "description_fr": "Le sommet des BRICS a Johannesburg accueille de nouveaux membres : Arabie Saoudite, EAU, Egypte, Ethiopie et Iran. Cela marque un tournant vers un ordre mondial multipolaire.",
       "probability": 90,
       "effects": {
         "countries": {
@@ -59,16 +89,23 @@
         "global_tension": 3
       },
       "conditions": {},
+      "chain_next": "multipolar_currency_talks",
+      "ripple_weight": 1.5,
+      "time_window_months": 12,
       "tags": ["diplomacy", "brics", "multipolar"]
     },
     {
       "id": "us_elections_2024",
       "year_trigger": 2024,
+      "month_trigger": 11,
+      "day_trigger": 5,
       "type": "political",
-      "title": "US Presidential Election",
-      "title_fr": "Election presidentielle americaine",
-      "description": "The United States holds presidential elections with significant global implications.",
-      "description_fr": "Les Etats-Unis organisent des elections presidentielles aux implications mondiales significatives.",
+      "family": "structural",
+      "importance": 5,
+      "title": "US Presidential Election 2024",
+      "title_fr": "Election presidentielle americaine 2024",
+      "description": "The United States holds its most contentious presidential election in modern history. Results face legal challenges in multiple states.",
+      "description_fr": "Les Etats-Unis organisent leur election presidentielle la plus contestee de l'histoire moderne. Les resultats font face a des contestations juridiques dans plusieurs Etats.",
       "probability": 100,
       "effects": {
         "countries": {
@@ -77,16 +114,21 @@
         "global_tension": 5
       },
       "conditions": {},
+      "ripple_weight": 2.0,
+      "time_window_months": 24,
       "tags": ["usa", "elections", "politics"]
     },
     {
       "id": "china_taiwan_exercises",
       "year_trigger": 2026,
+      "month_trigger": 8,
       "type": "military",
+      "family": "escalation",
+      "importance": 5,
       "title": "Chinese Military Exercises Near Taiwan",
       "title_fr": "Exercices militaires chinois pres de Taiwan",
-      "description": "China conducts large-scale military exercises in the Taiwan Strait.",
-      "description_fr": "La Chine mene des exercices militaires de grande envergure dans le detroit de Taiwan.",
+      "description": "Following Taiwan's independence-leaning policies, China launches Joint Sword-2026 - the largest military exercises in the Taiwan Strait since 1996. Six days of live-fire drills surround the island.",
+      "description_fr": "Suite aux politiques pro-independance de Taiwan, la Chine lance Epee Conjointe-2026 - les plus grands exercices militaires dans le detroit de Taiwan depuis 1996. Six jours de manoeuvres a tir reel encerclent l'ile.",
       "probability": 70,
       "effects": {
         "countries": {
@@ -100,16 +142,23 @@
       "conditions": {
         "min_global_tension": 40
       },
+      "chain_prev": "taiwan_election_2024",
+      "ripple_weight": 2.0,
+      "time_window_months": 12,
       "tags": ["asia", "taiwan", "china", "military"]
     },
     {
       "id": "iranian_nuclear_deal",
       "year_trigger": 2026,
+      "month_trigger": 6,
+      "day_trigger": 15,
       "type": "diplomatic",
+      "family": "structural",
+      "importance": 4,
       "title": "Iran Nuclear Negotiations",
       "title_fr": "Negociations nucleaires iraniennes",
-      "description": "World powers attempt to revive nuclear negotiations with Iran.",
-      "description_fr": "Les grandes puissances tentent de relancer les negociations nucleaires avec l'Iran.",
+      "description": "World powers attempt to revive nuclear negotiations with Iran. A framework agreement is reached after months of secret diplomacy in Vienna.",
+      "description_fr": "Les grandes puissances tentent de relancer les negociations nucleaires avec l'Iran. Un accord-cadre est atteint apres des mois de diplomatie secrete a Vienne.",
       "probability": 50,
       "effects": {
         "countries": {
@@ -122,16 +171,21 @@
       "conditions": {
         "max_global_tension": 70
       },
+      "ripple_weight": 1.5,
+      "time_window_months": 12,
       "tags": ["middle_east", "iran", "nuclear", "diplomacy"]
     },
     {
       "id": "arctic_tensions",
       "year_trigger": 2027,
+      "month_trigger": 7,
       "type": "strategic",
+      "family": "opportunity",
+      "importance": 3,
       "title": "Arctic Resource Competition",
       "title_fr": "Competition pour les ressources arctiques",
-      "description": "Rising tensions over Arctic resources as ice melts open new shipping routes.",
-      "description_fr": "Tensions croissantes pour les ressources arctiques alors que la fonte des glaces ouvre de nouvelles routes maritimes.",
+      "description": "Rising tensions over Arctic resources as ice melts open new shipping routes. Russia establishes new military bases along the Northern Sea Route while NATO conducts Arctic exercises.",
+      "description_fr": "Tensions croissantes pour les ressources arctiques alors que la fonte des glaces ouvre de nouvelles routes maritimes. La Russie etablit de nouvelles bases militaires le long de la route du Nord tandis que l'OTAN mene des exercices arctiques.",
       "probability": 60,
       "effects": {
         "countries": {
@@ -143,16 +197,22 @@
         "global_tension": 5
       },
       "conditions": {},
+      "ripple_weight": 1.0,
+      "time_window_months": 6,
       "tags": ["arctic", "resources", "climate"]
     },
     {
       "id": "african_union_reform",
       "year_trigger": 2026,
+      "month_trigger": 2,
+      "day_trigger": 10,
       "type": "diplomatic",
+      "family": "structural",
+      "importance": 3,
       "title": "African Union Security Reform",
       "title_fr": "Reforme de securite de l'Union Africaine",
-      "description": "The African Union implements major security and economic reforms.",
-      "description_fr": "L'Union Africaine met en oeuvre d'importantes reformes de securite et economiques.",
+      "description": "The African Union implements major security and economic reforms. A new continental rapid response force is created, marking a shift toward 'African solutions for African problems'.",
+      "description_fr": "L'Union Africaine met en oeuvre d'importantes reformes de securite et economiques. Une nouvelle force de reaction rapide continentale est creee, marquant un tournant vers des 'solutions africaines pour les problemes africains'.",
       "probability": 65,
       "effects": {
         "countries": {
@@ -164,16 +224,22 @@
         "global_tension": -2
       },
       "conditions": {},
+      "ripple_weight": 1.0,
+      "time_window_months": 12,
       "tags": ["africa", "diplomacy", "reform"]
     },
     {
       "id": "space_race_2030",
       "year_trigger": 2028,
+      "month_trigger": 9,
+      "day_trigger": 20,
       "type": "technology",
+      "family": "tactical",
+      "importance": 4,
       "title": "New Space Race Intensifies",
       "title_fr": "Intensification de la nouvelle course spatiale",
-      "description": "Competition between USA, China, and private companies for lunar resources.",
-      "description_fr": "Competition entre les USA, la Chine et les entreprises privees pour les ressources lunaires.",
+      "description": "Competition between USA, China, and private companies for lunar resources intensifies. China's Chang'e-8 mission successfully establishes permanent lunar presence, prompting emergency NASA funding increases.",
+      "description_fr": "La competition entre les USA, la Chine et les entreprises privees pour les ressources lunaires s'intensifie. La mission Chang'e-8 de la Chine etablit avec succes une presence lunaire permanente, provoquant des augmentations d'urgence du budget de la NASA.",
       "probability": 80,
       "effects": {
         "countries": {
@@ -183,16 +249,23 @@
         "global_tension": 3
       },
       "conditions": {},
+      "chain_next": "ai_military_race",
+      "ripple_weight": 1.5,
+      "time_window_months": 24,
       "tags": ["space", "technology", "competition"]
     },
     {
       "id": "south_china_sea_incident",
       "year_trigger": 2027,
+      "month_trigger": 4,
+      "day_trigger": 8,
       "type": "military",
+      "family": "escalation",
+      "importance": 4,
       "title": "South China Sea Incident",
       "title_fr": "Incident en mer de Chine meridionale",
-      "description": "A naval incident occurs between Chinese and Philippine vessels in disputed waters.",
-      "description_fr": "Un incident naval survient entre des navires chinois et philippins dans les eaux contestees.",
+      "description": "A naval incident occurs between Chinese and Philippine vessels near Second Thomas Shoal. Chinese coast guard uses water cannons on Filipino supply ships, injuring sailors. The US invokes mutual defense treaty obligations.",
+      "description_fr": "Un incident naval survient entre des navires chinois et philippins pres du recif de Second Thomas. Les garde-cotes chinois utilisent des canons a eau sur des navires de ravitaillement philippins, blessant des marins. Les USA invoquent les obligations du traite de defense mutuelle.",
       "probability": 55,
       "effects": {
         "countries": {
@@ -205,16 +278,22 @@
       "conditions": {
         "min_global_tension": 30
       },
+      "ripple_weight": 1.8,
+      "time_window_months": 6,
       "tags": ["asia", "china", "philippines", "naval"]
     },
     {
       "id": "indian_economic_rise",
       "year_trigger": 2028,
+      "month_trigger": 1,
+      "day_trigger": 15,
       "type": "economic",
+      "family": "structural",
+      "importance": 4,
       "title": "India Becomes Third Largest Economy",
       "title_fr": "L'Inde devient la troisieme economie mondiale",
-      "description": "India's economy surpasses Japan to become the world's third largest.",
-      "description_fr": "L'economie indienne depasse le Japon pour devenir la troisieme mondiale.",
+      "description": "India's economy officially surpasses Japan to become the world's third largest. The 'Make in India' initiative shows results as global manufacturing shifts from China. The Rupee gains status as a reserve currency.",
+      "description_fr": "L'economie indienne depasse officiellement le Japon pour devenir la troisieme mondiale. L'initiative 'Make in India' porte ses fruits alors que la production mondiale se deplace de Chine. La roupie gagne le statut de monnaie de reserve.",
       "probability": 75,
       "effects": {
         "countries": {
@@ -224,16 +303,23 @@
         "global_tension": 0
       },
       "conditions": {},
+      "chain_prev": "brics_expansion_2025",
+      "ripple_weight": 1.5,
+      "time_window_months": 24,
       "tags": ["india", "japan", "economy"]
     },
     {
       "id": "european_defense_force",
       "year_trigger": 2029,
+      "month_trigger": 3,
+      "day_trigger": 25,
       "type": "military",
+      "family": "structural",
+      "importance": 4,
       "title": "European Defense Initiative",
       "title_fr": "Initiative de defense europeenne",
-      "description": "EU member states agree to establish a rapid reaction force.",
-      "description_fr": "Les Etats membres de l'UE conviennent de creer une force de reaction rapide.",
+      "description": "EU member states sign the European Defense Pact, establishing a 60,000-strong rapid reaction force with joint command. This marks the first integrated European military since NATO's creation.",
+      "description_fr": "Les Etats membres de l'UE signent le Pacte de Defense Europeen, etablissant une force de reaction rapide de 60 000 hommes avec commandement conjoint. Cela marque la premiere armee europeenne integree depuis la creation de l'OTAN.",
       "probability": 45,
       "effects": {
         "countries": {
@@ -247,16 +333,23 @@
       "conditions": {
         "min_global_tension": 40
       },
+      "chain_prev": "ukraine_counteroffensive",
+      "ripple_weight": 1.5,
+      "time_window_months": 12,
       "tags": ["europe", "eu", "defense", "military"]
     },
     {
       "id": "middle_east_normalization",
       "year_trigger": 2026,
+      "month_trigger": 9,
+      "day_trigger": 15,
       "type": "diplomatic",
+      "family": "structural",
+      "importance": 5,
       "title": "Saudi-Israel Normalization Talks",
       "title_fr": "Pourparlers de normalisation Arabie Saoudite-Israel",
-      "description": "Saudi Arabia and Israel engage in historic normalization discussions.",
-      "description_fr": "L'Arabie Saoudite et Israel engagent des discussions historiques de normalisation.",
+      "description": "Saudi Arabia and Israel sign a historic normalization agreement, building on the Abraham Accords. In exchange, the US provides nuclear technology guarantees and Palestinian state recognition roadmap.",
+      "description_fr": "L'Arabie Saoudite et Israel signent un accord de normalisation historique, s'appuyant sur les Accords d'Abraham. En echange, les USA fournissent des garanties de technologie nucleaire et une feuille de route pour la reconnaissance d'un Etat palestinien.",
       "probability": 40,
       "effects": {
         "countries": {
@@ -269,16 +362,22 @@
       "conditions": {
         "max_global_tension": 60
       },
+      "ripple_weight": 2.0,
+      "time_window_months": 24,
       "tags": ["middle_east", "saudi", "israel", "diplomacy"]
     },
     {
       "id": "korean_tensions",
       "year_trigger": 2027,
+      "month_trigger": 10,
+      "day_trigger": 10,
       "type": "military",
+      "family": "escalation",
+      "importance": 5,
       "title": "Korean Peninsula Crisis",
       "title_fr": "Crise de la peninsule coreenne",
-      "description": "North Korea conducts provocative military tests raising regional tensions.",
-      "description_fr": "La Coree du Nord effectue des tests militaires provocateurs elevant les tensions regionales.",
+      "description": "North Korea tests a submarine-launched ballistic missile capable of reaching the US mainland, then declares completion of its nuclear deterrent. South Korea and Japan announce joint missile defense integration.",
+      "description_fr": "La Coree du Nord teste un missile balistique lance depuis sous-marin capable d'atteindre le territoire americain, puis declare l'achevement de sa dissuasion nucleaire. La Coree du Sud et le Japon annoncent l'integration de leur defense antimissile.",
       "probability": 65,
       "effects": {
         "countries": {
@@ -290,16 +389,22 @@
         "global_tension": 12
       },
       "conditions": {},
+      "ripple_weight": 2.0,
+      "time_window_months": 12,
       "tags": ["asia", "korea", "nuclear", "military"]
     },
     {
       "id": "global_economic_downturn",
       "year_trigger": 2029,
+      "month_trigger": 10,
+      "day_trigger": 24,
       "type": "economic",
+      "family": "structural",
+      "importance": 5,
       "title": "Global Economic Slowdown",
       "title_fr": "Ralentissement economique mondial",
-      "description": "A global economic recession affects major economies.",
-      "description_fr": "Une recession economique mondiale affecte les principales economies.",
+      "description": "A cascading debt crisis in commercial real estate triggers a global recession. Major banks require bailouts, unemployment spikes, and protectionist measures multiply. Echoes of 2008, but with higher debt levels.",
+      "description_fr": "Une crise de dette en cascade dans l'immobilier commercial declenche une recession mondiale. Les grandes banques necessitent des renflouements, le chomage augmente et les mesures protectionnistes se multiplient. Echos de 2008, mais avec des niveaux de dette plus eleves.",
       "probability": 35,
       "effects": {
         "countries": {
@@ -311,16 +416,22 @@
         "global_tension": 8
       },
       "conditions": {},
+      "ripple_weight": 2.0,
+      "time_window_months": 24,
       "tags": ["economy", "crisis", "global"]
     },
     {
       "id": "climate_summit_breakthrough",
       "year_trigger": 2028,
+      "month_trigger": 11,
+      "day_trigger": 18,
       "type": "diplomatic",
+      "family": "opportunity",
+      "importance": 4,
       "title": "Historic Climate Agreement",
       "title_fr": "Accord climatique historique",
-      "description": "Major powers agree on binding emissions targets.",
-      "description_fr": "Les grandes puissances s'accordent sur des objectifs d'emissions contraignants.",
+      "description": "COP33 in Sydney produces a breakthrough: binding emissions targets with financial penalties, plus a $500B annual fund for developing nations. China and US jointly announce carbon neutrality acceleration.",
+      "description_fr": "La COP33 a Sydney produit une avancee majeure : des objectifs d'emissions contraignants avec penalites financieres, plus un fonds annuel de 500 milliards pour les pays en developpement. La Chine et les USA annoncent conjointement une acceleration de la neutralite carbone.",
       "probability": 30,
       "effects": {
         "countries": {
@@ -333,16 +444,22 @@
       "conditions": {
         "max_global_tension": 50
       },
+      "ripple_weight": 1.5,
+      "time_window_months": 12,
       "tags": ["climate", "diplomacy", "environment"]
     },
     {
       "id": "cyber_warfare_escalation",
       "year_trigger": 2026,
+      "month_trigger": 5,
+      "day_trigger": 3,
       "type": "technology",
+      "family": "escalation",
+      "importance": 5,
       "title": "Major Cyber Attack on Infrastructure",
       "title_fr": "Cyberattaque majeure sur les infrastructures",
-      "description": "A significant cyber attack disrupts critical infrastructure in multiple countries.",
-      "description_fr": "Une cyberattaque importante perturbe les infrastructures critiques de plusieurs pays.",
+      "description": "A sophisticated cyber attack takes down power grids in the US East Coast and parts of Europe simultaneously. Attribution points to state actors. NATO declares cyber attacks can trigger Article 5.",
+      "description_fr": "Une cyberattaque sophistiquee fait tomber les reseaux electriques de la cote Est americaine et de parties de l'Europe simultanement. L'attribution pointe vers des acteurs etatiques. L'OTAN declare que les cyberattaques peuvent declencher l'Article 5.",
       "probability": 50,
       "effects": {
         "countries": {
@@ -355,16 +472,23 @@
       "conditions": {
         "min_global_tension": 35
       },
+      "chain_next": "ai_military_race",
+      "ripple_weight": 1.8,
+      "time_window_months": 6,
       "tags": ["cyber", "technology", "security"]
     },
     {
       "id": "latin_america_integration",
       "year_trigger": 2027,
+      "month_trigger": 6,
+      "day_trigger": 21,
       "type": "economic",
+      "family": "structural",
+      "importance": 3,
       "title": "Latin American Economic Integration",
       "title_fr": "Integration economique latino-americaine",
-      "description": "MERCOSUR expands with new free trade agreements.",
-      "description_fr": "Le MERCOSUR s'elargit avec de nouveaux accords de libre-echange.",
+      "description": "MERCOSUR-Pacific Alliance merger creates the world's fifth largest economic bloc. Mexico joins as associate member. A common digital currency 'SUR' is announced for regional trade.",
+      "description_fr": "La fusion MERCOSUR-Alliance Pacifique cree le cinquieme plus grand bloc economique mondial. Le Mexique rejoint en tant que membre associe. Une monnaie numerique commune 'SUR' est annoncee pour le commerce regional.",
       "probability": 55,
       "effects": {
         "countries": {
@@ -375,16 +499,22 @@
         "global_tension": -2
       },
       "conditions": {},
+      "ripple_weight": 1.2,
+      "time_window_months": 12,
       "tags": ["latin_america", "economy", "integration"]
     },
     {
       "id": "ai_military_race",
       "year_trigger": 2030,
+      "month_trigger": 4,
+      "day_trigger": 1,
       "type": "technology",
+      "family": "escalation",
+      "importance": 5,
       "title": "AI Military Systems Race",
       "title_fr": "Course aux systemes militaires IA",
-      "description": "Major powers compete to deploy AI-powered military systems.",
-      "description_fr": "Les grandes puissances rivalisent pour deployer des systemes militaires bases sur l'IA.",
+      "description": "The Pentagon unveils 'Replicator' - a fleet of 10,000 autonomous combat drones. China responds with 'Swarm Dragon' doctrine. A new arms race begins with lethal autonomous weapons, raising existential concerns.",
+      "description_fr": "Le Pentagone devoile 'Replicator' - une flotte de 10 000 drones de combat autonomes. La Chine repond avec la doctrine 'Dragon Essaim'. Une nouvelle course aux armements commence avec les armes autonomes letales, soulevant des inquietudes existentielles.",
       "probability": 70,
       "effects": {
         "countries": {
@@ -395,16 +525,23 @@
         "global_tension": 10
       },
       "conditions": {},
+      "chain_prev": "space_race_2030",
+      "ripple_weight": 2.0,
+      "time_window_months": 24,
       "tags": ["ai", "military", "technology"]
     },
     {
       "id": "pakistan_india_thaw",
       "year_trigger": 2029,
+      "month_trigger": 8,
+      "day_trigger": 14,
       "type": "diplomatic",
+      "family": "opportunity",
+      "importance": 4,
       "title": "India-Pakistan Dialogue",
       "title_fr": "Dialogue Inde-Pakistan",
-      "description": "India and Pakistan resume diplomatic talks after years of tensions.",
-      "description_fr": "L'Inde et le Pakistan reprennent les pourparlers diplomatiques apres des annees de tensions.",
+      "description": "On the anniversary of Partition, India and Pakistan announce resumption of diplomatic ties. A joint declaration commits to confidence-building measures on Kashmir. China offers to mediate water-sharing agreements.",
+      "description_fr": "A l'anniversaire de la Partition, l'Inde et le Pakistan annoncent la reprise des relations diplomatiques. Une declaration conjointe s'engage sur des mesures de confiance au Cachemire. La Chine propose de servir de mediateur pour les accords de partage d'eau.",
       "probability": 25,
       "effects": {
         "countries": {
@@ -416,6 +553,8 @@
       "conditions": {
         "max_global_tension": 55
       },
+      "ripple_weight": 1.5,
+      "time_window_months": 12,
       "tags": ["asia", "india", "pakistan", "diplomacy"]
     }
   ],
@@ -440,6 +579,54 @@
       "chain_effects": {
         "if_both_triggered": {
           "global_tension": -5
+        }
+      }
+    },
+    {
+      "id": "tech_arms_race",
+      "name": "Technology Arms Race",
+      "name_fr": "Course technologique aux armements",
+      "events": ["space_race_2030", "cyber_warfare_escalation", "ai_military_race"],
+      "chain_effects": {
+        "if_all_triggered": {
+          "global_tension": 25,
+          "technology_boost": {"USA": 5, "CHN": 5}
+        }
+      }
+    },
+    {
+      "id": "european_autonomy",
+      "name": "European Strategic Autonomy",
+      "name_fr": "Autonomie strategique europeenne",
+      "events": ["ukraine_counteroffensive", "european_defense_force"],
+      "chain_effects": {
+        "if_both_triggered": {
+          "eu_cohesion": 10,
+          "nato_tension": 5
+        }
+      }
+    },
+    {
+      "id": "middle_east_realignment",
+      "name": "Middle East Realignment",
+      "name_fr": "Reconfiguration du Moyen-Orient",
+      "events": ["iranian_nuclear_deal", "middle_east_normalization"],
+      "chain_effects": {
+        "if_both_triggered": {
+          "global_tension": -15,
+          "regional_stability": 10
+        }
+      }
+    },
+    {
+      "id": "asian_flashpoints",
+      "name": "Asian Flashpoints",
+      "name_fr": "Points chauds asiatiques",
+      "events": ["south_china_sea_incident", "korean_tensions"],
+      "chain_effects": {
+        "if_both_triggered": {
+          "global_tension": 20,
+          "us_asia_commitment": 10
         }
       }
     }

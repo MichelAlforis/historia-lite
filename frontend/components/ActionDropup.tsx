@@ -1,9 +1,18 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useGameStore } from '@/stores/gameStore';
 import { Send, Loader2, Check, X, ChevronDown } from 'lucide-react';
 
+// ============================================================================
+// Constants (TIER 4: No magic numbers)
+// ============================================================================
+const MAX_MESSAGE_LENGTH = 500;
+const FOCUS_DELAY_MS = 50;
+
+// ============================================================================
+// Types
+// ============================================================================
 interface ActionMessage {
   id: string;
   type: 'user' | 'system' | 'result';
@@ -17,23 +26,114 @@ interface ActionDropupProps {
   onClose: () => void;
 }
 
+// ============================================================================
+// Component
+// ============================================================================
 export default function ActionDropup({ isOpen, onClose }: ActionDropupProps) {
-  const { sendPlayerCommand, confirmPlayerCommand, cancelPlayerCommand, pendingCommand, isLoading } = useGameStore();
+  const {
+    sendPlayerCommand,
+    confirmPlayerCommand,
+    cancelPlayerCommand,
+    pendingCommand,
+    isLoading
+  } = useGameStore();
+
   const [command, setCommand] = useState('');
   const [messages, setMessages] = useState<ActionMessage[]>([]);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const focusTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // ============================================================================
+  // TIER 1: Memoized handlers (prevent re-renders)
+  // ============================================================================
+  const handleSend = useCallback(async () => {
+    if (!command.trim() || isLoading) return;
+
+    const userMsg: ActionMessage = {
+      id: Date.now().toString(),
+      type: 'user',
+      content: command.slice(0, MAX_MESSAGE_LENGTH), // TIER 2: Input validation
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, userMsg]);
+
+    const cmd = command;
+    setCommand('');
+
+    await sendPlayerCommand(cmd);
+  }, [command, isLoading, sendPlayerCommand]);
+
+  const handleConfirm = useCallback(async () => {
+    if (pendingCommand?.command_id) {
+      setMessages(prev => prev.map(m =>
+        m.status === 'pending' ? { ...m, status: 'confirmed' as const } : m
+      ));
+
+      await confirmPlayerCommand(pendingCommand.command_id);
+
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        type: 'result',
+        content: 'Action executee avec succes',
+        timestamp: new Date()
+      }]);
+    }
+  }, [pendingCommand, confirmPlayerCommand]);
+
+  const handleCancel = useCallback(() => {
+    setMessages(prev => prev.map(m =>
+      m.status === 'pending' ? { ...m, status: 'cancelled' as const } : m
+    ));
+    cancelPlayerCommand();
+  }, [cancelPlayerCommand]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+    if (e.key === 'Escape') {
+      onClose();
+    }
+  }, [handleSend, onClose]);
+
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    // TIER 2: Input validation - limit length
+    const value = e.target.value.slice(0, MAX_MESSAGE_LENGTH);
+    setCommand(value);
+  }, []);
+
+  // ============================================================================
+  // TIER 1: Effects with proper cleanup (memory leaks fix)
+  // ============================================================================
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Focus input when opened
+  // TIER 1: Focus input when opened (with cleanup)
   useEffect(() => {
-    if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 100);
+    if (isOpen && inputRef.current) {
+      // Clear any existing timeout
+      if (focusTimeoutRef.current) {
+        clearTimeout(focusTimeoutRef.current);
+      }
+      // Use requestAnimationFrame for more reliable timing
+      focusTimeoutRef.current = setTimeout(() => {
+        inputRef.current?.focus();
+      }, FOCUS_DELAY_MS);
     }
+
+    // Cleanup on unmount or when isOpen changes
+    return () => {
+      if (focusTimeoutRef.current) {
+        clearTimeout(focusTimeoutRef.current);
+        focusTimeoutRef.current = null;
+      }
+    };
   }, [isOpen]);
 
   // Add pending command to messages when it arrives
@@ -49,62 +149,28 @@ export default function ActionDropup({ isOpen, onClose }: ActionDropupProps) {
     }
   }, [pendingCommand, messages]);
 
+  // ============================================================================
+  // TIER 1: Memoized computed values
+  // ============================================================================
+  const isInputDisabled = useMemo(() =>
+    isLoading || !!pendingCommand,
+    [isLoading, pendingCommand]
+  );
+
+  const isSendDisabled = useMemo(() =>
+    !command.trim() || isLoading || !!pendingCommand,
+    [command, isLoading, pendingCommand]
+  );
+
+  const characterCount = useMemo(() =>
+    `${command.length}/${MAX_MESSAGE_LENGTH}`,
+    [command.length]
+  );
+
+  // ============================================================================
+  // Render
+  // ============================================================================
   if (!isOpen) return null;
-
-  const handleSend = async () => {
-    if (!command.trim() || isLoading) return;
-
-    // Add user message
-    const userMsg: ActionMessage = {
-      id: Date.now().toString(),
-      type: 'user',
-      content: command,
-      timestamp: new Date()
-    };
-    setMessages(prev => [...prev, userMsg]);
-
-    const cmd = command;
-    setCommand('');
-
-    await sendPlayerCommand(cmd);
-  };
-
-  const handleConfirm = async () => {
-    if (pendingCommand?.command_id) {
-      // Update message status
-      setMessages(prev => prev.map(m =>
-        m.status === 'pending' ? { ...m, status: 'confirmed' as const } : m
-      ));
-
-      await confirmPlayerCommand(pendingCommand.command_id);
-
-      // Add result message
-      setMessages(prev => [...prev, {
-        id: Date.now().toString(),
-        type: 'result',
-        content: 'Action executee avec succes',
-        timestamp: new Date()
-      }]);
-    }
-  };
-
-  const handleCancel = () => {
-    // Update message status
-    setMessages(prev => prev.map(m =>
-      m.status === 'pending' ? { ...m, status: 'cancelled' as const } : m
-    ));
-    cancelPlayerCommand();
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-    if (e.key === 'Escape') {
-      onClose();
-    }
-  };
 
   return (
     <>
@@ -112,24 +178,43 @@ export default function ActionDropup({ isOpen, onClose }: ActionDropupProps) {
       <div
         className="fixed inset-0 z-30"
         onClick={onClose}
+        role="presentation"
+        aria-hidden="true"
       />
 
       {/* Drop-up panel */}
-      <div className="fixed bottom-16 left-1/2 -translate-x-1/2 z-40 w-full max-w-md">
-        <div className="bg-white rounded-2xl shadow-2xl border border-stone-200 overflow-hidden mx-4">
+      <div
+        className="fixed bottom-16 left-1/2 -translate-x-1/2 z-40 w-full max-w-md
+          sm:max-w-lg md:max-w-md px-4"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="action-dropup-title"
+      >
+        <div className="bg-white rounded-2xl shadow-2xl border border-stone-200 overflow-hidden">
           {/* Header with close */}
           <div className="flex items-center justify-between px-4 py-2 border-b border-stone-100">
-            <span className="text-xs font-medium text-stone-500 uppercase tracking-wide">Actions</span>
+            <span
+              id="action-dropup-title"
+              className="text-xs font-medium text-stone-500 uppercase tracking-wide"
+            >
+              Actions
+            </span>
             <button
               onClick={onClose}
               className="p-1 hover:bg-stone-100 rounded-lg transition"
+              aria-label="Fermer le panneau d'actions"
             >
-              <ChevronDown className="w-4 h-4 text-stone-400" />
+              <ChevronDown className="w-4 h-4 text-stone-400" aria-hidden="true" />
             </button>
           </div>
 
           {/* Messages feed */}
-          <div className="h-64 overflow-y-auto p-3 space-y-2 bg-stone-50">
+          <div
+            className="h-64 overflow-y-auto p-3 space-y-2 bg-stone-50"
+            role="log"
+            aria-live="polite"
+            aria-label="Historique des actions"
+          >
             {messages.length === 0 && (
               <div className="text-center text-stone-400 text-sm py-8">
                 Tapez une action ci-dessous...
@@ -161,8 +246,9 @@ export default function ActionDropup({ isOpen, onClose }: ActionDropupProps) {
                         onClick={handleCancel}
                         className="flex-1 flex items-center justify-center gap-1 px-2 py-1
                           bg-stone-100 text-stone-600 rounded-lg text-xs hover:bg-stone-200 transition"
+                        aria-label="Annuler l'action"
                       >
-                        <X className="w-3 h-3" />
+                        <X className="w-3 h-3" aria-hidden="true" />
                         Annuler
                       </button>
                       <button
@@ -171,11 +257,12 @@ export default function ActionDropup({ isOpen, onClose }: ActionDropupProps) {
                         className="flex-1 flex items-center justify-center gap-1 px-2 py-1
                           bg-emerald-500 text-white rounded-lg text-xs hover:bg-emerald-600 transition
                           disabled:opacity-50"
+                        aria-label="Confirmer l'action"
                       >
                         {isLoading ? (
-                          <Loader2 className="w-3 h-3 animate-spin" />
+                          <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" />
                         ) : (
-                          <Check className="w-3 h-3" />
+                          <Check className="w-3 h-3" aria-hidden="true" />
                         )}
                         Confirmer
                       </button>
@@ -194,28 +281,43 @@ export default function ActionDropup({ isOpen, onClose }: ActionDropupProps) {
                 ref={inputRef}
                 type="text"
                 value={command}
-                onChange={(e) => setCommand(e.target.value)}
+                onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
                 placeholder="Decrivez votre action..."
+                maxLength={MAX_MESSAGE_LENGTH}
                 className="flex-1 px-3 py-2 bg-stone-50 rounded-xl border-none text-sm
                   text-stone-800 placeholder-stone-400
                   focus:outline-none focus:ring-2 focus:ring-emerald-200"
-                disabled={isLoading || !!pendingCommand}
+                disabled={isInputDisabled}
+                aria-label="Entrez votre action"
+                aria-describedby="char-count"
               />
               <button
                 onClick={handleSend}
-                disabled={!command.trim() || isLoading || !!pendingCommand}
+                disabled={isSendDisabled}
                 className="p-2 bg-emerald-500 text-white rounded-xl
                   hover:bg-emerald-600 transition
                   disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Envoyer l'action"
               >
                 {isLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
                 ) : (
-                  <Send className="w-4 h-4" />
+                  <Send className="w-4 h-4" aria-hidden="true" />
                 )}
               </button>
             </div>
+            {/* Character count (TIER 2) */}
+            {command.length > MAX_MESSAGE_LENGTH * 0.8 && (
+              <div
+                id="char-count"
+                className={`text-xs mt-1 text-right ${
+                  command.length >= MAX_MESSAGE_LENGTH ? 'text-rose-500' : 'text-stone-400'
+                }`}
+              >
+                {characterCount}
+              </div>
+            )}
           </div>
         </div>
       </div>

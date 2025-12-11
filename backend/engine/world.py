@@ -87,6 +87,10 @@ class GameDate(BaseModel):
         """Calculate months between two dates"""
         return abs(self.to_months() - other.to_months())
 
+    def months_since(self, other: "GameDate") -> int:
+        """Calculate months since another date (can be negative)"""
+        return self.to_months() - other.to_months()
+
 
 class Conflict(BaseModel):
     """Active conflict between countries"""
