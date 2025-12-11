@@ -112,16 +112,16 @@ export default function AdvisorDropleft({ isOpen, onClose }: AdvisorDropleftProp
       player: {
         country: playerCountry.name_fr || playerCountry.name,
         power: playerCountry.power_score,
-        gdp: playerCountry.gdp,
+        economy: playerCountry.economy,
         military: playerCountry.military,
         stability: playerCountry.stability,
-        nuclear: playerCountry.nuclear_weapons || 0,
-        bloc: playerCountry.bloc,
+        nuclear: playerCountry.nuclear,
+        blocs: playerCountry.blocs,
       },
       diplomatic: {
         allies: allies.slice(0, 5),
         rivals: rivals.slice(0, 5),
-        wars: playerCountry.wars || [],
+        at_war: playerCountry.at_war || [],
       },
       dilemmas: pendingDilemmas.map(d => ({
         title: d.title_fr || d.title,
