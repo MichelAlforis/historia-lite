@@ -15,7 +15,7 @@ from ai.ai_advisor import (
 )
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/ai-advisor", tags=["AI Advisor"])
+router = APIRouter(prefix="/api/ai-advisor", tags=["AI Advisor"])
 
 
 # ============================================================================

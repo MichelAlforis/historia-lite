@@ -32,6 +32,18 @@ interface GameStore {
   autoPlay: boolean;
   speed: number; // 1 = normal, 2 = fast, 3 = ultra
 
+  // Timeline State (NEW)
+  year: number;
+  month: number;
+  day: number;
+  dateDisplay: string;
+  dateDisplayFr: string;
+  timeline: TimelineEvent[];
+  timelineLoading: boolean;
+  viewingDate: GameDate | null;  // Date being viewed in timeline modal (null = current)
+  unreadEventCount: number;
+  timelineModalOpen: boolean;
+
   // Tier 4/5/6 Countries
   tier4Countries: Tier4Country[];
   tier5Countries: Tier5Country[];
@@ -68,6 +80,20 @@ interface GameStore {
   setAutoPlay: (autoPlay: boolean) => void;
   setSpeed: (speed: number) => void;
   clearError: () => void;
+
+  // Timeline Actions (NEW)
+  advanceMonth: () => Promise<MonthlyTickResponse | null>;
+  fetchTimeline: (params?: { year?: number; month?: number }) => Promise<void>;
+  fetchTimelineForMonth: (year: number, month: number) => Promise<TimelineEvent[]>;
+  setViewingDate: (date: GameDate | null) => void;
+  goToPreviousMonth: () => void;
+  goToNextMonth: () => Promise<void>;
+  markEventsAsRead: (eventIds?: string[]) => Promise<void>;
+  openTimelineModal: () => void;
+  closeTimelineModal: () => void;
+  getEventsForViewingMonth: () => TimelineEvent[];
+  canGoBack: () => boolean;
+  canGoForward: () => boolean;
 
   // Tier 4/5/6 Actions
   fetchTier4Countries: () => Promise<void>;
