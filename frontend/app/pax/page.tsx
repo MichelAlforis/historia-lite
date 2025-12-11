@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, memo } from 'react';
 import { useGameStore } from '@/stores/gameStore';
-import { COUNTRY_FLAGS } from '@/lib/types';
+import { COUNTRY_FLAGS, ERA_NAMES_FR, ERA_COLORS, GeopoliticalEra } from '@/lib/types';
 import dynamic from 'next/dynamic';
 import { Zap, MessageCircle, Lightbulb, Loader2, X, Users, ChevronRight, ChevronLeft, Grid3X3, Map, Calendar } from 'lucide-react';
 import { useMemo } from 'react';
@@ -11,6 +11,7 @@ import { useMemo } from 'react';
 import CountrySelector from '@/components/CountrySelector';
 import VideoSkeleton from '@/components/VideoSkeleton';
 import EventToast from '@/components/EventToast';
+import BreakingNews from '@/components/BreakingNews';
 
 // API
 import { getScenarioStatus, ScenarioStatus } from '@/lib/api';
@@ -105,6 +106,10 @@ export default function PaxPage() {
     recentTickEvents,
     showEventToast,
     dismissEventToast,
+    // Breaking News state
+    breakingNewsEvent,
+    showBreakingNews,
+    dismissBreakingNews,
     // Timeline state (NEW)
     year,
     month,
@@ -372,6 +377,16 @@ export default function PaxPage() {
               </div>
               <span className="text-sm text-stone-600">{world.global_tension}%</span>
             </div>
+
+            {/* Geopolitical Era */}
+            {world.mood && (
+              <div
+                className={`px-3 py-1.5 rounded-full text-xs font-medium ${ERA_COLORS[world.mood.current_era as GeopoliticalEra] || 'bg-stone-100 text-stone-700'}`}
+                title={`Ère géopolitique: ${ERA_NAMES_FR[world.mood.current_era as GeopoliticalEra] || world.mood.current_era}`}
+              >
+                {ERA_NAMES_FR[world.mood.current_era as GeopoliticalEra] || world.mood.current_era}
+              </div>
+            )}
 
             {/* Dilemmas badge */}
             {pendingDilemmas.length > 0 && (

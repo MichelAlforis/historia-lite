@@ -71,6 +71,10 @@ interface GameStore {
   eventHistory: GameEvent[];
   showEventToast: boolean;
 
+  // Breaking News State
+  breakingNewsEvent: GameEvent | null;
+  showBreakingNews: boolean;
+
   // Actions
   fetchWorldState: () => Promise<void>;
   selectCountry: (countryId: string | null) => void;
@@ -126,6 +130,10 @@ interface GameStore {
   // Event Actions
   dismissEventToast: () => void;
   fetchEventHistory: (count?: number) => Promise<void>;
+
+  // Breaking News Actions
+  dismissBreakingNews: () => void;
+  triggerBreakingNews: (event: GameEvent) => void;
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -176,6 +184,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
   recentTickEvents: [],
   eventHistory: [],
   showEventToast: false,
+
+  // Breaking News State
+  breakingNewsEvent: null,
+  showBreakingNews: false,
 
   // Fetch world state from API
   fetchWorldState: async () => {
@@ -296,10 +308,34 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   // Advance simulation by one month
   advanceMonth: async () => {
-    const { timeline, eventHistory } = get();
+    const { timeline, eventHistory, triggerBreakingNews } = get();
     set({ isLoading: true, error: null });
     try {
       const result = await api.advanceMonth();
+
+      // Check for breaking news worthy events
+      const breakingNewsTypes = [
+        'war', 'conflict', 'attack', 'nuclear', 'coup',
+        'political_crisis', 'ally_under_attack', 'diplomatic_crisis',
+        'defcon_change', 'bloc_change', 'major_sanctions', 'revolution'
+      ];
+
+      const criticalEvents = (result.events || []).filter((e: GameEvent) => {
+        const typeLower = e.type.toLowerCase();
+        return breakingNewsTypes.some(t => typeLower.includes(t));
+      });
+
+      // Trigger breaking news for the most critical event
+      if (criticalEvents.length > 0) {
+        // Prioritize war/nuclear/attack events
+        const priorityEvent = criticalEvents.find((e: GameEvent) =>
+          e.type.toLowerCase().includes('war') ||
+          e.type.toLowerCase().includes('nuclear') ||
+          e.type.toLowerCase().includes('attack')
+        ) || criticalEvents[0];
+
+        triggerBreakingNews(priorityEvent);
+      }
 
       // Extract new timeline events
       const newTimelineEvents: TimelineEvent[] = (result.timeline_events || []).map((te: {
@@ -833,5 +869,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
     } catch (error) {
       // Silent fail - history is optional
     }
+  },
+
+  // =========================================================================
+  // BREAKING NEWS ACTIONS
+  // =========================================================================
+
+  // Dismiss breaking news banner
+  dismissBreakingNews: () => {
+    set({ showBreakingNews: false, breakingNewsEvent: null });
+  },
+
+  // Trigger breaking news for a critical event
+  triggerBreakingNews: (event: GameEvent) => {
+    set({ breakingNewsEvent: event, showBreakingNews: true });
   },
 }));

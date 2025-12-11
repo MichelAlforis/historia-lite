@@ -3,13 +3,24 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useGameStore } from '@/stores/gameStore';
 import { Send, Loader2, Check, X, ChevronDown, TrendingUp, TrendingDown } from 'lucide-react';
-import { CommandCost } from '@/lib/types';
+import { CommandCost, CommandInterpretation } from '@/lib/types';
 
 // ============================================================================
 // Constants (TIER 4: No magic numbers)
 // ============================================================================
 const MAX_MESSAGE_LENGTH = 500;
 const FOCUS_DELAY_MS = 50;
+
+// Category labels in French
+const CATEGORY_LABELS: Record<string, string> = {
+  diplomacy: 'Diplomatie',
+  military: 'Militaire',
+  economy: 'Economie',
+  internal: 'Politique interieure',
+  espionage: 'Espionnage',
+  technology: 'Technologie',
+  project: 'Projet',
+};
 
 // ============================================================================
 // Types
@@ -23,6 +34,8 @@ interface ActionMessage {
   cost?: CommandCost;
   feasible?: boolean;
   feasibilityReason?: string;
+  interpretedAs?: string;
+  interpretation?: CommandInterpretation;
 }
 
 interface ActionDropupProps {
@@ -166,12 +179,14 @@ export default function ActionDropup({ isOpen, onClose }: ActionDropupProps) {
       setMessages(prev => [...prev, {
         id: pendingCommand.command_id || Date.now().toString(),
         type: 'system',
-        content: pendingCommand.confirmation_message_fr || pendingCommand.interpreted_as || 'Action en attente de confirmation',
+        content: pendingCommand.confirmation_message_fr || 'Action en attente de confirmation',
         timestamp: new Date(),
         status: 'pending',
         cost: pendingCommand.cost,
         feasible: pendingCommand.feasible,
         feasibilityReason: pendingCommand.feasibility_reason || undefined,
+        interpretedAs: pendingCommand.interpreted_as,
+        interpretation: pendingCommand.interpretation,
       }]);
     }
   }, [pendingCommand, messages]);
@@ -288,10 +303,34 @@ export default function ActionDropup({ isOpen, onClose }: ActionDropupProps) {
                     ? 'bg-emerald-100 text-emerald-700'
                     : msg.status === 'cancelled'
                     ? 'bg-stone-200 text-stone-500 line-through'
-                    : 'bg-white border border-stone-200 text-stone-700'
+                    : 'bg-white border border-stone-200 text-stone-700 shadow-sm'
                 }`}>
-                  {/* Main content */}
-                  <div className="font-medium">{msg.content}</div>
+                  {/* For pending system messages: show interpreted action header */}
+                  {msg.status === 'pending' && msg.interpretation && (
+                    <div className="mb-2 pb-2 border-b border-stone-200">
+                      <div className="text-xs text-stone-500 mb-1">J'ai compris:</div>
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded text-xs font-medium">
+                          {CATEGORY_LABELS[msg.interpretation.category] || msg.interpretation.category}
+                        </span>
+                        {msg.interpretation.target_country_id && (
+                          <span className="text-xs text-stone-600">
+                            → {msg.interpretation.target_country_id}
+                          </span>
+                        )}
+                      </div>
+                      {msg.interpretedAs && (
+                        <div className="mt-1 text-sm font-medium text-stone-800">
+                          "{msg.interpretedAs}"
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Main content / confirmation message */}
+                  <div className={msg.status === 'pending' ? '' : 'font-medium'}>
+                    {msg.content}
+                  </div>
 
                   {/* Feasibility warning */}
                   {msg.status === 'pending' && msg.feasible === false && (
@@ -309,6 +348,13 @@ export default function ActionDropup({ isOpen, onClose }: ActionDropupProps) {
                           renderCostItem(key, msg.cost![key])
                         )}
                       </div>
+                    </div>
+                  )}
+
+                  {/* Confidence indicator */}
+                  {msg.status === 'pending' && msg.interpretation && msg.interpretation.confidence < 0.7 && (
+                    <div className="mt-2 text-xs text-amber-600 italic">
+                      Confiance: {Math.round(msg.interpretation.confidence * 100)}% - Verifiez que j'ai bien compris
                     </div>
                   )}
 

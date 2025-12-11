@@ -914,3 +914,181 @@ class TimelineManager:
             if hasattr(country, 'memory_scores'):
                 for memory in country.memory_scores.values():
                     memory.decay(months_passed)
+
+
+# =============================================================================
+# SYSTEMIC EVENTS (Phase 2 - Axe 2: Méta-Événements)
+# Events that affect the ENTIRE world simultaneously
+# =============================================================================
+
+class SystemicEventType(str, Enum):
+    """Types of systemic events that affect the whole world"""
+    FINANCIAL_CRISIS = "financial_crisis"
+    PANDEMIC = "pandemic"
+    TECH_REVOLUTION = "tech_revolution"
+    ENERGY_SHOCK = "energy_shock"
+    TRADE_COLLAPSE = "trade_collapse"
+    CLIMATE_DISASTER = "climate_disaster"
+    CYBER_BLACKOUT = "cyber_blackout"
+    NUCLEAR_SCARE = "nuclear_scare"
+
+
+class SystemicEvent(TimelineEvent):
+    """
+    An event that affects the ENTIRE world simultaneously.
+    Not tied to a single actor - it's a global phenomenon.
+    """
+
+    # Override: no single actor, it's systemic
+    actor_country: str = "SYSTEM"
+
+    # Which tiers are affected (1-5)
+    affected_tiers: List[int] = Field(default_factory=lambda: [1, 2, 3, 4])
+
+    # Global effects applied to all countries
+    global_effects: Dict[str, Any] = Field(default_factory=dict)
+    # Example: {"all_economy": -5, "all_stability": -3, "global_tension": +10}
+
+    # Duration and decay
+    duration_months: int = 6
+    decay_per_month: float = 0.15  # Effect reduces by 15% per month
+    months_active: int = 0
+
+    # What era this might trigger
+    triggers_era: Optional[str] = None  # e.g., "crisis_mode"
+
+    # Systemic type
+    systemic_type: SystemicEventType = SystemicEventType.FINANCIAL_CRISIS
+
+    def get_current_effect_multiplier(self) -> float:
+        """Calculate current effect strength based on decay"""
+        if self.months_active >= self.duration_months:
+            return 0.0
+        return max(0.0, 1.0 - (self.months_active * self.decay_per_month))
+
+    def apply_to_country(self, country, tier: int) -> Dict[str, int]:
+        """Apply this systemic event's effects to a country"""
+        applied_effects = {}
+        multiplier = self.get_current_effect_multiplier()
+
+        if multiplier <= 0 or tier not in self.affected_tiers:
+            return applied_effects
+
+        for effect_key, value in self.global_effects.items():
+            if not isinstance(value, (int, float)):
+                continue
+
+            # "all_X" effects apply to stat X for all countries
+            if effect_key.startswith("all_"):
+                stat_name = effect_key.replace("all_", "")
+                effect_value = int(value * multiplier)
+
+                if hasattr(country, stat_name):
+                    current = getattr(country, stat_name, 0)
+                    setattr(country, stat_name, current + effect_value)
+                    applied_effects[stat_name] = effect_value
+                elif hasattr(country, 'stats') and stat_name in country.stats:
+                    country.stats[stat_name] += effect_value
+                    applied_effects[stat_name] = effect_value
+
+        return applied_effects
+
+    def tick(self) -> bool:
+        """Advance one month. Returns True if still active."""
+        self.months_active += 1
+        return self.months_active < self.duration_months
+
+
+class SystemicEventManager:
+    """Manages active systemic events"""
+
+    MAX_ACTIVE_SYSTEMIC = 3  # Max concurrent systemic events
+
+    def __init__(self):
+        self.active_events: List[SystemicEvent] = []
+        self.historical_events: List[SystemicEvent] = []
+
+    def add_event(self, event: SystemicEvent) -> bool:
+        """Add a new systemic event if slot available"""
+        if len(self.active_events) >= self.MAX_ACTIVE_SYSTEMIC:
+            # Close the oldest/weakest event
+            self.active_events.sort(key=lambda e: e.get_current_effect_multiplier())
+            expired = self.active_events.pop(0)
+            self.historical_events.append(expired)
+
+        self.active_events.append(event)
+        logger.info(f"Systemic event started: {event.title_fr}")
+        return True
+
+    def process_monthly(self, world) -> List[str]:
+        """Process all active systemic events for the month"""
+        messages = []
+        expired = []
+
+        for event in self.active_events:
+            # Apply effects to all countries
+            for tier in event.affected_tiers:
+                countries = self._get_countries_by_tier(world, tier)
+                for country in countries:
+                    effects = event.apply_to_country(country, tier)
+                    if effects:
+                        logger.debug(f"Systemic {event.id} applied to {country.id}: {effects}")
+
+            # Tick the event
+            if not event.tick():
+                expired.append(event)
+                messages.append(f"La crise systémique '{event.title_fr}' s'estompe.")
+
+        # Move expired to historical
+        for event in expired:
+            self.active_events.remove(event)
+            self.historical_events.append(event)
+
+        return messages
+
+    def _get_countries_by_tier(self, world, tier: int) -> List:
+        """Get all countries of a specific tier"""
+        countries = []
+
+        if tier <= 3 and hasattr(world, 'countries'):
+            for country in world.countries.values():
+                if hasattr(country, 'tier') and country.tier == tier:
+                    countries.append(country)
+
+        if tier == 4 and hasattr(world, 'tier4_countries'):
+            countries.extend(world.tier4_countries.values())
+
+        if tier == 5 and hasattr(world, 'tier5_countries'):
+            countries.extend(world.tier5_countries.values())
+
+        return countries
+
+    def get_active_summary(self) -> List[Dict[str, Any]]:
+        """Get summary of active systemic events for UI"""
+        return [
+            {
+                "id": e.id,
+                "title_fr": e.title_fr,
+                "systemic_type": e.systemic_type.value if hasattr(e.systemic_type, 'value') else e.systemic_type,
+                "months_active": e.months_active,
+                "duration_months": e.duration_months,
+                "effect_strength": round(e.get_current_effect_multiplier() * 100),
+                "global_effects": e.global_effects
+            }
+            for e in self.active_events
+        ]
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize for storage"""
+        return {
+            "active_events": [e.model_dump() for e in self.active_events],
+            "historical_events": [e.model_dump() for e in self.historical_events[-20:]]  # Keep last 20
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "SystemicEventManager":
+        """Deserialize from storage"""
+        manager = cls()
+        manager.active_events = [SystemicEvent(**e) for e in data.get("active_events", [])]
+        manager.historical_events = [SystemicEvent(**e) for e in data.get("historical_events", [])]
+        return manager

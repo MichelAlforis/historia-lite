@@ -1221,3 +1221,78 @@ body {
 .defcon-3 { background-color: #9a3412; border-color: #fb923c; color: #fed7aa; }
 .defcon-4 { background-color: #854d0e; border-color: #facc15; color: #fef08a; }
 .defcon-5 { background-color: #166534; border-color: #22c55e; color: #bbf7d0; }
+
+/* ============================================================================
+   BREAKING NEWS ANIMATIONS
+   ============================================================================ */
+
+/* Ticker defilant pour breaking news */
+@keyframes ticker {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-ticker {
+  animation: ticker 20s linear infinite;
+}
+
+/* Slide down from top pour breaking news banner */
+@keyframes breakingSlideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes breakingSlideUp {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+}
+
+.breaking-enter {
+  animation: breakingSlideDown 0.5s ease-out forwards;
+}
+
+.breaking-exit {
+  animation: breakingSlideUp 0.5s ease-in forwards;
+}
+
+/* Pulse glow rouge pour urgent breaking news */
+@keyframes urgentGlow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(220, 38, 38, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(220, 38, 38, 0.6);
+  }
+}
+
+.animate-urgent-glow {
+  animation: urgentGlow 1.5s ease-in-out infinite;
+}
+
+/* Live indicator pulse */
+@keyframes livePulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.2);
+  }
+}
+
+.animate-live-pulse {
+  animation: livePulse 1s ease-in-out infinite;
+}
