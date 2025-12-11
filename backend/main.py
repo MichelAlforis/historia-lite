@@ -29,6 +29,9 @@ from api.regions_routes import router as regions_router
 from api.economy_routes import router as economy_router
 from api.ai_advisor_routes import router as ai_advisor_router
 from api.timeline_routes import router as timeline_router  # NEW: Timeline API
+from api.leaders_routes import router as leaders_router  # Leaders & Traits
+from api.stats_routes import router as stats_router      # Historical Stats
+from api.achievements_routes import router as achievements_router  # Achievements
 
 # Configure logging
 logging.basicConfig(
@@ -71,6 +74,9 @@ app.include_router(regions_router)
 app.include_router(economy_router)
 app.include_router(ai_advisor_router)
 app.include_router(timeline_router)  # NEW: Timeline API
+app.include_router(leaders_router)   # Leaders & Traits
+app.include_router(stats_router)     # Historical Stats
+app.include_router(achievements_router)  # Achievements
 
 
 @app.get("/")

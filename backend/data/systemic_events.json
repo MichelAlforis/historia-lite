@@ -1,0 +1,233 @@
+{
+  "_description": "Systemic events that affect the ENTIRE world simultaneously (Phase 2 - Axe 2)",
+  "_version": "1.0",
+  "systemic_events": [
+    {
+      "id": "global_financial_crisis_2029",
+      "systemic_type": "financial_crisis",
+      "title": "Global Financial Meltdown",
+      "title_fr": "Krach financier mondial",
+      "description": "The collapse of the commercial real estate market triggers a global liquidity crisis. Markets plunge 40% in three weeks as major banks teeter on the brink.",
+      "description_fr": "L'effondrement du marche immobilier commercial declenche une crise de liquidite mondiale. Les marches chutent de 40% en 3 semaines alors que les grandes banques vacillent.",
+      "probability_per_year": 5,
+      "min_year": 2027,
+      "conditions": {
+        "min_global_tension": 35,
+        "min_market_volatility": 50
+      },
+      "global_effects": {
+        "all_economy": -8,
+        "all_stability": -5,
+        "global_tension": 15
+      },
+      "duration_months": 18,
+      "decay_per_month": 0.08,
+      "triggers_era": "crisis_mode",
+      "importance": 5,
+      "affected_tiers": [1, 2, 3, 4]
+    },
+    {
+      "id": "energy_shock_2026",
+      "systemic_type": "energy_shock",
+      "title": "Global Energy Crisis",
+      "title_fr": "Choc energetique mondial",
+      "description": "A perfect storm of supply disruptions, geopolitical tensions, and infrastructure failures causes energy prices to triple. Industrial production grinds to a halt in many countries.",
+      "description_fr": "Une combinaison de perturbations de l'offre, de tensions geopolitiques et de defaillances d'infrastructure fait tripler les prix de l'energie. La production industrielle s'arrete dans de nombreux pays.",
+      "probability_per_year": 8,
+      "min_year": 2025,
+      "conditions": {
+        "min_global_tension": 45
+      },
+      "global_effects": {
+        "all_economy": -6,
+        "all_stability": -3,
+        "global_tension": 10,
+        "all_military": -2
+      },
+      "duration_months": 12,
+      "decay_per_month": 0.1,
+      "triggers_era": null,
+      "importance": 4,
+      "affected_tiers": [1, 2, 3, 4]
+    },
+    {
+      "id": "pandemic_wave_2027",
+      "systemic_type": "pandemic",
+      "title": "New Pandemic Outbreak",
+      "title_fr": "Nouvelle vague pandemique",
+      "description": "A new highly transmissible variant emerges, overwhelming healthcare systems worldwide. International travel halts as countries close borders.",
+      "description_fr": "Un nouveau variant hautement transmissible emerge, submergeant les systemes de sante du monde entier. Les voyages internationaux s'arretent alors que les pays ferment leurs frontieres.",
+      "probability_per_year": 4,
+      "min_year": 2026,
+      "conditions": {},
+      "global_effects": {
+        "all_economy": -5,
+        "all_stability": -4,
+        "global_tension": 5
+      },
+      "duration_months": 9,
+      "decay_per_month": 0.12,
+      "triggers_era": null,
+      "importance": 4,
+      "affected_tiers": [1, 2, 3, 4, 5]
+    },
+    {
+      "id": "cyber_blackout_2028",
+      "systemic_type": "cyber_blackout",
+      "title": "Global Cyber Blackout",
+      "title_fr": "Panne cybernetique mondiale",
+      "description": "A sophisticated cyberattack cripples critical infrastructure across multiple continents. Power grids fail, banking systems crash, and communications are disrupted for days.",
+      "description_fr": "Une cyberattaque sophistiquee paralyse les infrastructures critiques sur plusieurs continents. Les reseaux electriques tombent en panne, les systemes bancaires s'effondrent et les communications sont perturbees pendant des jours.",
+      "probability_per_year": 6,
+      "min_year": 2026,
+      "conditions": {
+        "min_global_tension": 50
+      },
+      "global_effects": {
+        "all_economy": -4,
+        "all_stability": -6,
+        "global_tension": 20
+      },
+      "duration_months": 3,
+      "decay_per_month": 0.25,
+      "triggers_era": "crisis_mode",
+      "importance": 5,
+      "affected_tiers": [1, 2, 3]
+    },
+    {
+      "id": "trade_collapse_2027",
+      "systemic_type": "trade_collapse",
+      "title": "Global Trade System Breakdown",
+      "title_fr": "Effondrement du commerce mondial",
+      "description": "A cascade of trade wars and sanctions fractures the global trading system. Supply chains collapse as nations retreat into protectionism.",
+      "description_fr": "Une cascade de guerres commerciales et de sanctions fracture le systeme commercial mondial. Les chaines d'approvisionnement s'effondrent alors que les nations se replient sur le protectionnisme.",
+      "probability_per_year": 7,
+      "min_year": 2026,
+      "conditions": {
+        "min_global_tension": 55,
+        "era_is": ["sanctions_era"]
+      },
+      "global_effects": {
+        "all_economy": -7,
+        "all_stability": -2,
+        "global_tension": 8
+      },
+      "duration_months": 15,
+      "decay_per_month": 0.07,
+      "triggers_era": null,
+      "importance": 4,
+      "affected_tiers": [1, 2, 3, 4]
+    },
+    {
+      "id": "tech_revolution_ai",
+      "systemic_type": "tech_revolution",
+      "title": "AI Singularity Moment",
+      "title_fr": "Moment de singularite IA",
+      "description": "A breakthrough in artificial general intelligence reshapes the global economy overnight. Tech leaders surge ahead while traditional industries struggle to adapt.",
+      "description_fr": "Une percee en intelligence artificielle generale remodele l'economie mondiale du jour au lendemain. Les leaders technologiques prennent une avance decisive tandis que les industries traditionnelles peinent a s'adapter.",
+      "probability_per_year": 3,
+      "min_year": 2028,
+      "conditions": {},
+      "global_effects": {
+        "all_economy": 3,
+        "all_stability": -3,
+        "global_tension": 5
+      },
+      "duration_months": 24,
+      "decay_per_month": 0.05,
+      "triggers_era": "multipolar_shift",
+      "importance": 5,
+      "affected_tiers": [1, 2, 3],
+      "special_effects": {
+        "tech_leaders_bonus": 10,
+        "tech_laggards_penalty": -8
+      }
+    },
+    {
+      "id": "nuclear_scare_2026",
+      "systemic_type": "nuclear_scare",
+      "title": "Nuclear Crisis Alert",
+      "title_fr": "Alerte de crise nucleaire",
+      "description": "A near-miss nuclear incident sends shockwaves across the globe. World leaders scramble to de-escalate as populations panic and markets crash.",
+      "description_fr": "Un incident nucleaire evite de justesse envoie des ondes de choc a travers le monde. Les dirigeants mondiaux s'efforcent de desamorcer la situation tandis que les populations paniquent et les marches s'effondrent.",
+      "probability_per_year": 3,
+      "min_year": 2025,
+      "conditions": {
+        "min_global_tension": 70,
+        "defcon_max": 2
+      },
+      "global_effects": {
+        "all_economy": -3,
+        "all_stability": -8,
+        "global_tension": 25
+      },
+      "duration_months": 6,
+      "decay_per_month": 0.2,
+      "triggers_era": "crisis_mode",
+      "importance": 5,
+      "affected_tiers": [1, 2, 3, 4, 5]
+    },
+    {
+      "id": "climate_disaster_2028",
+      "systemic_type": "climate_disaster",
+      "title": "Climate Tipping Point Crisis",
+      "title_fr": "Crise du point de bascule climatique",
+      "description": "Simultaneous extreme weather events across the globe - floods, droughts, and storms - overwhelm emergency services and displace millions.",
+      "description_fr": "Des evenements meteorologiques extremes simultanes a travers le monde - inondations, secheresses et tempetes - submergent les services d'urgence et deplacent des millions de personnes.",
+      "probability_per_year": 10,
+      "min_year": 2027,
+      "conditions": {},
+      "global_effects": {
+        "all_economy": -4,
+        "all_stability": -5,
+        "global_tension": 5
+      },
+      "duration_months": 8,
+      "decay_per_month": 0.12,
+      "triggers_era": null,
+      "importance": 4,
+      "affected_tiers": [1, 2, 3, 4, 5]
+    },
+    {
+      "id": "space_race_breakthrough",
+      "systemic_type": "tech_revolution",
+      "title": "Space Race Breakthrough",
+      "title_fr": "Percee dans la course spatiale",
+      "description": "A major space power achieves a significant milestone - permanent lunar base or asteroid mining - triggering a new era of space competition.",
+      "description_fr": "Une grande puissance spatiale realise une etape majeure - base lunaire permanente ou exploitation miniere d'asteroides - declenchant une nouvelle ere de competition spatiale.",
+      "probability_per_year": 5,
+      "min_year": 2028,
+      "conditions": {},
+      "global_effects": {
+        "all_economy": 2,
+        "global_tension": 10
+      },
+      "duration_months": 12,
+      "decay_per_month": 0.08,
+      "triggers_era": "military_buildup",
+      "importance": 4,
+      "affected_tiers": [1, 2]
+    },
+    {
+      "id": "global_food_crisis",
+      "systemic_type": "climate_disaster",
+      "title": "Global Food Crisis",
+      "title_fr": "Crise alimentaire mondiale",
+      "description": "Crop failures across multiple breadbasket regions trigger a global food crisis. Prices skyrocket as nations scramble to secure supplies.",
+      "description_fr": "Des echecs de recoltes dans plusieurs regions grenier a ble declenchent une crise alimentaire mondiale. Les prix s'envolent alors que les nations se precipitent pour securiser les approvisionnements.",
+      "probability_per_year": 6,
+      "min_year": 2026,
+      "conditions": {},
+      "global_effects": {
+        "all_economy": -5,
+        "all_stability": -7,
+        "global_tension": 12
+      },
+      "duration_months": 10,
+      "decay_per_month": 0.1,
+      "triggers_era": null,
+      "importance": 4,
+      "affected_tiers": [1, 2, 3, 4, 5]
+    }
+  ]
+}

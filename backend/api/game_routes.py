@@ -15,7 +15,10 @@ from schemas.game import (
     EventResponse,
     ConflictResponse,
     TickResponse,
+    WorldMoodResponse,
+    CrisisArcResponse,
 )
+from engine.tick import crisis_manager
 from api.game_state import (
     get_world,
     get_event_pool,
@@ -86,6 +89,43 @@ async def get_state():
     tier4_in_crisis = len([c for c in world.tier4_countries.values() if c.in_crisis])
     tier5_in_crisis = len([c for c in world.tier5_countries.values() if c.in_crisis])
 
+    # Build mood response if available
+    mood_response = None
+    if hasattr(world, 'mood') and world.mood:
+        mood = world.mood
+        mood_response = WorldMoodResponse(
+            global_confidence=mood.global_confidence,
+            war_fatigue=mood.war_fatigue,
+            economic_optimism=mood.economic_optimism,
+            diplomatic_openness=mood.diplomatic_openness,
+            market_volatility=mood.market_volatility,
+            nuclear_anxiety=mood.nuclear_anxiety,
+            current_era=mood.current_era.value if hasattr(mood.current_era, 'value') else str(mood.current_era),
+            era_display=mood.get_era_display('fr'),
+            era_strength=mood.era_strength,
+            player_reputation=mood.player_reputation,
+        )
+
+    # Build active crises list
+    crises_response = []
+    for crisis in crisis_manager.active_crises:
+        crises_response.append(CrisisArcResponse(
+            id=crisis.id,
+            name=crisis.name,
+            name_fr=crisis.name_fr,
+            primary_actors=crisis.primary_actors,
+            secondary_actors=crisis.secondary_actors,
+            current_phase=crisis.current_phase.value if hasattr(crisis.current_phase, 'value') else str(crisis.current_phase),
+            intensity=crisis.intensity,
+            momentum=crisis.momentum,
+            media_attention=crisis.media_attention,
+            international_involvement=crisis.international_involvement,
+            spillover_risk=crisis.spillover_risk,
+            months_active=crisis.months_active,
+            ai_predicted_outcome=crisis.ai_predicted_outcome,
+            ai_confidence=crisis.ai_confidence,
+        ))
+
     return WorldStateResponse(
         year=world.year,
         month=world.month,  # NEW: month field
@@ -113,6 +153,9 @@ async def get_state():
         final_score=world.final_score,
         unread_events=timeline.get_unread_count(),  # NEW: unread timeline events
         timeline_total=len(timeline.events),  # NEW: total timeline events
+        mood=mood_response,  # Phase 2: WorldMood
+        player_reputation=world.player_reputation,  # Direct access for convenience
+        active_crises=crises_response,  # Phase 2: Active crises
     )
 
 
@@ -132,6 +175,73 @@ async def get_events(count: int = 50):
     world = get_world()
     events = world.get_recent_events(count)
     return [EventResponse.from_event(e) for e in events]
+
+
+@router.get("/crises", response_model=List[CrisisArcResponse])
+async def get_crises():
+    """Get all active geopolitical crises"""
+    crises_response = []
+    for crisis in crisis_manager.active_crises:
+        crises_response.append(CrisisArcResponse(
+            id=crisis.id,
+            name=crisis.name,
+            name_fr=crisis.name_fr,
+            primary_actors=crisis.primary_actors,
+            secondary_actors=crisis.secondary_actors,
+            current_phase=crisis.current_phase.value if hasattr(crisis.current_phase, 'value') else str(crisis.current_phase),
+            intensity=crisis.intensity,
+            momentum=crisis.momentum,
+            media_attention=crisis.media_attention,
+            international_involvement=crisis.international_involvement,
+            spillover_risk=crisis.spillover_risk,
+            months_active=crisis.months_active,
+            ai_predicted_outcome=crisis.ai_predicted_outcome,
+            ai_confidence=crisis.ai_confidence,
+        ))
+    return crises_response
+
+
+@router.get("/crisis/{crisis_id}", response_model=CrisisArcResponse)
+async def get_crisis(crisis_id: str):
+    """Get details of a specific crisis"""
+    for crisis in crisis_manager.active_crises:
+        if crisis.id == crisis_id:
+            return CrisisArcResponse(
+                id=crisis.id,
+                name=crisis.name,
+                name_fr=crisis.name_fr,
+                primary_actors=crisis.primary_actors,
+                secondary_actors=crisis.secondary_actors,
+                current_phase=crisis.current_phase.value if hasattr(crisis.current_phase, 'value') else str(crisis.current_phase),
+                intensity=crisis.intensity,
+                momentum=crisis.momentum,
+                media_attention=crisis.media_attention,
+                international_involvement=crisis.international_involvement,
+                spillover_risk=crisis.spillover_risk,
+                months_active=crisis.months_active,
+                ai_predicted_outcome=crisis.ai_predicted_outcome,
+                ai_confidence=crisis.ai_confidence,
+            )
+    # Check resolved crises too
+    for crisis in crisis_manager.resolved_crises:
+        if crisis.id == crisis_id:
+            return CrisisArcResponse(
+                id=crisis.id,
+                name=crisis.name,
+                name_fr=crisis.name_fr,
+                primary_actors=crisis.primary_actors,
+                secondary_actors=crisis.secondary_actors,
+                current_phase=crisis.current_phase.value if hasattr(crisis.current_phase, 'value') else str(crisis.current_phase),
+                intensity=crisis.intensity,
+                momentum=crisis.momentum,
+                media_attention=crisis.media_attention,
+                international_involvement=crisis.international_involvement,
+                spillover_risk=crisis.spillover_risk,
+                months_active=crisis.months_active,
+                ai_predicted_outcome=crisis.ai_predicted_outcome,
+                ai_confidence=crisis.ai_confidence,
+            )
+    raise HTTPException(status_code=404, detail=f"Crisis {crisis_id} not found")
 
 
 @router.post("/tick", response_model=MonthlyTickResponse)

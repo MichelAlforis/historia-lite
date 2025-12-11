@@ -8,11 +8,14 @@ import {
   COUNTRY_FLAGS,
   PowerGlobalInfluence,
   MilitaryBase,
+  Leader,
 } from '@/lib/types';
 import { StatBar } from './StatBar';
-import { getPowerGlobalInfluence, getBasesByOwner } from '@/lib/api';
+import { getPowerGlobalInfluence, getBasesByOwner, getLeader, getCombinedStatsHistory, HistoricalDataPoint } from '@/lib/api';
 import { InfluenceBreakdownMini } from './InfluenceBreakdownChart';
 import { PowerScoreCard } from './PowerScoreCard';
+import LeaderCard from './LeaderCard';
+import StatsChart from './StatsChart';
 
 interface CountryPanelProps {
   country: Country;
@@ -24,6 +27,8 @@ export function CountryPanel({ country, allCountries, onClose }: CountryPanelPro
   const [influenceData, setInfluenceData] = useState<PowerGlobalInfluence | null>(null);
   const [basesData, setBasesData] = useState<{ bases: MilitaryBase[]; total_personnel: number } | null>(null);
   const [loadingInfluence, setLoadingInfluence] = useState(true);
+  const [leader, setLeader] = useState<Leader | null>(null);
+  const [statsHistory, setStatsHistory] = useState<HistoricalDataPoint[]>([]);
 
   useEffect(() => {
     // Only load influence data for major powers (tier 1-2)
@@ -32,7 +37,31 @@ export function CountryPanel({ country, allCountries, onClose }: CountryPanelPro
     } else {
       setLoadingInfluence(false);
     }
+    // Load leader data for all countries
+    loadLeaderData();
+    // Load stats history
+    loadStatsHistory();
   }, [country.id]);
+
+  const loadStatsHistory = async () => {
+    try {
+      const history = await getCombinedStatsHistory(country.id, 24);
+      setStatsHistory(history);
+    } catch (error) {
+      console.error('Failed to load stats history:', error);
+      setStatsHistory([]);
+    }
+  };
+
+  const loadLeaderData = async () => {
+    try {
+      const leaderData = await getLeader(country.id);
+      setLeader(leaderData);
+    } catch (error) {
+      console.error('Failed to load leader data:', error);
+      setLeader(null);
+    }
+  };
 
   const loadInfluenceData = async () => {
     try {
@@ -72,6 +101,17 @@ export function CountryPanel({ country, allCountries, onClose }: CountryPanelPro
         </button>
       </div>
 
+      {/* Leader */}
+      {leader && (
+        <div className="mb-6">
+          <LeaderCard
+            leader={leader}
+            countryId={country.id}
+            countryName={country.name_fr}
+          />
+        </div>
+      )}
+
       {/* Stats */}
       <div className="grid grid-cols-2 gap-4 mb-6">
         <div className="space-y-2">
@@ -95,6 +135,18 @@ export function CountryPanel({ country, allCountries, onClose }: CountryPanelPro
         <h3 className="font-bold text-gray-300 mb-2">Scores de Puissance</h3>
         <PowerScoreCard countryId={country.id} />
       </div>
+
+      {/* Stats History Chart */}
+      {statsHistory.length > 0 && (
+        <div className="mb-6">
+          <StatsChart
+            data={statsHistory}
+            countryName={country.name_fr}
+            showReputation={country.is_player}
+            showTension={country.is_player}
+          />
+        </div>
+      )}
 
       {/* Personality */}
       <div className="mb-6">

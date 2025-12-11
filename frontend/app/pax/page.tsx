@@ -2,9 +2,9 @@
 
 import { useEffect, useState, useCallback, memo } from 'react';
 import { useGameStore } from '@/stores/gameStore';
-import { COUNTRY_FLAGS, ERA_NAMES_FR, ERA_COLORS, GeopoliticalEra } from '@/lib/types';
+import { COUNTRY_FLAGS, ERA_NAMES_FR, ERA_COLORS, GeopoliticalEra, CrisisArc } from '@/lib/types';
 import dynamic from 'next/dynamic';
-import { Zap, MessageCircle, Lightbulb, Loader2, X, Users, ChevronRight, ChevronLeft, Grid3X3, Map, Calendar } from 'lucide-react';
+import { Zap, MessageCircle, Lightbulb, Loader2, X, Users, ChevronRight, ChevronLeft, Grid3X3, Map, Calendar, AlertTriangle } from 'lucide-react';
 import { useMemo } from 'react';
 
 // Static components (lightweight, always needed)
@@ -12,6 +12,7 @@ import CountrySelector from '@/components/CountrySelector';
 import VideoSkeleton from '@/components/VideoSkeleton';
 import EventToast from '@/components/EventToast';
 import BreakingNews from '@/components/BreakingNews';
+import ReputationBar from '@/components/ReputationBar';
 
 // API
 import { getScenarioStatus, ScenarioStatus } from '@/lib/api';
@@ -53,6 +54,10 @@ const RelationMatrix = dynamic(() => import('@/components/RelationMatrix'), {
 
 const TimelineModal = dynamic(() => import('@/components/TimelineModal'), {
   loading: () => <ModalLoader />,
+});
+
+const CrisisArcDisplay = dynamic(() => import('@/components/CrisisArcDisplay'), {
+  loading: () => null,
 });
 
 // Map - no SSR, heavy component with WebGL
@@ -378,6 +383,9 @@ export default function PaxPage() {
               <span className="text-sm text-stone-600">{world.global_tension}%</span>
             </div>
 
+            {/* Reputation Mondiale */}
+            <ReputationBar reputation={world.player_reputation ?? 50} compact />
+
             {/* Geopolitical Era */}
             {world.mood && (
               <div
@@ -461,6 +469,21 @@ export default function PaxPage() {
           playerRivals={playerCountry?.rivals || []}
           playerAtWar={playerCountry?.at_war || []}
         />
+
+        {/* Active Crises Panel (left side) */}
+        {world.active_crises && world.active_crises.length > 0 && (
+          <div className="absolute top-4 left-4 w-80 max-h-[60vh] overflow-y-auto bg-white/95 backdrop-blur rounded-2xl shadow-xl">
+            <div className="sticky top-0 bg-gradient-to-r from-rose-500 to-orange-500 px-4 py-3 text-white flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5" />
+              <h3 className="font-semibold">Crises Actives ({world.active_crises.length})</h3>
+            </div>
+            <div className="p-3 space-y-3">
+              {world.active_crises.map((crisis: CrisisArc) => (
+                <CrisisArcDisplay key={crisis.id} crisis={crisis} compact />
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Country info panel (when country selected on map) */}
         {selectedCountry && (
@@ -590,6 +613,14 @@ export default function PaxPage() {
         isOpen={timelineModalOpen}
         onClose={closeTimelineModal}
       />
+
+      {/* Breaking News - Dramatic TV-style alerts for major events */}
+      {showBreakingNews && breakingNewsEvent && (
+        <BreakingNews
+          event={breakingNewsEvent}
+          onDismiss={dismissBreakingNews}
+        />
+      )}
     </div>
   );
 }

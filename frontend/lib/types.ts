@@ -7,6 +7,27 @@ export interface Personality {
   risk_tolerance: number;
 }
 
+// Leader Types
+export interface LeaderTrait {
+  id: string;
+  name_fr: string;
+  description_fr: string;
+  effects: Record<string, number>;
+}
+
+export interface Leader {
+  name: string;
+  title: string;
+  title_fr: string;
+  start_year: number;
+  traits: string[];
+  traits_data: LeaderTrait[];
+  portrait: string;
+  ideology: string;
+  approval_rating: number;
+  years_in_power: number;
+}
+
 export interface Country {
   id: string;
   name: string;
@@ -222,6 +243,80 @@ export interface WorldMood {
   player_reputation: number;
 }
 
+// =============================================================================
+// CRISIS SYSTEM (Phase 2 - Axes 4-5: Arcs Dramatiques & Crises Vivantes)
+// =============================================================================
+
+// Crisis phases - the 5 acts of a crisis drama
+export type CrisisPhase = 'latent' | 'escalation' | 'climax' | 'resolution' | 'aftermath';
+
+// Phase display names
+export const PHASE_NAMES_FR: Record<CrisisPhase, string> = {
+  latent: 'Latente',
+  escalation: 'Escalade',
+  climax: 'Climax',
+  resolution: 'Resolution',
+  aftermath: 'Apres-crise',
+};
+
+export const PHASE_NAMES_EN: Record<CrisisPhase, string> = {
+  latent: 'Latent',
+  escalation: 'Escalation',
+  climax: 'Climax',
+  resolution: 'Resolution',
+  aftermath: 'Aftermath',
+};
+
+// Phase colors for UI
+export const PHASE_COLORS: Record<CrisisPhase, string> = {
+  latent: 'bg-yellow-100 border-yellow-500 text-yellow-800',
+  escalation: 'bg-orange-100 border-orange-500 text-orange-800',
+  climax: 'bg-red-100 border-red-500 text-red-800',
+  resolution: 'bg-blue-100 border-blue-500 text-blue-800',
+  aftermath: 'bg-gray-100 border-gray-500 text-gray-800',
+};
+
+// Crisis outcome
+export type CrisisOutcome = 'war' | 'treaty' | 'frozen' | 'collapse' | 'escalation' | 'unknown';
+
+// CrisisArc - a living crisis entity
+export interface CrisisArc {
+  id: string;
+  name: string;
+  name_fr: string;
+
+  // Actors
+  primary_actors: string[];
+  secondary_actors: string[];
+
+  // Current state
+  current_phase: CrisisPhase;
+  phase_display_fr: string;
+  phase_display_en: string;
+  phase_progress: number;  // 0.0 to 1.0
+  intensity: number;       // 0-100
+
+  // Living crisis attributes
+  momentum: number;        // -100 to +100
+  media_attention: number; // 0-100
+  international_involvement: number;
+
+  // Timing
+  months_active: number;
+  event_count: number;
+
+  // Outcome
+  outcome: CrisisOutcome;
+  spillover_risk: number;
+
+  // AI predictions
+  ai_predicted_outcome: string | null;
+  ai_confidence: number;
+
+  // Is this crisis still active?
+  is_active: boolean;
+}
+
 export interface WorldState {
   year: number;
   seed: number;
@@ -254,6 +349,12 @@ export interface WorldState {
 
   // World Mood - collective emotional state (Phase 2 Timeline)
   mood?: WorldMood;
+
+  // Player reputation (exposed from WorldMood for convenience)
+  player_reputation?: number;
+
+  // Active Crises (Phase 2 Timeline - Axes 4-5)
+  active_crises?: CrisisArc[];
 }
 
 // Tier 4 Country (simplified model)

@@ -327,6 +327,38 @@ class ConflictResponse(BaseModel):
     nuclear_risk: int
 
 
+class WorldMoodResponse(BaseModel):
+    """World mood/emotional state response"""
+    global_confidence: int = 50
+    war_fatigue: int = 0
+    economic_optimism: int = 50
+    diplomatic_openness: int = 50
+    market_volatility: int = 30
+    nuclear_anxiety: int = 20
+    current_era: str = "equilibrium"
+    era_display: str = "Equilibre"
+    era_strength: int = 50
+    player_reputation: int = 50
+
+
+class CrisisArcResponse(BaseModel):
+    """Crisis arc response for frontend"""
+    id: str
+    name: str
+    name_fr: str
+    primary_actors: List[str]
+    secondary_actors: List[str] = []
+    current_phase: str  # latent, escalation, climax, resolution, aftermath
+    intensity: int = 0
+    momentum: int = 0
+    media_attention: int = 50
+    international_involvement: int = 0
+    spillover_risk: float = 0.0
+    months_active: int = 0
+    ai_predicted_outcome: Optional[str] = None
+    ai_confidence: float = 0.5
+
+
 class WorldStateResponse(BaseModel):
     year: int
     month: int = 1  # NEW: month field (1-12)
@@ -363,6 +395,15 @@ class WorldStateResponse(BaseModel):
     # Timeline stats (NEW)
     unread_events: int = 0
     timeline_total: int = 0
+
+    # World Mood (Phase 2)
+    mood: Optional[WorldMoodResponse] = None
+
+    # Player reputation (direct access from WorldMood for convenience)
+    player_reputation: int = 50
+
+    # Active Crises (Phase 2)
+    active_crises: List[CrisisArcResponse] = []
 
 
 class TickResponse(BaseModel):

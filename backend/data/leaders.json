@@ -1,0 +1,503 @@
+{
+  "leaders": {
+    "USA": {
+      "name": "Joe Biden",
+      "title": "President",
+      "title_fr": "President",
+      "start_year": 2021,
+      "traits": ["experienced", "diplomatic", "institutionalist"],
+      "portrait": "biden",
+      "ideology": "liberal_democracy"
+    },
+    "CHN": {
+      "name": "Xi Jinping",
+      "title": "President",
+      "title_fr": "President",
+      "start_year": 2012,
+      "traits": ["authoritarian", "nationalist", "strategic"],
+      "portrait": "xi",
+      "ideology": "state_capitalism"
+    },
+    "RUS": {
+      "name": "Vladimir Putin",
+      "title": "President",
+      "title_fr": "President",
+      "start_year": 2000,
+      "traits": ["authoritarian", "revisionist", "militarist"],
+      "portrait": "putin",
+      "ideology": "authoritarian_nationalism"
+    },
+    "FRA": {
+      "name": "Emmanuel Macron",
+      "title": "President",
+      "title_fr": "President",
+      "start_year": 2017,
+      "traits": ["centrist", "european", "reformist"],
+      "portrait": "macron",
+      "ideology": "liberal_democracy"
+    },
+    "GBR": {
+      "name": "Keir Starmer",
+      "title": "Prime Minister",
+      "title_fr": "Premier Ministre",
+      "start_year": 2024,
+      "traits": ["pragmatic", "moderate", "cautious"],
+      "portrait": "starmer",
+      "ideology": "social_democracy"
+    },
+    "DEU": {
+      "name": "Olaf Scholz",
+      "title": "Chancellor",
+      "title_fr": "Chancelier",
+      "start_year": 2021,
+      "traits": ["cautious", "economistic", "multilateral"],
+      "portrait": "scholz",
+      "ideology": "social_democracy"
+    },
+    "JPN": {
+      "name": "Shigeru Ishiba",
+      "title": "Prime Minister",
+      "title_fr": "Premier Ministre",
+      "start_year": 2024,
+      "traits": ["nationalist", "militarist", "reformist"],
+      "portrait": "ishiba",
+      "ideology": "conservative_democracy"
+    },
+    "IND": {
+      "name": "Narendra Modi",
+      "title": "Prime Minister",
+      "title_fr": "Premier Ministre",
+      "start_year": 2014,
+      "traits": ["nationalist", "populist", "economic_reformer"],
+      "portrait": "modi",
+      "ideology": "hindu_nationalism"
+    },
+    "BRA": {
+      "name": "Luiz Inacio Lula da Silva",
+      "title": "President",
+      "title_fr": "President",
+      "start_year": 2023,
+      "traits": ["populist", "leftist", "diplomatic"],
+      "portrait": "lula",
+      "ideology": "social_democracy"
+    },
+    "KOR": {
+      "name": "Yoon Suk-yeol",
+      "title": "President",
+      "title_fr": "President",
+      "start_year": 2022,
+      "traits": ["conservative", "pro_american", "hawkish"],
+      "portrait": "yoon",
+      "ideology": "conservative_democracy"
+    },
+    "TUR": {
+      "name": "Recep Tayyip Erdogan",
+      "title": "President",
+      "title_fr": "President",
+      "start_year": 2014,
+      "traits": ["authoritarian", "islamist", "nationalist"],
+      "portrait": "erdogan",
+      "ideology": "islamist_nationalism"
+    },
+    "SAU": {
+      "name": "Mohammed bin Salman",
+      "title": "Crown Prince",
+      "title_fr": "Prince Heritier",
+      "start_year": 2017,
+      "traits": ["ambitious", "modernizer", "authoritarian"],
+      "portrait": "mbs",
+      "ideology": "authoritarian_monarchy"
+    },
+    "IRN": {
+      "name": "Ali Khamenei",
+      "title": "Supreme Leader",
+      "title_fr": "Guide Supreme",
+      "start_year": 1989,
+      "traits": ["theocratic", "anti_western", "conservative"],
+      "portrait": "khamenei",
+      "ideology": "islamic_theocracy"
+    },
+    "ISR": {
+      "name": "Benjamin Netanyahu",
+      "title": "Prime Minister",
+      "title_fr": "Premier Ministre",
+      "start_year": 2022,
+      "traits": ["hawkish", "nationalist", "polarizing"],
+      "portrait": "netanyahu",
+      "ideology": "right_wing_nationalism"
+    },
+    "AUS": {
+      "name": "Anthony Albanese",
+      "title": "Prime Minister",
+      "title_fr": "Premier Ministre",
+      "start_year": 2022,
+      "traits": ["moderate", "pragmatic", "pro_climate"],
+      "portrait": "albanese",
+      "ideology": "social_democracy"
+    },
+    "CAN": {
+      "name": "Justin Trudeau",
+      "title": "Prime Minister",
+      "title_fr": "Premier Ministre",
+      "start_year": 2015,
+      "traits": ["liberal", "multilateral", "progressive"],
+      "portrait": "trudeau",
+      "ideology": "liberal_democracy"
+    },
+    "ITA": {
+      "name": "Giorgia Meloni",
+      "title": "Prime Minister",
+      "title_fr": "Premiere Ministre",
+      "start_year": 2022,
+      "traits": ["nationalist", "conservative", "eurosceptic"],
+      "portrait": "meloni",
+      "ideology": "right_wing_populism"
+    },
+    "ESP": {
+      "name": "Pedro Sanchez",
+      "title": "Prime Minister",
+      "title_fr": "Premier Ministre",
+      "start_year": 2018,
+      "traits": ["progressive", "european", "pragmatic"],
+      "portrait": "sanchez",
+      "ideology": "social_democracy"
+    },
+    "POL": {
+      "name": "Donald Tusk",
+      "title": "Prime Minister",
+      "title_fr": "Premier Ministre",
+      "start_year": 2023,
+      "traits": ["pro_european", "moderate", "experienced"],
+      "portrait": "tusk",
+      "ideology": "centrist_liberal"
+    },
+    "MEX": {
+      "name": "Claudia Sheinbaum",
+      "title": "President",
+      "title_fr": "Presidente",
+      "start_year": 2024,
+      "traits": ["leftist", "environmentalist", "technocrat"],
+      "portrait": "sheinbaum",
+      "ideology": "left_populism"
+    },
+    "ARG": {
+      "name": "Javier Milei",
+      "title": "President",
+      "title_fr": "President",
+      "start_year": 2023,
+      "traits": ["libertarian", "populist", "radical_reformer"],
+      "portrait": "milei",
+      "ideology": "libertarian_populism"
+    },
+    "EGY": {
+      "name": "Abdel Fattah el-Sisi",
+      "title": "President",
+      "title_fr": "President",
+      "start_year": 2014,
+      "traits": ["authoritarian", "militarist", "secular"],
+      "portrait": "sisi",
+      "ideology": "military_authoritarianism"
+    },
+    "NGA": {
+      "name": "Bola Tinubu",
+      "title": "President",
+      "title_fr": "President",
+      "start_year": 2023,
+      "traits": ["pragmatic", "economic_reformer", "conciliatory"],
+      "portrait": "tinubu",
+      "ideology": "centrist"
+    },
+    "ZAF": {
+      "name": "Cyril Ramaphosa",
+      "title": "President",
+      "title_fr": "President",
+      "start_year": 2018,
+      "traits": ["moderate", "reform_minded", "compromiser"],
+      "portrait": "ramaphosa",
+      "ideology": "social_democracy"
+    },
+    "IDN": {
+      "name": "Prabowo Subianto",
+      "title": "President",
+      "title_fr": "President",
+      "start_year": 2024,
+      "traits": ["nationalist", "militarist", "populist"],
+      "portrait": "prabowo",
+      "ideology": "nationalist_populism"
+    },
+    "PAK": {
+      "name": "Shehbaz Sharif",
+      "title": "Prime Minister",
+      "title_fr": "Premier Ministre",
+      "start_year": 2024,
+      "traits": ["pragmatic", "pro_china", "economic_focused"],
+      "portrait": "sharif",
+      "ideology": "centrist"
+    },
+    "UKR": {
+      "name": "Volodymyr Zelensky",
+      "title": "President",
+      "title_fr": "President",
+      "start_year": 2019,
+      "traits": ["charismatic", "resilient", "pro_western"],
+      "portrait": "zelensky",
+      "ideology": "liberal_democracy"
+    },
+    "PRK": {
+      "name": "Kim Jong-un",
+      "title": "Supreme Leader",
+      "title_fr": "Dirigeant Supreme",
+      "start_year": 2011,
+      "traits": ["totalitarian", "nuclear_obsessed", "paranoid"],
+      "portrait": "kim",
+      "ideology": "juche_totalitarianism"
+    }
+  },
+  "traits": {
+    "experienced": {
+      "name_fr": "Experimente",
+      "description_fr": "Decades d'experience politique",
+      "effects": {"diplomacy": 10, "stability": 5}
+    },
+    "diplomatic": {
+      "name_fr": "Diplomate",
+      "description_fr": "Prefere la negociation a l'affrontement",
+      "effects": {"diplomacy": 15, "military": -5}
+    },
+    "institutionalist": {
+      "name_fr": "Institutionnaliste",
+      "description_fr": "Respect des institutions et alliances",
+      "effects": {"alliance_strength": 10}
+    },
+    "authoritarian": {
+      "name_fr": "Autoritaire",
+      "description_fr": "Concentre le pouvoir, limite les libertes",
+      "effects": {"stability": 10, "reputation": -10}
+    },
+    "nationalist": {
+      "name_fr": "Nationaliste",
+      "description_fr": "Priorite aux interets nationaux",
+      "effects": {"public_support": 10, "diplomacy": -5}
+    },
+    "strategic": {
+      "name_fr": "Strategique",
+      "description_fr": "Planification a long terme, patience",
+      "effects": {"economy": 5, "technology": 5}
+    },
+    "revisionist": {
+      "name_fr": "Revisionniste",
+      "description_fr": "Conteste l'ordre international etabli",
+      "effects": {"aggression": 15, "diplomacy": -10}
+    },
+    "militarist": {
+      "name_fr": "Militariste",
+      "description_fr": "Croit en la force militaire",
+      "effects": {"military": 15, "economy": -5}
+    },
+    "centrist": {
+      "name_fr": "Centriste",
+      "description_fr": "Politique moderee, equilibree",
+      "effects": {"stability": 5, "diplomacy": 5}
+    },
+    "european": {
+      "name_fr": "Europeaniste",
+      "description_fr": "Pro-integration europeenne",
+      "effects": {"diplomacy": 10, "trade": 10}
+    },
+    "reformist": {
+      "name_fr": "Reformateur",
+      "description_fr": "Cherche a moderniser le systeme",
+      "effects": {"economy": 10, "stability": -5}
+    },
+    "pragmatic": {
+      "name_fr": "Pragmatique",
+      "description_fr": "Decisions basees sur les resultats",
+      "effects": {"economy": 5, "diplomacy": 5}
+    },
+    "moderate": {
+      "name_fr": "Modere",
+      "description_fr": "Evite les positions extremes",
+      "effects": {"stability": 10, "public_support": -5}
+    },
+    "cautious": {
+      "name_fr": "Prudent",
+      "description_fr": "Hesite avant d'agir",
+      "effects": {"stability": 10, "aggression": -10}
+    },
+    "economistic": {
+      "name_fr": "Economiste",
+      "description_fr": "Priorite a l'economie",
+      "effects": {"economy": 15, "military": -5}
+    },
+    "multilateral": {
+      "name_fr": "Multilateral",
+      "description_fr": "Favorise la cooperation internationale",
+      "effects": {"diplomacy": 10, "alliance_strength": 5}
+    },
+    "populist": {
+      "name_fr": "Populiste",
+      "description_fr": "Appel direct au peuple",
+      "effects": {"public_support": 15, "stability": -5}
+    },
+    "economic_reformer": {
+      "name_fr": "Reformateur economique",
+      "description_fr": "Liberalisation et croissance",
+      "effects": {"economy": 15, "stability": -5}
+    },
+    "leftist": {
+      "name_fr": "De gauche",
+      "description_fr": "Politiques sociales progressistes",
+      "effects": {"public_support": 5, "economy": -5}
+    },
+    "conservative": {
+      "name_fr": "Conservateur",
+      "description_fr": "Preservation des traditions",
+      "effects": {"stability": 10, "reform_speed": -10}
+    },
+    "pro_american": {
+      "name_fr": "Pro-americain",
+      "description_fr": "Alliance etroite avec les USA",
+      "effects": {"usa_relations": 20, "china_relations": -10}
+    },
+    "hawkish": {
+      "name_fr": "Faucon",
+      "description_fr": "Favorable a l'usage de la force",
+      "effects": {"military": 10, "aggression": 10, "diplomacy": -10}
+    },
+    "islamist": {
+      "name_fr": "Islamiste",
+      "description_fr": "Politique inspiree de l'Islam",
+      "effects": {"public_support": 10, "western_relations": -15}
+    },
+    "ambitious": {
+      "name_fr": "Ambitieux",
+      "description_fr": "Grands projets, risques eleves",
+      "effects": {"economy": 10, "stability": -10}
+    },
+    "modernizer": {
+      "name_fr": "Modernisateur",
+      "description_fr": "Pousse vers la modernite",
+      "effects": {"technology": 15, "stability": -5}
+    },
+    "theocratic": {
+      "name_fr": "Theocratique",
+      "description_fr": "Religion au coeur du pouvoir",
+      "effects": {"stability": 5, "western_relations": -20}
+    },
+    "anti_western": {
+      "name_fr": "Anti-occidental",
+      "description_fr": "Oppose a l'influence occidentale",
+      "effects": {"western_relations": -20, "russia_china_relations": 10}
+    },
+    "polarizing": {
+      "name_fr": "Polarisant",
+      "description_fr": "Divise l'opinion publique",
+      "effects": {"public_support": -10, "aggression": 10}
+    },
+    "pro_climate": {
+      "name_fr": "Pro-climat",
+      "description_fr": "Priorite environnementale",
+      "effects": {"reputation": 10, "economy": -5}
+    },
+    "liberal": {
+      "name_fr": "Liberal",
+      "description_fr": "Libertes individuelles, marche libre",
+      "effects": {"economy": 5, "diplomacy": 5}
+    },
+    "progressive": {
+      "name_fr": "Progressiste",
+      "description_fr": "Reformes sociales avancees",
+      "effects": {"reputation": 5, "stability": -5}
+    },
+    "eurosceptic": {
+      "name_fr": "Eurosceptique",
+      "description_fr": "Critique de l'UE",
+      "effects": {"eu_relations": -15, "public_support": 10}
+    },
+    "pro_european": {
+      "name_fr": "Pro-europeen",
+      "description_fr": "Forte integration europeenne",
+      "effects": {"eu_relations": 15, "diplomacy": 10}
+    },
+    "environmentalist": {
+      "name_fr": "Ecologiste",
+      "description_fr": "Priorite environnementale",
+      "effects": {"reputation": 10, "economy": -5}
+    },
+    "technocrat": {
+      "name_fr": "Technocrate",
+      "description_fr": "Gouvernance par experts",
+      "effects": {"technology": 10, "public_support": -5}
+    },
+    "libertarian": {
+      "name_fr": "Libertarien",
+      "description_fr": "Etat minimal, libre marche",
+      "effects": {"economy": 15, "public_support": -10}
+    },
+    "radical_reformer": {
+      "name_fr": "Reformateur radical",
+      "description_fr": "Changements brutaux",
+      "effects": {"economy": 10, "stability": -15}
+    },
+    "secular": {
+      "name_fr": "Laique",
+      "description_fr": "Separation religion-Etat",
+      "effects": {"stability": 5, "western_relations": 5}
+    },
+    "conciliatory": {
+      "name_fr": "Conciliant",
+      "description_fr": "Recherche le compromis",
+      "effects": {"diplomacy": 10, "stability": 5}
+    },
+    "reform_minded": {
+      "name_fr": "Reformiste",
+      "description_fr": "Ouvert aux changements",
+      "effects": {"economy": 5, "stability": 5}
+    },
+    "compromiser": {
+      "name_fr": "Comprometteur",
+      "description_fr": "Trouve des terrains d'entente",
+      "effects": {"diplomacy": 10, "public_support": -5}
+    },
+    "pro_china": {
+      "name_fr": "Pro-chinois",
+      "description_fr": "Relations etroites avec la Chine",
+      "effects": {"china_relations": 20, "usa_relations": -10}
+    },
+    "economic_focused": {
+      "name_fr": "Economie d'abord",
+      "description_fr": "Priorite developpement economique",
+      "effects": {"economy": 15, "military": -5}
+    },
+    "charismatic": {
+      "name_fr": "Charismatique",
+      "description_fr": "Inspire et mobilise",
+      "effects": {"public_support": 20, "diplomacy": 10}
+    },
+    "resilient": {
+      "name_fr": "Resilient",
+      "description_fr": "Resiste aux pressions",
+      "effects": {"stability": 15, "public_support": 10}
+    },
+    "pro_western": {
+      "name_fr": "Pro-occidental",
+      "description_fr": "Aligne sur l'Occident",
+      "effects": {"western_relations": 20, "russia_china_relations": -10}
+    },
+    "totalitarian": {
+      "name_fr": "Totalitaire",
+      "description_fr": "Controle absolu de la societe",
+      "effects": {"stability": 20, "reputation": -30}
+    },
+    "nuclear_obsessed": {
+      "name_fr": "Obsede nucleaire",
+      "description_fr": "Programme nucleaire prioritaire",
+      "effects": {"nuclear_focus": 20, "economy": -10}
+    },
+    "paranoid": {
+      "name_fr": "Paranoiaque",
+      "description_fr": "Mefiance extreme",
+      "effects": {"stability": -10, "military": 10, "diplomacy": -15}
+    }
+  }
+}

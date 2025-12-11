@@ -22,6 +22,7 @@ from engine.events import Event
 
 if TYPE_CHECKING:
     from engine.timeline import TimelineManager
+    from engine.crisis import CrisisManager
 
 logger = logging.getLogger(__name__)
 
@@ -340,7 +341,8 @@ class OllamaAI:
         self,
         country: Country,
         world: World,
-        timeline: Optional["TimelineManager"] = None
+        timeline: Optional["TimelineManager"] = None,
+        crisis_manager: Optional["CrisisManager"] = None
     ) -> str:
         """Build the decision prompt for Ollama with multi-window timeline context
 
@@ -349,6 +351,10 @@ class OllamaAI:
         - 6 months: Doctrinal changes
         - 12 months: Strategic alliances
         - Critical events: Major ruptures (always visible)
+
+        Phase 2 Integration:
+        - WorldMood: Geopolitical era and world sentiment
+        - CrisisArc: Active crises and their phases
         """
 
         # Get relevant neighbors and rivals
@@ -428,6 +434,58 @@ class OllamaAI:
                 if memory.get("conflicts_initiated", 0) > 2:
                     timeline_context += f"- Conflits inities: posture agressive\n"
 
+        # ===============================================================
+        # PHASE 2: WorldMood and Crisis Context
+        # ===============================================================
+
+        # WorldMood context (geopolitical era and world sentiment)
+        mood_context = ""
+        if hasattr(world, 'mood') and world.mood:
+            mood = world.mood
+            era_effects = mood.get_era_effects()
+            mood_context = f"""
+=== ERE GEOPOLITIQUE: {mood.get_era_display('fr')} ===
+Effet: {era_effects.get('description_fr', 'Aucun modificateur')}
+- Confiance mondiale: {mood.global_confidence}/100
+- Fatigue de guerre: {mood.war_fatigue}/100
+- Optimisme economique: {mood.economic_optimism}/100
+- Ouverture diplomatique: {mood.diplomatic_openness}/100
+- Anxiete nucleaire: {mood.nuclear_anxiety}/100
+"""
+            # Add era-specific advice
+            era_val = mood.current_era if isinstance(mood.current_era, str) else mood.current_era.value
+            if era_val == "sanctions_era":
+                mood_context += "-> CONSEIL: Les sanctions sont +50% efficaces, privilegier l'economique\n"
+            elif era_val == "military_buildup":
+                mood_context += "-> CONSEIL: Ere de rearmement, les depenses militaires sont reduites\n"
+            elif era_val == "detente":
+                mood_context += "-> CONSEIL: Ere de detente, la diplomatie est +30% efficace\n"
+            elif era_val == "crisis_mode":
+                mood_context += "-> CONSEIL: Mode crise! Stabilite volatile, prudence recommandee\n"
+
+        # Crisis context (active crises involving this country or neighbors)
+        crisis_context = ""
+        if crisis_manager:
+            # Get crises involving this country
+            my_crises = crisis_manager.get_crisis_involving_player(country.id)
+            if my_crises:
+                crisis_context = "\n=== CRISES ACTIVES (te concernent) ===\n"
+                for crisis in my_crises[:2]:
+                    phase_display = crisis.get_phase_display('fr')
+                    crisis_context += f"- {crisis.name_fr}: Phase {phase_display} ({crisis.intensity}% intensite)\n"
+                    crisis_context += f"  Acteurs: {', '.join(crisis.primary_actors)}\n"
+                    if crisis.momentum > 30:
+                        crisis_context += f"  -> ATTENTION: Crise en expansion (momentum +{crisis.momentum})\n"
+                    elif crisis.momentum < -30:
+                        crisis_context += f"  -> La crise s'apaise (momentum {crisis.momentum})\n"
+
+            # Get other active crises (for awareness)
+            other_crises = [c for c in crisis_manager.active_crises if c not in my_crises]
+            if other_crises:
+                crisis_context += "\n=== AUTRES CRISES MONDIALES ===\n"
+                for crisis in other_crises[:2]:
+                    crisis_context += f"- {crisis.name_fr}: {crisis.get_phase_display('fr')}\n"
+
         # Build the prompt
         prompt = f"""Tu es le dirigeant de {country.name_fr} en {world.date_display}.
 
@@ -455,7 +513,7 @@ CONTEXTE MONDIAL:
 - Tension mondiale: {world.global_tension}/100
 - Date: {world.date_display}
 - DEFCON: {world.defcon_level}
-{timeline_context}
+{mood_context}{crisis_context}{timeline_context}
 
 ACTIONS POSSIBLES:
 1. ECONOMIE - Developper l'economie (+3 eco)

@@ -1,0 +1,305 @@
+{
+  "achievements": [
+    {
+      "id": "pacifist",
+      "name": "Pacifist",
+      "name_fr": "Pacifiste",
+      "description": "Complete 20 years without declaring war",
+      "description_fr": "Terminer 20 ans sans declarer de guerre",
+      "icon": "dove",
+      "category": "diplomacy",
+      "rarity": "gold",
+      "points": 100,
+      "condition": {
+        "type": "years_without_war",
+        "value": 20
+      }
+    },
+    {
+      "id": "equilibrist",
+      "name": "Equilibrist",
+      "name_fr": "Equilibriste",
+      "description": "Maintain DEFCON 3 for 10 consecutive years",
+      "description_fr": "Maintenir DEFCON 3 pendant 10 annees consecutives",
+      "icon": "balance",
+      "category": "stability",
+      "rarity": "silver",
+      "points": 75,
+      "condition": {
+        "type": "defcon_maintained",
+        "defcon_level": 3,
+        "years": 10
+      }
+    },
+    {
+      "id": "shadow_master",
+      "name": "Shadow Master",
+      "name_fr": "Maitre de l'Ombre",
+      "description": "Achieve PERFECT intelligence on 3 rival nations",
+      "description_fr": "Atteindre un renseignement PARFAIT sur 3 nations rivales",
+      "icon": "eye",
+      "category": "espionage",
+      "rarity": "gold",
+      "points": 100,
+      "condition": {
+        "type": "intel_perfect",
+        "count": 3
+      }
+    },
+    {
+      "id": "empire_builder",
+      "name": "Empire Builder",
+      "name_fr": "Batisseur d'Empire",
+      "description": "Dominate 5 influence zones",
+      "description_fr": "Dominer 5 zones d'influence",
+      "icon": "crown",
+      "category": "expansion",
+      "rarity": "platinum",
+      "points": 150,
+      "condition": {
+        "type": "influence_zones",
+        "count": 5
+      }
+    },
+    {
+      "id": "survivor",
+      "name": "Survivor",
+      "name_fr": "Survivant",
+      "description": "Finish a game with stability below 30",
+      "description_fr": "Terminer une partie avec une stabilite inferieure a 30",
+      "icon": "shield",
+      "category": "resilience",
+      "rarity": "bronze",
+      "points": 50,
+      "condition": {
+        "type": "finish_low_stability",
+        "max_stability": 30
+      }
+    },
+    {
+      "id": "economic_titan",
+      "name": "Economic Titan",
+      "name_fr": "Titan Economique",
+      "description": "Reach economy level 95 or higher",
+      "description_fr": "Atteindre un niveau economique de 95 ou plus",
+      "icon": "chart",
+      "category": "economy",
+      "rarity": "gold",
+      "points": 100,
+      "condition": {
+        "type": "stat_threshold",
+        "stat": "economy",
+        "value": 95
+      }
+    },
+    {
+      "id": "iron_curtain",
+      "name": "Iron Curtain",
+      "name_fr": "Rideau de Fer",
+      "description": "Have relations below -80 with 5 major powers",
+      "description_fr": "Avoir des relations inferieures a -80 avec 5 grandes puissances",
+      "icon": "wall",
+      "category": "diplomacy",
+      "rarity": "silver",
+      "points": 75,
+      "condition": {
+        "type": "hostile_relations",
+        "threshold": -80,
+        "count": 5
+      }
+    },
+    {
+      "id": "alliance_weaver",
+      "name": "Alliance Weaver",
+      "name_fr": "Tisserand d'Alliances",
+      "description": "Have 10 or more allied nations",
+      "description_fr": "Avoir 10 nations alliees ou plus",
+      "icon": "handshake",
+      "category": "diplomacy",
+      "rarity": "silver",
+      "points": 75,
+      "condition": {
+        "type": "ally_count",
+        "count": 10
+      }
+    },
+    {
+      "id": "nuclear_deterrent",
+      "name": "Nuclear Deterrent",
+      "name_fr": "Dissuasion Nucleaire",
+      "description": "Reach nuclear capability of 80 or higher",
+      "description_fr": "Atteindre une capacite nucleaire de 80 ou plus",
+      "icon": "atom",
+      "category": "military",
+      "rarity": "gold",
+      "points": 100,
+      "condition": {
+        "type": "stat_threshold",
+        "stat": "nuclear",
+        "value": 80
+      }
+    },
+    {
+      "id": "world_leader",
+      "name": "World Leader",
+      "name_fr": "Leader Mondial",
+      "description": "Achieve a world reputation of 80 or higher",
+      "description_fr": "Atteindre une reputation mondiale de 80 ou plus",
+      "icon": "star",
+      "category": "reputation",
+      "rarity": "platinum",
+      "points": 150,
+      "condition": {
+        "type": "reputation_threshold",
+        "value": 80
+      }
+    },
+    {
+      "id": "pariah_state",
+      "name": "Pariah State",
+      "name_fr": "Etat Paria",
+      "description": "Reach a world reputation of -80 or lower",
+      "description_fr": "Atteindre une reputation mondiale de -80 ou moins",
+      "icon": "skull",
+      "category": "reputation",
+      "rarity": "bronze",
+      "points": 50,
+      "condition": {
+        "type": "reputation_threshold",
+        "value": -80,
+        "direction": "below"
+      }
+    },
+    {
+      "id": "technological_supremacy",
+      "name": "Technological Supremacy",
+      "name_fr": "Suprematie Technologique",
+      "description": "Reach technology level 95 or higher",
+      "description_fr": "Atteindre un niveau technologique de 95 ou plus",
+      "icon": "cpu",
+      "category": "technology",
+      "rarity": "gold",
+      "points": 100,
+      "condition": {
+        "type": "stat_threshold",
+        "stat": "technology",
+        "value": 95
+      }
+    },
+    {
+      "id": "crisis_manager",
+      "name": "Crisis Manager",
+      "name_fr": "Gestionnaire de Crise",
+      "description": "Successfully navigate 3 major crises",
+      "description_fr": "Gerer avec succes 3 crises majeures",
+      "icon": "fire",
+      "category": "stability",
+      "rarity": "silver",
+      "points": 75,
+      "condition": {
+        "type": "crises_survived",
+        "count": 3
+      }
+    },
+    {
+      "id": "first_blood",
+      "name": "First Blood",
+      "name_fr": "Premier Sang",
+      "description": "Win your first war",
+      "description_fr": "Gagner votre premiere guerre",
+      "icon": "sword",
+      "category": "military",
+      "rarity": "bronze",
+      "points": 50,
+      "condition": {
+        "type": "wars_won",
+        "count": 1
+      }
+    },
+    {
+      "id": "veteran",
+      "name": "Veteran",
+      "name_fr": "Veteran",
+      "description": "Play for 50 years in a single game",
+      "description_fr": "Jouer pendant 50 ans dans une seule partie",
+      "icon": "clock",
+      "category": "persistence",
+      "rarity": "silver",
+      "points": 75,
+      "condition": {
+        "type": "years_played",
+        "value": 50
+      }
+    }
+  ],
+  "categories": {
+    "diplomacy": {
+      "name": "Diplomacy",
+      "name_fr": "Diplomatie",
+      "color": "#3b82f6"
+    },
+    "military": {
+      "name": "Military",
+      "name_fr": "Militaire",
+      "color": "#ef4444"
+    },
+    "economy": {
+      "name": "Economy",
+      "name_fr": "Economie",
+      "color": "#10b981"
+    },
+    "espionage": {
+      "name": "Espionage",
+      "name_fr": "Espionnage",
+      "color": "#8b5cf6"
+    },
+    "expansion": {
+      "name": "Expansion",
+      "name_fr": "Expansion",
+      "color": "#f59e0b"
+    },
+    "stability": {
+      "name": "Stability",
+      "name_fr": "Stabilite",
+      "color": "#06b6d4"
+    },
+    "reputation": {
+      "name": "Reputation",
+      "name_fr": "Reputation",
+      "color": "#ec4899"
+    },
+    "technology": {
+      "name": "Technology",
+      "name_fr": "Technologie",
+      "color": "#6366f1"
+    },
+    "resilience": {
+      "name": "Resilience",
+      "name_fr": "Resilience",
+      "color": "#84cc16"
+    },
+    "persistence": {
+      "name": "Persistence",
+      "name_fr": "Perseverance",
+      "color": "#a855f7"
+    }
+  },
+  "rarities": {
+    "bronze": {
+      "name": "Bronze",
+      "color": "#cd7f32"
+    },
+    "silver": {
+      "name": "Silver",
+      "color": "#c0c0c0"
+    },
+    "gold": {
+      "name": "Gold",
+      "color": "#ffd700"
+    },
+    "platinum": {
+      "name": "Platinum",
+      "color": "#e5e4e2"
+    }
+  }
+}

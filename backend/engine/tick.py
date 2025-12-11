@@ -19,6 +19,8 @@ from .resources import resource_manager
 from .leaders import leader_manager
 from .procedural_events import procedural_generator
 from .timeline import TimelineManager, TimelineEvent, EventType, EventSource
+from .crisis import CrisisManager, detect_potential_crisis
+from .stats_history import stats_history
 from ai.decision_tier4 import process_tier4_countries
 from ai.ai_event_generator import ai_event_generator
 from ai.decision_tier5 import process_tier5_countries
@@ -38,6 +40,7 @@ def set_record_frame_callback(callback):
 # Global managers (initialized once)
 bloc_manager = BlocManager()
 summit_manager = SummitManager()
+crisis_manager = CrisisManager()
 
 
 def process_tick(
@@ -150,6 +153,21 @@ def process_tick(
 
     # Phase 7b: World Mood update (collective emotional state)
     _update_world_mood(world, timeline, timeline_events)
+
+    # Phase 7c: Player Reputation update
+    _update_player_reputation(world, events)
+
+    # Phase 7d: Crisis Management (detect and update crises)
+    crisis_messages = crisis_manager.process_monthly(world, timeline)
+    for msg in crisis_messages:
+        logger.info(f"Crisis update: {msg}")
+
+    # Detect new crises from high-importance timeline events
+    for te in timeline_events:
+        if te.importance >= 4:
+            new_crisis = detect_potential_crisis(te, world, crisis_manager)
+            if new_crisis:
+                logger.info(f"New crisis detected: {new_crisis.name_fr}")
 
     # Phase 8: Projects (monthly progress)
     proj_events, proj_timeline = _process_projects_monthly(world, current_date, timeline)
@@ -281,6 +299,9 @@ def process_tick(
     # Store events in history (legacy)
     for event in events:
         world.add_event(event)
+
+    # Record stats history before advancing
+    stats_history.record_all(world)
 
     # Advance to next month
     old_date = f"{world.month}/{world.year}"
@@ -1010,6 +1031,110 @@ def _update_world_mood(
         # Era strength increases over time
         if mood.era_months_active > 6:
             mood.era_strength = min(100, mood.era_strength + 2)
+
+
+def _update_player_reputation(world: World, recent_events: List[Event]) -> None:
+    """
+    Update the player's world reputation based on their actions and events.
+    Reputation ranges from -100 (pariah) to +100 (world leader).
+
+    Factors that affect reputation:
+    - Wars declared: -10 to -20
+    - Alliances formed: +5 to +10
+    - Peace treaties: +10 to +15
+    - Sanctions imposed: -5 to -10
+    - Aid given: +3 to +8
+    - Nuclear threats: -15 to -25
+    - Humanitarian actions: +5 to +10
+    - Stability maintained: +1 to +3
+    - Economic growth shared: +2 to +5
+    """
+    # Find player country
+    player_country = None
+    for country in world.countries.values():
+        if country.is_player:
+            player_country = country
+            break
+
+    if not player_country:
+        return
+
+    rep_change = 0
+
+    # Analyze recent events for player actions
+    for event in recent_events:
+        if event.country_id != player_country.id:
+            continue
+
+        event_type = event.type.lower() if hasattr(event, 'type') else ""
+
+        # Negative actions
+        if "war" in event_type or "attack" in event_type:
+            rep_change -= 15
+        elif "sanction" in event_type:
+            rep_change -= 5
+        elif "nuclear" in event_type:
+            rep_change -= 20
+        elif "coup" in event_type or "destabilize" in event_type:
+            rep_change -= 12
+        elif "threat" in event_type:
+            rep_change -= 8
+
+        # Positive actions
+        elif "peace" in event_type or "treaty" in event_type:
+            rep_change += 12
+        elif "alliance" in event_type:
+            rep_change += 8
+        elif "aid" in event_type or "humanitarian" in event_type:
+            rep_change += 6
+        elif "trade" in event_type and "agreement" in event_type.lower():
+            rep_change += 4
+        elif "cooperation" in event_type:
+            rep_change += 3
+
+    # Base reputation factors (monthly drift)
+
+    # At war? Reputation drifts down
+    if player_country.at_war:
+        rep_change -= len(player_country.at_war) * 2
+
+    # High stability? Reputation drifts up slightly
+    if player_country.stability > 70:
+        rep_change += 1
+    elif player_country.stability < 30:
+        rep_change -= 2
+
+    # Many allies? Reputation is supported
+    if len(player_country.allies) >= 5:
+        rep_change += 1
+
+    # World sees you based on your bloc
+    if player_country.bloc:
+        bloc_reputation = {
+            "NATO": 10,      # Generally positive in Western view
+            "EU": 15,        # Very positive
+            "BRICS": -5,     # Mixed perception
+            "SCO": -10,      # Negative in Western view
+            "ASEAN": 5,      # Positive (neutral bloc)
+            "AU": 5,         # Positive
+        }
+        # Slowly drift toward bloc baseline
+        bloc_base = bloc_reputation.get(player_country.bloc, 0)
+        if world.player_reputation < bloc_base:
+            rep_change += 1
+        elif world.player_reputation > bloc_base + 20:
+            rep_change -= 1
+
+    # DEFCON affects perception
+    if world.defcon_level <= 2:
+        rep_change -= 3  # World blames major powers during crises
+
+    # Apply changes with limits
+    new_reputation = world.player_reputation + rep_change
+    world.player_reputation = max(-100, min(100, new_reputation))
+
+    if rep_change != 0:
+        logger.debug(f"Player reputation: {world.player_reputation - rep_change} -> {world.player_reputation} (change: {rep_change:+d})")
 
 
 def _check_era_transition(

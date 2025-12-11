@@ -1278,3 +1278,58 @@ export async function getLeaderReaction(countryId: string, eventType: string): P
   const response = await api.get<{ reaction: string | null }>(`/leaders/${countryId}/reaction/${eventType}`);
   return response.data.reaction;
 }
+
+// ============================================================================
+// Stats History API
+// ============================================================================
+
+export interface HistoricalDataPoint {
+  date: string;
+  year: number;
+  month: number;
+  economy: number;
+  military: number;
+  technology: number;
+  stability: number;
+  soft_power: number;
+  population: number;
+  nuclear: number;
+  resources: number;
+  // World stats (when combined)
+  global_tension?: number;
+  reputation?: number;
+  defcon_level?: number;
+}
+
+// Get historical stats for a country
+export async function getCountryStatsHistory(countryId: string, limit?: number): Promise<HistoricalDataPoint[]> {
+  const params = limit ? `?limit=${limit}` : '';
+  const response = await api.get<{ history: HistoricalDataPoint[] }>(`/stats/history/${countryId}${params}`);
+  return response.data.history;
+}
+
+// Get combined country + world stats history (for charts)
+export async function getCombinedStatsHistory(countryId: string, limit?: number): Promise<HistoricalDataPoint[]> {
+  const params = limit ? `?limit=${limit}` : '';
+  const response = await api.get<{ history: HistoricalDataPoint[] }>(`/stats/history/${countryId}/combined${params}`);
+  return response.data.history;
+}
+
+// Get world stats history
+export async function getWorldStatsHistory(limit?: number): Promise<HistoricalDataPoint[]> {
+  const params = limit ? `?limit=${limit}` : '';
+  const response = await api.get<{ history: HistoricalDataPoint[] }>(`/stats/world${params}`);
+  return response.data.history;
+}
+
+// Compare a metric across multiple countries
+export async function compareCountriesStats(
+  countryIds: string[],
+  metric: string = 'economy',
+  limit: number = 12
+): Promise<{ metric: string; countries: Record<string, number[]>; dates: string[] }> {
+  const response = await api.get<{ metric: string; countries: Record<string, number[]>; dates: string[] }>(
+    `/stats/compare?countries=${countryIds.join(',')}&metric=${metric}&limit=${limit}`
+  );
+  return response.data;
+}

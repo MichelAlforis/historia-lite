@@ -1,8 +1,6 @@
-import ClientPage from './ClientPage';
+import { redirect } from 'next/navigation';
 
-// Force dynamic rendering - skip static generation during build
-export const dynamic = 'force-dynamic';
-
+// Redirect root to /pax - the main player interface
 export default function HomePage() {
-  return <ClientPage />;
+  redirect('/pax');
 }
