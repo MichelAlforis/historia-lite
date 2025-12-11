@@ -17,6 +17,9 @@ import {
   RegionAttackResult,
   CommandResponse,
   ActiveDilemma,
+  TimelineEvent,
+  GameDate,
+  MonthlyTickResponse,
 } from '@/lib/types';
 import * as api from '@/lib/api';
 

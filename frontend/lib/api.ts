@@ -1110,3 +1110,133 @@ export async function getAIAdvisorStatus(): Promise<{
   const response = await api.get('/ai-advisor/status');
   return response.data;
 }
+
+// ============================================================================
+// TIMELINE SYSTEM
+// ============================================================================
+
+import {
+  GameDate,
+  TimelineEvent,
+  TimelineSummary,
+  MonthlyTickResponse,
+} from './types';
+
+// Get current game date
+export async function getCurrentDate(): Promise<{
+  year: number;
+  month: number;
+  day: number;
+  display: string;
+  display_fr: string;
+}> {
+  const response = await api.get('/timeline/current-date');
+  return response.data;
+}
+
+// Get timeline summary
+export async function getTimelineSummary(): Promise<TimelineSummary> {
+  const response = await api.get<TimelineSummary>('/timeline/summary');
+  return response.data;
+}
+
+// Get timeline events with filters
+export async function getTimelineEvents(params?: {
+  start_year?: number;
+  start_month?: number;
+  end_year?: number;
+  end_month?: number;
+  types?: string[];
+  importance_min?: number;
+  limit?: number;
+  offset?: number;
+}): Promise<{ events: TimelineEvent[]; total: number }> {
+  const response = await api.get('/timeline/events', { params });
+  return response.data;
+}
+
+// Get events for a specific month
+export async function getTimelineEventsByMonth(
+  year: number,
+  month: number
+): Promise<{ events: TimelineEvent[]; year: number; month: number; count: number }> {
+  const response = await api.get(`/timeline/events/month/${year}/${month}`);
+  return response.data;
+}
+
+// Get events involving a specific country
+export async function getTimelineEventsByCountry(
+  countryId: string,
+  limit?: number
+): Promise<{ events: TimelineEvent[]; country_id: string; count: number }> {
+  const response = await api.get(`/timeline/events/country/${countryId}`, {
+    params: limit ? { limit } : {},
+  });
+  return response.data;
+}
+
+// Get a specific event by ID
+export async function getTimelineEvent(eventId: string): Promise<TimelineEvent> {
+  const response = await api.get<TimelineEvent>(`/timeline/event/${eventId}`);
+  return response.data;
+}
+
+// Get event chain (cause and consequences)
+export async function getEventChain(eventId: string): Promise<{
+  event: TimelineEvent;
+  caused_by: TimelineEvent | null;
+  triggered: TimelineEvent[];
+}> {
+  const response = await api.get(`/timeline/event/${eventId}/chain`);
+  return response.data;
+}
+
+// Get AI context from timeline
+export async function getTimelineContext(lookbackMonths?: number): Promise<{
+  current_date: string;
+  recent_events: string;
+  key_developments: string[];
+  active_conflicts: string[];
+  diplomatic_state: string;
+}> {
+  const response = await api.get('/timeline/context', {
+    params: lookbackMonths ? { lookback_months: lookbackMonths } : {},
+  });
+  return response.data;
+}
+
+// Mark events as read
+export async function markTimelineEventsRead(eventIds?: string[]): Promise<{
+  marked_count: number;
+  unread_remaining: number;
+}> {
+  const response = await api.post('/timeline/mark-read', {
+    event_ids: eventIds,
+  });
+  return response.data;
+}
+
+// Get timeline statistics
+export async function getTimelineStats(): Promise<{
+  total_events: number;
+  by_type: Record<string, number>;
+  by_importance: Record<string, number>;
+  by_source: Record<string, number>;
+  unread_count: number;
+  date_range: { start: string; end: string };
+}> {
+  const response = await api.get('/timeline/stats');
+  return response.data;
+}
+
+// Advance one month (monthly tick)
+export async function advanceMonth(): Promise<MonthlyTickResponse> {
+  const response = await api.post<MonthlyTickResponse>('/tick');
+  return response.data;
+}
+
+// Advance one full year (12 monthly ticks)
+export async function advanceYear(): Promise<TickResponse> {
+  const response = await api.post<TickResponse>('/tick/year');
+  return response.data;
+}

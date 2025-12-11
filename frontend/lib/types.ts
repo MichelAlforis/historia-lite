@@ -1600,3 +1600,188 @@ export interface StrategicAdvice {
   ollama_advice?: string;
   ollama_available: boolean;
 }
+
+// =============================================================================
+// TIMELINE SYSTEM
+// =============================================================================
+
+export interface GameDate {
+  year: number;
+  month: number;
+  day: number;
+  display: string;        // "February 15, 2025"
+  display_fr: string;     // "15 Fevrier 2025"
+}
+
+export type TimelineEventType =
+  | 'war'
+  | 'diplomatic'
+  | 'economic'
+  | 'political'
+  | 'military'
+  | 'internal'
+  | 'technology'
+  | 'cultural'
+  | 'crisis'
+  | 'player_action';
+
+export type TimelineEventSource =
+  | 'historical'
+  | 'procedural'
+  | 'player'
+  | 'ai_generated'
+  | 'system';
+
+export interface TimelineEvent {
+  id: string;
+  date: GameDate;
+  actor_country: string;
+  target_countries: string[];
+  title: string;
+  title_fr: string;
+  description: string;
+  description_fr: string;
+  type: TimelineEventType;
+  source: TimelineEventSource;
+  importance: number;  // 1-5 (5 = critical)
+  read: boolean;
+  caused_by: string | null;
+  triggers: string[];
+}
+
+export interface TimelineEventBrief {
+  id: string;
+  date: string;
+  actor_country: string;
+  title_fr: string;
+  type: string;
+  importance: number;
+}
+
+export interface MonthlyTickResponse {
+  year: number;
+  month: number;
+  date_display: string;
+  date_display_fr: string;
+  events: GameEvent[];
+  timeline_events: TimelineEventBrief[];
+  summary: string;
+  summary_fr: string;
+  game_ended: boolean;
+  game_end_reason: string | null;
+  game_end_message: string;
+  game_end_message_fr: string;
+  is_victory: boolean;
+  final_score: number;
+  defcon_level: number;
+  unread_events: number;
+}
+
+export interface TimelineSummary {
+  total_events: number;
+  unread_count: number;
+  pending_effects: number;
+  current_date: GameDate;
+  recent_events: TimelineEvent[];
+}
+
+// Extended WorldState with timeline fields
+export interface WorldStateWithTimeline extends WorldState {
+  month: number;
+  date_display: string;
+  unread_events: number;
+  timeline_total: number;
+}
+
+// Timeline event type colors
+export const TIMELINE_EVENT_COLORS: Record<TimelineEventType, string> = {
+  war: 'bg-red-600',
+  diplomatic: 'bg-blue-500',
+  economic: 'bg-green-500',
+  political: 'bg-purple-500',
+  military: 'bg-gray-600',
+  internal: 'bg-amber-500',
+  technology: 'bg-cyan-500',
+  cultural: 'bg-pink-500',
+  crisis: 'bg-red-500',
+  player_action: 'bg-indigo-500',
+};
+
+// Timeline event type names (French)
+export const TIMELINE_EVENT_TYPE_NAMES: Record<TimelineEventType, string> = {
+  war: 'Guerre',
+  diplomatic: 'Diplomatique',
+  economic: 'Economique',
+  political: 'Politique',
+  military: 'Militaire',
+  internal: 'Interne',
+  technology: 'Technologie',
+  cultural: 'Culturel',
+  crisis: 'Crise',
+  player_action: 'Action joueur',
+};
+
+// Timeline source names (French)
+export const TIMELINE_SOURCE_NAMES: Record<TimelineEventSource, string> = {
+  historical: 'Historique',
+  procedural: 'Procedural',
+  player: 'Joueur',
+  ai_generated: 'IA',
+  system: 'Systeme',
+};
+
+// Month names for display
+export const MONTH_NAMES_FR = [
+  'Janvier', 'Fevrier', 'Mars', 'Avril', 'Mai', 'Juin',
+  'Juillet', 'Aout', 'Septembre', 'Octobre', 'Novembre', 'Decembre'
+];
+
+export const MONTH_NAMES_EN = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
+/**
+ * Format a game date for display
+ */
+export function formatGameDate(date: GameDate, lang: 'fr' | 'en' = 'fr'): string {
+  const months = lang === 'fr' ? MONTH_NAMES_FR : MONTH_NAMES_EN;
+  if (lang === 'fr') {
+    return `${date.day} ${months[date.month - 1]} ${date.year}`;
+  }
+  return `${months[date.month - 1]} ${date.day}, ${date.year}`;
+}
+
+/**
+ * Format month/year for display (header)
+ */
+export function formatMonthYear(year: number, month: number, lang: 'fr' | 'en' = 'fr'): string {
+  const months = lang === 'fr' ? MONTH_NAMES_FR : MONTH_NAMES_EN;
+  return `${months[month - 1]} ${year}`;
+}
+
+/**
+ * Get importance badge color
+ */
+export function getImportanceColor(importance: number): string {
+  switch (importance) {
+    case 5: return 'bg-red-600';
+    case 4: return 'bg-orange-500';
+    case 3: return 'bg-yellow-500';
+    case 2: return 'bg-blue-400';
+    default: return 'bg-gray-400';
+  }
+}
+
+/**
+ * Get importance label (French)
+ */
+export function getImportanceLabel(importance: number): string {
+  switch (importance) {
+    case 5: return 'Critique';
+    case 4: return 'Important';
+    case 3: return 'Notable';
+    case 2: return 'Mineur';
+    default: return 'Anecdotique';
+  }
+}

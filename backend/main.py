@@ -28,6 +28,7 @@ from api.espionage_routes import router as espionage_router
 from api.regions_routes import router as regions_router
 from api.economy_routes import router as economy_router
 from api.ai_advisor_routes import router as ai_advisor_router
+from api.timeline_routes import router as timeline_router  # NEW: Timeline API
 
 # Configure logging
 logging.basicConfig(
@@ -69,6 +70,7 @@ app.include_router(espionage_router)
 app.include_router(regions_router)
 app.include_router(economy_router)
 app.include_router(ai_advisor_router)
+app.include_router(timeline_router)  # NEW: Timeline API
 
 
 @app.get("/")
@@ -76,14 +78,16 @@ async def root():
     """Root endpoint"""
     return {
         "name": "Historia Lite",
-        "version": "0.2.0",
-        "description": "Simulateur geopolitique moderne - Version simplifiee",
+        "version": "0.3.0",
+        "description": "Simulateur geopolitique moderne - Version simplifiee avec Timeline",
         "endpoints": {
             "state": "/api/state",
-            "tick": "/api/tick",
+            "tick": "/api/tick (monthly)",
+            "tick_year": "/api/tick/year (annual - legacy)",
             "reset": "/api/reset",
             "country": "/api/country/{id}",
             "events": "/api/events",
+            "timeline": "/api/timeline/*",
             "blocs": "/api/blocs",
             "currency": "/api/currency/*",
             "influence": "/api/influence/*",
