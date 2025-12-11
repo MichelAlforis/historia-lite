@@ -83,7 +83,7 @@ export default function AdvisorDropleft({ isOpen, onClose }: AdvisorDropleftProp
     // Get recent events (last 10)
     const recentEvents = eventHistory.slice(0, 10).map(e => ({
       year: e.year,
-      type: e.event_type,
+      type: e.type,
       description: e.description_fr || e.description,
     }));
 
