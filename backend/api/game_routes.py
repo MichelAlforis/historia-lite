@@ -154,7 +154,7 @@ async def get_state():
         unread_events=timeline.get_unread_count(),  # NEW: unread timeline events
         timeline_total=len(timeline.events),  # NEW: total timeline events
         mood=mood_response,  # Phase 2: WorldMood
-        player_reputation=getattr(world, 'player_reputation', 50),  # Direct access for convenience
+        player_reputation=world.mood.player_reputation,  # Direct access for convenience
         active_crises=crises_response,  # Phase 2: Active crises
     )
 

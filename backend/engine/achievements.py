@@ -176,7 +176,7 @@ class AchievementManager:
             elif cond_type == 'reputation_threshold':
                 threshold = condition.get('value', 80)
                 direction = condition.get('direction', 'above')
-                rep = world.player_reputation
+                rep = world.mood.player_reputation
                 progress.current_value = rep
                 if direction == 'below' and rep <= threshold:
                     self._unlock_achievement(ach_id)

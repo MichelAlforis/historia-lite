@@ -1159,9 +1159,9 @@ def _update_player_reputation(world: World, recent_events: List[Event]) -> None:
         }
         # Slowly drift toward bloc baseline
         bloc_base = bloc_reputation.get(player_country.bloc, 0)
-        if world.player_reputation < bloc_base:
+        if world.mood.player_reputation < bloc_base:
             rep_change += 1
-        elif world.player_reputation > bloc_base + 20:
+        elif world.mood.player_reputation > bloc_base + 20:
             rep_change -= 1
 
     # DEFCON affects perception
@@ -1169,11 +1169,11 @@ def _update_player_reputation(world: World, recent_events: List[Event]) -> None:
         rep_change -= 3  # World blames major powers during crises
 
     # Apply changes with limits
-    new_reputation = world.player_reputation + rep_change
-    world.player_reputation = max(-100, min(100, new_reputation))
+    new_reputation = world.mood.player_reputation + rep_change
+    world.mood.player_reputation = max(-100, min(100, new_reputation))
 
     if rep_change != 0:
-        logger.debug(f"Player reputation: {world.player_reputation - rep_change} -> {world.player_reputation} (change: {rep_change:+d})")
+        logger.debug(f"Player reputation: {world.mood.player_reputation - rep_change} -> {world.mood.player_reputation} (change: {rep_change:+d})")
 
 
 def _check_era_transition(

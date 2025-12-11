@@ -96,12 +96,14 @@ class StatsHistoryManager:
 
     def record_world_stats(self, world: Any) -> None:
         """Record current world stats"""
+        # player_reputation is in world.mood (WorldMood object)
+        player_rep = getattr(world.mood, 'player_reputation', 50) if hasattr(world, 'mood') else 50
         snapshot = WorldStatsSnapshot(
             year=world.year,
             month=world.month,
             global_tension=world.global_tension,
             defcon_level=world.defcon_level,
-            player_reputation=world.player_reputation,
+            player_reputation=player_rep,
             active_wars=len(world.active_conflicts),
             oil_price=world.oil_price
         )
