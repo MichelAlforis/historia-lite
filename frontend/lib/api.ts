@@ -27,6 +27,7 @@ import {
   ScenarioDetail,
   ObjectiveSummary,
   ScenarioInitData,
+  Leader,
 } from './types';
 
 // Historia Lite specific API URL - use dedicated env var to avoid CRM conflicts
@@ -1152,7 +1153,12 @@ export async function getTimelineEvents(params?: {
   offset?: number;
 }): Promise<{ events: TimelineEvent[]; total: number }> {
   const response = await api.get('/timeline/events', { params });
-  return response.data;
+  // Handle both array response (backend returns []) and object response
+  const data = response.data;
+  if (Array.isArray(data)) {
+    return { events: data, total: data.length };
+  }
+  return data;
 }
 
 // Get events for a specific month
@@ -1239,4 +1245,36 @@ export async function advanceMonth(): Promise<MonthlyTickResponse> {
 export async function advanceYear(): Promise<TickResponse> {
   const response = await api.post<TickResponse>('/tick/year');
   return response.data;
+}
+
+// ============================================================================
+// Leaders API
+// ============================================================================
+
+// Get all world leaders
+export async function getAllLeaders(): Promise<Record<string, Leader>> {
+  const response = await api.get<{ leaders: Record<string, Leader> }>('/leaders');
+  return response.data.leaders;
+}
+
+// Get leader for a specific country
+export async function getLeader(countryId: string): Promise<Leader | null> {
+  try {
+    const response = await api.get<{ leader: Leader }>(`/leaders/${countryId}`);
+    return response.data.leader;
+  } catch {
+    return null;
+  }
+}
+
+// Get combined effects of leader's traits
+export async function getLeaderTraitsEffects(countryId: string): Promise<Record<string, number>> {
+  const response = await api.get<{ combined_effects: Record<string, number> }>(`/leaders/${countryId}/traits`);
+  return response.data.combined_effects;
+}
+
+// Get leader's reaction to an event
+export async function getLeaderReaction(countryId: string, eventType: string): Promise<string | null> {
+  const response = await api.get<{ reaction: string | null }>(`/leaders/${countryId}/reaction/${eventType}`);
+  return response.data.reaction;
 }
