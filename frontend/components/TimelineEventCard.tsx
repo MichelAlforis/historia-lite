@@ -11,7 +11,7 @@ import {
   getImportanceLabel,
   formatGameDate,
 } from '@/lib/types';
-import { ChevronDown, ChevronUp, Link2, ArrowRight, ArrowLeft, Zap } from 'lucide-react';
+import { ChevronDown, ChevronUp, Link2, ArrowRight, ArrowLeft, Zap, AlertTriangle } from 'lucide-react';
 
 interface TimelineEventCardProps {
   event: TimelineEvent;
@@ -116,6 +116,21 @@ export default function TimelineEventCard({
           <div className="mt-2 flex items-center gap-1 text-xs text-amber-600">
             <Zap className="w-3 h-3" />
             <span>Cascade: {event.ripple_targets.length} pays affectes</span>
+          </div>
+        )}
+
+        {/* Precursor warning (retrocausality) */}
+        {event.retrospective_label && (
+          <div className="mt-2 px-2 py-1.5 bg-amber-50 border-l-4 border-amber-500 rounded-r text-xs">
+            <div className="flex items-center gap-1 text-amber-700 font-medium">
+              <AlertTriangle className="w-3 h-3" />
+              <span>{event.retrospective_label}</span>
+            </div>
+            {event.was_precursor_to && (
+              <p className="text-amber-600 mt-0.5 italic">
+                Cet evenement a precede une crise majeure
+              </p>
+            )}
           </div>
         )}
       </div>

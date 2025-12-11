@@ -100,6 +100,12 @@ class TimelineEvent(BaseModel):
     # UI state
     read: bool = False
 
+    # Retrocausality fields (Axe 3)
+    # These are set retroactively when a major crisis erupts
+    retrospective_label: Optional[str] = None  # e.g., "Signe avant-coureur"
+    retrospective_link: Optional[str] = None   # ID of the crisis this preceded
+    was_precursor_to: Optional[str] = None     # ID of the crisis this was a precursor to
+
     class Config:
         use_enum_values = True
 
@@ -1092,3 +1098,203 @@ class SystemicEventManager:
         manager.active_events = [SystemicEvent(**e) for e in data.get("active_events", [])]
         manager.historical_events = [SystemicEvent(**e) for e in data.get("historical_events", [])]
         return manager
+
+
+# =============================================================================
+# RETROCAUSALITY - Marking Precursors (Phase 2 - Axe 3)
+# When a major crisis erupts, retrospectively mark recent events as "warning signs"
+# =============================================================================
+
+def mark_precursors(
+    crisis_event: TimelineEvent,
+    timeline: "TimelineManager",
+    lookback_months: int = 3,
+    max_precursors: int = 5
+) -> int:
+    """
+    When a major crisis (importance >= 4) erupts, mark recent related events
+    as retrospective "warning signs" (signes avant-coureurs).
+
+    This is purely narrative but reinforces immersion by showing
+    how past events led to the current crisis.
+
+    Args:
+        crisis_event: The major crisis event that just occurred
+        timeline: The timeline manager
+        lookback_months: How far back to look for precursors
+        max_precursors: Maximum number of events to mark
+
+    Returns:
+        Number of events marked as precursors
+    """
+    if crisis_event.importance < 4:
+        return 0
+
+    # Get the start date for lookback
+    start_date = crisis_event.date.subtract_months(lookback_months)
+
+    # Collect candidate precursors
+    candidates = []
+    for event in timeline.events:
+        # Skip the crisis itself
+        if event.id == crisis_event.id:
+            continue
+
+        # Must be before the crisis
+        if event.date >= crisis_event.date:
+            continue
+
+        # Must be within lookback period
+        if event.date < start_date:
+            continue
+
+        # Skip if already marked as precursor to something else
+        if hasattr(event, 'was_precursor_to') and event.was_precursor_to:
+            continue
+
+        # Calculate relevance score
+        relevance = _calculate_precursor_relevance(event, crisis_event)
+        if relevance > 0:
+            candidates.append((event, relevance))
+
+    # Sort by relevance and take top N
+    candidates.sort(key=lambda x: x[1], reverse=True)
+    marked_count = 0
+
+    for event, relevance in candidates[:max_precursors]:
+        # Mark as precursor
+        event.retrospective_label = _get_precursor_label(relevance)
+        event.was_precursor_to = crisis_event.id
+        event.retrospective_link = crisis_event.id
+
+        # Enrich description with hindsight note
+        hindsight_note = _generate_hindsight_note(event, crisis_event, relevance)
+        if hindsight_note and hindsight_note not in event.description_fr:
+            event.description_fr += f"\n\n{hindsight_note}"
+
+        # Link in causal chain
+        if not event.triggers:
+            event.triggers = []
+        if crisis_event.id not in event.triggers:
+            event.triggers.append(crisis_event.id)
+
+        marked_count += 1
+        logger.info(f"Marked {event.id} as precursor to {crisis_event.id} (relevance: {relevance:.2f})")
+
+    return marked_count
+
+
+def _calculate_precursor_relevance(event: TimelineEvent, crisis: TimelineEvent) -> float:
+    """
+    Calculate how relevant an event is as a precursor to the crisis.
+    Returns 0.0 to 1.0 (0 = not relevant, 1 = highly relevant)
+    """
+    relevance = 0.0
+
+    # 1. Actor overlap (same countries involved)
+    crisis_countries = {crisis.actor_country} | set(crisis.target_countries)
+    event_countries = {event.actor_country} | set(event.target_countries)
+    overlap = crisis_countries & event_countries
+
+    if overlap:
+        # More overlap = more relevant
+        relevance += len(overlap) * 0.2
+        # Direct actor match is very relevant
+        if event.actor_country == crisis.actor_country:
+            relevance += 0.15
+        if event.actor_country in crisis.target_countries:
+            relevance += 0.1
+
+    # 2. Type correlation
+    type_correlations = {
+        # Military events often precede war crises
+        (EventType.MILITARY, EventType.WAR): 0.25,
+        (EventType.MILITARY, EventType.CRISIS): 0.2,
+        (EventType.MILITARY, EventType.MILITARY): 0.15,
+        # Diplomatic failures can lead to crises
+        (EventType.DIPLOMATIC, EventType.CRISIS): 0.15,
+        (EventType.DIPLOMATIC, EventType.WAR): 0.1,
+        # Economic events can escalate
+        (EventType.ECONOMIC, EventType.CRISIS): 0.15,
+        (EventType.ECONOMIC, EventType.ECONOMIC): 0.1,
+        # Political instability
+        (EventType.POLITICAL, EventType.CRISIS): 0.15,
+        (EventType.INTERNAL, EventType.CRISIS): 0.1,
+    }
+
+    event_type = event.type if isinstance(event.type, str) else event.type
+    crisis_type = crisis.type if isinstance(crisis.type, str) else crisis.type
+
+    type_key = (event_type, crisis_type)
+    if type_key in type_correlations:
+        relevance += type_correlations[type_key]
+
+    # 3. Family correlation (escalation events are often precursors)
+    if hasattr(event, 'family'):
+        family = event.family if isinstance(event.family, str) else event.family.value
+        if family == "escalation":
+            relevance += 0.2
+        elif family == "tactical":
+            relevance += 0.1
+
+    # 4. Importance weighting (higher importance events are better precursors)
+    relevance += event.importance * 0.05
+
+    # 5. Temporal proximity (closer events are more relevant)
+    months_before = crisis.date.months_since(event.date)
+    if months_before <= 1:
+        relevance += 0.15
+    elif months_before <= 2:
+        relevance += 0.1
+
+    # 6. Keyword matching in titles
+    warning_keywords = [
+        "tension", "menace", "threat", "build-up", "renforcement",
+        "deploiement", "deployment", "alerte", "alert", "mobilisation",
+        "exercice", "exercise", "incident", "provocation", "sanction",
+        "embargo", "ultimatum", "avertissement", "warning"
+    ]
+
+    title_lower = (event.title + " " + event.title_fr).lower()
+    for keyword in warning_keywords:
+        if keyword in title_lower:
+            relevance += 0.1
+            break  # Only count once
+
+    return min(1.0, relevance)
+
+
+def _get_precursor_label(relevance: float) -> str:
+    """Get the appropriate label based on relevance strength"""
+    if relevance >= 0.7:
+        return "Signe avant-coureur majeur"
+    elif relevance >= 0.5:
+        return "Signe avant-coureur"
+    elif relevance >= 0.3:
+        return "Indicateur precurseur"
+    else:
+        return "Element contextuel"
+
+
+def _generate_hindsight_note(
+    event: TimelineEvent,
+    crisis: TimelineEvent,
+    relevance: float
+) -> str:
+    """Generate a hindsight note to append to the event description"""
+    if relevance >= 0.7:
+        return (
+            f"[Avec le recul, cet evenement apparait comme un prelude direct a "
+            f"{crisis.title_fr}.]"
+        )
+    elif relevance >= 0.5:
+        return (
+            f"[Cet evenement peut etre vu comme un signe avant-coureur de "
+            f"{crisis.title_fr}.]"
+        )
+    elif relevance >= 0.3:
+        return (
+            f"[Les analystes noteront plus tard le lien possible avec "
+            f"{crisis.title_fr}.]"
+        )
+    return ""

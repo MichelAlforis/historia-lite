@@ -1850,6 +1850,10 @@ export interface TimelineEvent {
   // Ripple effects
   ripple_weight: number;
   ripple_targets: string[];
+  // Retrocausality fields (Phase 2 - Axe 3)
+  retrospective_label?: string | null;  // e.g., "Signe avant-coureur"
+  retrospective_link?: string | null;   // ID of the crisis this preceded
+  was_precursor_to?: string | null;     // ID of the crisis this was a precursor to
 }
 
 export interface TimelineEventBrief {

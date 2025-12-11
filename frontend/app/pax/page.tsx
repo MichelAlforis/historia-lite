@@ -632,6 +632,12 @@ export default function PaxPage() {
           onDismiss={dismissBreakingNews}
         />
       )}
+
+      {/* Achievements Panel */}
+      <AchievementsPanel
+        isOpen={showAchievements}
+        onClose={() => setShowAchievements(false)}
+      />
     </div>
   );
 }

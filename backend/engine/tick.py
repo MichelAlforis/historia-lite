@@ -18,8 +18,9 @@ from .espionage import espionage_manager
 from .resources import resource_manager
 from .leaders import leader_manager
 from .procedural_events import procedural_generator
-from .timeline import TimelineManager, TimelineEvent, EventType, EventSource
+from .timeline import TimelineManager, TimelineEvent, EventType, EventSource, mark_precursors
 from .crisis import CrisisManager, detect_potential_crisis
+from .legacy import LegacyManager
 from .stats_history import stats_history
 from .achievements import achievement_manager
 from ai.decision_tier4 import process_tier4_countries
@@ -42,6 +43,7 @@ def set_record_frame_callback(callback):
 bloc_manager = BlocManager()
 summit_manager = SummitManager()
 crisis_manager = CrisisManager()
+legacy_manager = LegacyManager()
 
 
 def process_tick(
@@ -169,6 +171,36 @@ def process_tick(
             new_crisis = detect_potential_crisis(te, world, crisis_manager)
             if new_crisis:
                 logger.info(f"New crisis detected: {new_crisis.name_fr}")
+
+            # Phase 7e: Mark precursors (retrocausality) for major events
+            if timeline:
+                precursors_marked = mark_precursors(te, timeline, lookback_months=3)
+                if precursors_marked > 0:
+                    logger.info(f"Marked {precursors_marked} precursors for {te.id}")
+
+            # Phase 7f: Create legacies from major events
+            legacies = legacy_manager.create_legacies_from_event_auto(
+                event_id=te.id,
+                event_title=te.title,
+                event_title_fr=te.title_fr,
+                event_date=te.date,
+                affected_country=te.actor_country,
+                event_type=te.type.value if hasattr(te.type, 'value') else str(te.type),
+                importance=te.importance
+            )
+            for legacy in legacies:
+                logger.info(f"Created legacy: {legacy.effect_description_fr} for {legacy.affected_country}")
+
+    # Phase 7g: Process legacy effects (monthly activation, yearly effects)
+    legacy_messages = legacy_manager.process_monthly(world, current_date)
+    for msg in legacy_messages:
+        logger.info(f"Legacy: {msg}")
+
+    # Yearly legacy effects (in January)
+    if world.month == 1:
+        yearly_legacy_messages = legacy_manager.process_yearly(world, current_date)
+        for msg in yearly_legacy_messages:
+            logger.info(f"Legacy (yearly): {msg}")
 
     # Phase 8: Projects (monthly progress)
     proj_events, proj_timeline = _process_projects_monthly(world, current_date, timeline)
