@@ -1,6 +1,6 @@
 """AI Advisor API routes for Historia Lite"""
 import logging
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -57,11 +57,25 @@ class ChatRequest(BaseModel):
     message: str
     context: Optional[dict] = None
     conversation_history: Optional[List[dict]] = None
+    personality: Optional[str] = None  # Override personality for this request
 
 
 class ChatResponse(BaseModel):
     success: bool
     response: Optional[str] = None
+    personality: Optional[str] = None  # Which personality responded
+    error: Optional[str] = None
+
+
+class SetPersonalityRequest(BaseModel):
+    personality_id: str
+
+
+class PersonalityResponse(BaseModel):
+    success: bool
+    current_personality: str
+    personality_info: Optional[Dict[str, Any]] = None
+    available_personalities: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
 
 
@@ -275,16 +289,24 @@ async def chat_with_advisor(request: ChatRequest):
     if not player:
         raise HTTPException(status_code=404, detail=f"Country {request.country_id} not found")
 
+    # Use request personality or current default
+    active_personality = request.personality or ai_advisor.current_personality
+
     try:
         response = await ai_advisor.chat(
             world,
             player,
             request.message,
             request.context,
-            request.conversation_history
+            request.conversation_history,
+            personality=active_personality
         )
         if response:
-            return ChatResponse(success=True, response=response)
+            return ChatResponse(
+                success=True,
+                response=response,
+                personality=active_personality
+            )
         return ChatResponse(
             success=False,
             error="Could not get response - AI unavailable"
@@ -292,3 +314,56 @@ async def chat_with_advisor(request: ChatRequest):
     except Exception as e:
         logger.error(f"Chat error: {e}")
         return ChatResponse(success=False, error=str(e))
+
+
+# ============================================================================
+# Personality Routes
+# ============================================================================
+
+@router.get("/personalities", response_model=PersonalityResponse)
+async def get_personalities():
+    """Get all available advisor personalities and current selection"""
+    try:
+        return PersonalityResponse(
+            success=True,
+            current_personality=ai_advisor.current_personality,
+            personality_info=ai_advisor.get_current_personality(),
+            available_personalities=ai_advisor.get_available_personalities()
+        )
+    except Exception as e:
+        logger.error(f"Get personalities error: {e}")
+        return PersonalityResponse(
+            success=False,
+            current_personality=ai_advisor.current_personality,
+            error=str(e)
+        )
+
+
+@router.post("/personalities/set", response_model=PersonalityResponse)
+async def set_personality(request: SetPersonalityRequest):
+    """Set the advisor personality for this session
+
+    Args:
+        request: SetPersonalityRequest with personality_id
+
+    Available personalities:
+        - realist: Cold pragmatism, national interests (Kissinger style)
+        - idealist: Human rights, cooperation, soft power
+        - hawk: Military strength, deterrence, no compromises
+        - economist: GDP, trade, debt, sanctions analysis
+    """
+    success = ai_advisor.set_personality(request.personality_id)
+
+    if success:
+        return PersonalityResponse(
+            success=True,
+            current_personality=ai_advisor.current_personality,
+            personality_info=ai_advisor.get_current_personality(),
+            available_personalities=ai_advisor.get_available_personalities()
+        )
+
+    return PersonalityResponse(
+        success=False,
+        current_personality=ai_advisor.current_personality,
+        error=f"Unknown personality: {request.personality_id}. Available: realist, idealist, hawk, economist"
+    )

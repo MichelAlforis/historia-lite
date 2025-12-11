@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { X, Send, Lightbulb, Loader2 } from 'lucide-react';
+import { X, Send, Lightbulb, Loader2, Eye, Heart, Sword, TrendingUp, ChevronDown } from 'lucide-react';
 import { useGameStore } from '@/stores/gameStore';
 
 // ============================================================================
@@ -21,6 +21,73 @@ interface AdvisorMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: Date;
+  personality?: string;
+}
+
+interface AdvisorPersonality {
+  id: string;
+  name_fr: string;
+  subtitle_fr: string;
+  icon: string;
+  color: string;
+  description_fr: string;
+}
+
+// Personality definitions (matching backend)
+const PERSONALITIES: AdvisorPersonality[] = [
+  {
+    id: 'realist',
+    name_fr: 'Le Realiste',
+    subtitle_fr: 'Ecole Kissinger',
+    icon: 'eye',
+    color: 'slate',
+    description_fr: 'Pragmatisme froid, interets nationaux avant tout.',
+  },
+  {
+    id: 'idealist',
+    name_fr: "L'Idealiste",
+    subtitle_fr: 'Ecole Wilsonienne',
+    icon: 'heart',
+    color: 'sky',
+    description_fr: 'Droits de l\'homme, cooperation, soft power.',
+  },
+  {
+    id: 'hawk',
+    name_fr: 'Le Faucon',
+    subtitle_fr: 'Ecole Neoconservatrice',
+    icon: 'sword',
+    color: 'red',
+    description_fr: 'Force militaire, dissuasion, pas de compromis.',
+  },
+  {
+    id: 'economist',
+    name_fr: "L'Economiste",
+    subtitle_fr: 'Ecole Liberale',
+    icon: 'trending-up',
+    color: 'emerald',
+    description_fr: 'PIB, commerce, sanctions - tout est calcul.',
+  },
+];
+
+function getPersonalityIcon(iconName: string) {
+  const iconClass = "w-4 h-4";
+  switch (iconName) {
+    case 'eye': return <Eye className={iconClass} />;
+    case 'heart': return <Heart className={iconClass} />;
+    case 'sword': return <Sword className={iconClass} />;
+    case 'trending-up': return <TrendingUp className={iconClass} />;
+    default: return <Lightbulb className={iconClass} />;
+  }
+}
+
+function getPersonalityColorClasses(color: string) {
+  const colors: Record<string, { bg: string; text: string; border: string; hover: string }> = {
+    slate: { bg: 'bg-slate-100', text: 'text-slate-700', border: 'border-slate-300', hover: 'hover:bg-slate-200' },
+    sky: { bg: 'bg-sky-100', text: 'text-sky-700', border: 'border-sky-300', hover: 'hover:bg-sky-200' },
+    red: { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-300', hover: 'hover:bg-red-200' },
+    emerald: { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-300', hover: 'hover:bg-emerald-200' },
+  };
+  return colors[color] || colors.slate;
 }
 
 interface AdvisorDropleftProps {
@@ -38,11 +105,14 @@ export default function AdvisorDropleft({ isOpen, onClose }: AdvisorDropleftProp
   const [messages, setMessages] = useState<AdvisorMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isThinking, setIsThinking] = useState(false);
+  const [selectedPersonality, setSelectedPersonality] = useState<string>('realist');
+  const [showPersonalityDropdown, setShowPersonalityDropdown] = useState(false);
 
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const focusTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // ============================================================================
   // TIER 1: Memoized computed values
@@ -73,6 +143,17 @@ export default function AdvisorDropleft({ isOpen, onClose }: AdvisorDropleftProp
     'Menaces?',
     'Priorites?',
   ], []);
+
+  // Current personality info
+  const currentPersonality = useMemo(() =>
+    PERSONALITIES.find(p => p.id === selectedPersonality) || PERSONALITIES[0],
+    [selectedPersonality]
+  );
+
+  const personalityColors = useMemo(() =>
+    getPersonalityColorClasses(currentPersonality.color),
+    [currentPersonality]
+  );
 
   // ============================================================================
   // TIER 1: Build context for AI (memoized)
@@ -170,6 +251,7 @@ export default function AdvisorDropleft({ isOpen, onClose }: AdvisorDropleftProp
             role: m.role,
             content: m.content,
           })),
+          personality: selectedPersonality, // Include selected personality
         }),
       });
 
@@ -184,6 +266,7 @@ export default function AdvisorDropleft({ isOpen, onClose }: AdvisorDropleftProp
         role: 'assistant',
         content: data.response || 'Je n\'ai pas pu analyser votre question. Pouvez-vous reformuler?',
         timestamp: new Date(),
+        personality: data.personality || selectedPersonality,
       };
 
       setMessages(prev => [...prev, assistantMessage]);
@@ -201,7 +284,7 @@ export default function AdvisorDropleft({ isOpen, onClose }: AdvisorDropleftProp
     } finally {
       setIsThinking(false);
     }
-  }, [inputValue, isThinking, playerCountryId, buildContext, messages]);
+  }, [inputValue, isThinking, playerCountryId, buildContext, messages, selectedPersonality]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -215,6 +298,24 @@ export default function AdvisorDropleft({ isOpen, onClose }: AdvisorDropleftProp
   const handleSuggestionClick = useCallback((suggestion: string) => {
     setInputValue(suggestion);
   }, []);
+
+  const handlePersonalitySelect = useCallback((personalityId: string) => {
+    setSelectedPersonality(personalityId);
+    setShowPersonalityDropdown(false);
+  }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowPersonalityDropdown(false);
+      }
+    };
+    if (showPersonalityDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showPersonalityDropdown]);
 
   // ============================================================================
   // TIER 1: Effects with proper cleanup (memory leaks fix)
@@ -290,7 +391,7 @@ export default function AdvisorDropleft({ isOpen, onClose }: AdvisorDropleftProp
               id="advisor-panel-title"
               className="font-medium text-stone-800 text-sm sm:text-base"
             >
-              Conseiller Strategique
+              Conseiller
             </span>
           </div>
           <button
@@ -300,6 +401,62 @@ export default function AdvisorDropleft({ isOpen, onClose }: AdvisorDropleftProp
           >
             <X className="w-5 h-5 text-stone-500" aria-hidden="true" />
           </button>
+        </div>
+
+        {/* Personality Selector */}
+        <div className="px-3 sm:px-4 py-2 border-b bg-white relative" ref={dropdownRef}>
+          <button
+            onClick={() => setShowPersonalityDropdown(!showPersonalityDropdown)}
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border ${personalityColors.border} ${personalityColors.bg} ${personalityColors.hover} transition-colors`}
+          >
+            <div className="flex items-center gap-2">
+              <span className={personalityColors.text}>
+                {getPersonalityIcon(currentPersonality.icon)}
+              </span>
+              <div className="text-left">
+                <div className={`text-sm font-medium ${personalityColors.text}`}>
+                  {currentPersonality.name_fr}
+                </div>
+                <div className="text-xs text-stone-500">
+                  {currentPersonality.subtitle_fr}
+                </div>
+              </div>
+            </div>
+            <ChevronDown className={`w-4 h-4 ${personalityColors.text} transition-transform ${showPersonalityDropdown ? 'rotate-180' : ''}`} />
+          </button>
+
+          {/* Dropdown menu */}
+          {showPersonalityDropdown && (
+            <div className="absolute left-3 right-3 top-full mt-1 bg-white rounded-lg shadow-lg border border-stone-200 z-10 overflow-hidden">
+              {PERSONALITIES.map((personality) => {
+                const colors = getPersonalityColorClasses(personality.color);
+                const isSelected = personality.id === selectedPersonality;
+                return (
+                  <button
+                    key={personality.id}
+                    onClick={() => handlePersonalitySelect(personality.id)}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors
+                      ${isSelected ? colors.bg : 'hover:bg-stone-50'}`}
+                  >
+                    <span className={colors.text}>
+                      {getPersonalityIcon(personality.icon)}
+                    </span>
+                    <div className="flex-1">
+                      <div className={`text-sm font-medium ${isSelected ? colors.text : 'text-stone-700'}`}>
+                        {personality.name_fr}
+                      </div>
+                      <div className="text-xs text-stone-500">
+                        {personality.description_fr}
+                      </div>
+                    </div>
+                    {isSelected && (
+                      <div className={`w-2 h-2 rounded-full ${colors.text.replace('text-', 'bg-')}`} />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Context badge */}

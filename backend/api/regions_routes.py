@@ -11,7 +11,7 @@ from engine.region import SubnationalRegion
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/regions", tags=["regions"])
+router = APIRouter(prefix="/api/regions", tags=["regions"])
 
 
 class RegionCache:

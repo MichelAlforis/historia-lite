@@ -32,18 +32,9 @@ import {
 
 // Historia Lite specific API URL - use dedicated env var to avoid CRM conflicts
 const API_BASE = process.env.NEXT_PUBLIC_HISTORIA_API_URL || 'http://localhost:8001/api';
-const API_ROOT = process.env.NEXT_PUBLIC_HISTORIA_API_URL?.replace('/api', '') || 'http://localhost:8001';
 
 const api = axios.create({
   baseURL: API_BASE,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Root API instance (for routes not under /api)
-const apiRoot = axios.create({
-  baseURL: API_ROOT,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -247,27 +238,27 @@ export async function getRegions(params?: {
   has_resources?: boolean;
   is_coastal?: boolean;
 }): Promise<SubnationalRegion[]> {
-  const response = await apiRoot.get<SubnationalRegion[]>('/regions', { params });
+  const response = await api.get<SubnationalRegion[]>('/regions', { params });
   return response.data;
 }
 
 export async function getRegionsSummary(): Promise<RegionsSummary> {
-  const response = await apiRoot.get<RegionsSummary>('/regions/summary');
+  const response = await api.get<RegionsSummary>('/regions/summary');
   return response.data;
 }
 
 export async function getRegionsByCountry(countryId: string): Promise<SubnationalRegion[]> {
-  const response = await apiRoot.get<SubnationalRegion[]>(`/regions/country/${countryId}`);
+  const response = await api.get<SubnationalRegion[]>(`/regions/country/${countryId}`);
   return response.data;
 }
 
 export async function getRegion(regionId: string): Promise<SubnationalRegion> {
-  const response = await apiRoot.get<SubnationalRegion>(`/regions/${regionId}`);
+  const response = await api.get<SubnationalRegion>(`/regions/${regionId}`);
   return response.data;
 }
 
 export async function getRegionAttackInfo(regionId: string): Promise<AttackInfo> {
-  const response = await apiRoot.get<AttackInfo>(`/regions/${regionId}/attack-info`);
+  const response = await api.get<AttackInfo>(`/regions/${regionId}/attack-info`);
   return response.data;
 }
 
@@ -276,7 +267,7 @@ export async function executeRegionAttack(
   attackerId: string,
   attackType: string
 ): Promise<RegionAttackResult> {
-  const response = await apiRoot.post<RegionAttackResult>(`/regions/${regionId}/attack`, {
+  const response = await api.post<RegionAttackResult>(`/regions/${regionId}/attack`, {
     attacker_id: attackerId,
     attack_type: attackType,
   });

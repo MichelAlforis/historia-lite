@@ -305,3 +305,257 @@ async def get_timeline_stats():
         "top_countries": dict(top_countries),
         "current_date": GameDateResponse.from_game_date(world.current_date).model_dump()
     }
+
+
+# =============================================================================
+# PHASE 2 - INTELLIGENT FILTERING & STRATEGIC TIMELINE (Axes 7-8)
+# =============================================================================
+
+@router.get("/highlights/{year}/{month}")
+async def get_monthly_highlights(
+    year: int,
+    month: int,
+    player_country: Optional[str] = None
+):
+    """
+    Get auto-generated monthly highlights.
+    Includes top events, trends, and summary.
+    """
+    from engine.timeline import generate_monthly_highlights
+
+    if month < 1 or month > 12:
+        raise HTTPException(status_code=400, detail="Month must be between 1 and 12")
+
+    timeline = get_timeline()
+    highlights = generate_monthly_highlights(
+        timeline=timeline,
+        year=year,
+        month=month,
+        player_country=player_country.upper() if player_country else None
+    )
+
+    return highlights.model_dump()
+
+
+@router.get("/grouped/{year}/{month}")
+async def get_grouped_events(
+    year: int,
+    month: int,
+    player_country: Optional[str] = None
+):
+    """
+    Get events grouped by category to reduce information overload.
+    Critical events and player-related events are always separate.
+    Minor events are grouped by region.
+    """
+    from engine.timeline import get_grouped_events as get_grouped
+
+    if month < 1 or month > 12:
+        raise HTTPException(status_code=400, detail="Month must be between 1 and 12")
+
+    timeline = get_timeline()
+    grouped = get_grouped(
+        timeline=timeline,
+        year=year,
+        month=month,
+        player_country=player_country.upper() if player_country else None
+    )
+
+    # Serialize events to dicts
+    result = {
+        "critical": [TimelineEventResponse.from_timeline_event(e).model_dump() for e in grouped.critical],
+        "player_related": [TimelineEventResponse.from_timeline_event(e).model_dump() for e in grouped.player_related],
+        "by_region": {
+            region: [TimelineEventResponse.from_timeline_event(e).model_dump() for e in events]
+            for region, events in grouped.by_region.items()
+        },
+        "by_type": {
+            etype: [TimelineEventResponse.from_timeline_event(e).model_dump() for e in events]
+            for etype, events in grouped.by_type.items()
+        },
+        "merged_minor": grouped.merged_minor
+    }
+
+    return result
+
+
+@router.get("/trends")
+async def get_timeline_trends(
+    lookback_months: int = Query(default=6, ge=1, le=24),
+    player_country: Optional[str] = None
+):
+    """
+    Analyze timeline trends for strategic decision-making.
+    Identifies rising tensions, active actors, and generates alerts.
+    """
+    from engine.timeline import analyze_trends
+
+    world = get_world()
+    timeline = get_timeline()
+
+    trends = analyze_trends(
+        timeline=timeline,
+        current_date=world.current_date,
+        lookback_months=lookback_months,
+        player_country=player_country.upper() if player_country else None
+    )
+
+    return {
+        "tension_trends": [t.model_dump() for t in trends.tension_trends],
+        "most_active_actors": trends.most_active_actors,
+        "rising_event_types": trends.rising_event_types,
+        "ai_predictions": trends.ai_predictions,
+        "alerts": trends.alerts,
+        "total_events_analyzed": trends.total_events_analyzed,
+        "period_months": trends.period_months,
+        "avg_events_per_month": trends.avg_events_per_month
+    }
+
+
+@router.get("/strategic-overview")
+async def get_strategic_overview(
+    player_country: Optional[str] = None
+):
+    """
+    Get a complete strategic overview combining:
+    - Timeline trends
+    - Active crises
+    - World mood/era
+    - Monthly highlights
+    """
+    from engine.timeline import get_strategic_overview as get_overview
+    from api.game_state import get_crisis_manager, get_world_mood
+
+    world = get_world()
+    timeline = get_timeline()
+    crisis_manager = get_crisis_manager()
+    world_mood = get_world_mood()
+
+    overview = get_overview(
+        timeline=timeline,
+        current_date=world.current_date,
+        crisis_manager=crisis_manager,
+        world_mood=world_mood,
+        player_country=player_country.upper() if player_country else None
+    )
+
+    return overview
+
+
+@router.get("/alerts")
+async def get_active_alerts(
+    player_country: Optional[str] = None,
+    min_severity: int = Query(default=0, ge=0, le=100)
+):
+    """
+    Get active alerts from timeline analysis.
+    Filter by severity level.
+    """
+    from engine.timeline import analyze_trends
+
+    world = get_world()
+    timeline = get_timeline()
+
+    trends = analyze_trends(
+        timeline=timeline,
+        current_date=world.current_date,
+        lookback_months=6,
+        player_country=player_country.upper() if player_country else None
+    )
+
+    # Filter by severity
+    alerts = [a for a in trends.alerts if a.get("severity", 0) >= min_severity]
+
+    # Sort by severity (highest first)
+    alerts.sort(key=lambda a: a.get("severity", 0), reverse=True)
+
+    return {
+        "alerts": alerts,
+        "total_count": len(trends.alerts),
+        "filtered_count": len(alerts),
+        "danger_count": sum(1 for a in alerts if a.get("level") == "danger"),
+        "warning_count": sum(1 for a in alerts if a.get("level") == "warning"),
+        "positive_count": sum(1 for a in alerts if a.get("level") == "positive")
+    }
+
+
+@router.get("/tension/{country_a}/{country_b}")
+async def get_tension_between_countries(
+    country_a: str,
+    country_b: str,
+    lookback_months: int = Query(default=12, ge=1, le=36)
+):
+    """
+    Get tension history and trend between two specific countries.
+    """
+    from engine.timeline import analyze_trends, _make_pair_key
+
+    world = get_world()
+    timeline = get_timeline()
+
+    country_a = country_a.upper()
+    country_b = country_b.upper()
+    pair_key = _make_pair_key(country_a, country_b)
+
+    trends = analyze_trends(
+        timeline=timeline,
+        current_date=world.current_date,
+        lookback_months=lookback_months
+    )
+
+    # Find the specific pair
+    pair_trend = None
+    for trend in trends.tension_trends:
+        if trend.pair == pair_key:
+            pair_trend = trend
+            break
+
+    if not pair_trend:
+        return {
+            "pair": pair_key,
+            "country_a": country_a,
+            "country_b": country_b,
+            "tension_delta": 0,
+            "event_count": 0,
+            "recent_events": [],
+            "status": "neutral",
+            "message": f"Aucun evenement entre {country_a} et {country_b} sur les {lookback_months} derniers mois"
+        }
+
+    # Determine status
+    status = "neutral"
+    if pair_trend.tension_delta > 15:
+        status = "hostile"
+    elif pair_trend.tension_delta > 5:
+        status = "tense"
+    elif pair_trend.tension_delta < -10:
+        status = "improving"
+    elif pair_trend.tension_delta < -5:
+        status = "cooperative"
+
+    return {
+        "pair": pair_key,
+        "country_a": pair_trend.country_a,
+        "country_b": pair_trend.country_b,
+        "tension_delta": pair_trend.tension_delta,
+        "event_count": pair_trend.event_count,
+        "recent_events": pair_trend.recent_events,
+        "status": status,
+        "message": _get_tension_message(pair_trend.tension_delta, country_a, country_b)
+    }
+
+
+def _get_tension_message(delta: float, country_a: str, country_b: str) -> str:
+    """Generate a human-readable message about tension between countries"""
+    if delta > 20:
+        return f"Relations tres tendues entre {country_a} et {country_b}. Risque de conflit eleve."
+    elif delta > 10:
+        return f"Tensions en hausse entre {country_a} et {country_b}."
+    elif delta > 0:
+        return f"Legeres tensions entre {country_a} et {country_b}."
+    elif delta < -15:
+        return f"Forte amelioration des relations {country_a}-{country_b}."
+    elif delta < -5:
+        return f"Relations {country_a}-{country_b} en amelioration."
+    else:
+        return f"Relations stables entre {country_a} et {country_b}."

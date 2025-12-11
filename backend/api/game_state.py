@@ -14,6 +14,8 @@ from engine.espionage import espionage_manager
 from engine.resources import resource_manager
 from engine.leaders import leader_manager
 from engine.timeline import TimelineManager
+from engine.crisis import CrisisManager
+from engine.world import WorldMood
 from ai.ollama_ai import OllamaAI
 
 logger = logging.getLogger(__name__)
@@ -22,6 +24,8 @@ logger = logging.getLogger(__name__)
 _world: Optional[Union[World, UnifiedWorld]] = None
 _event_pool: Optional[EventPool] = None
 _timeline: Optional[TimelineManager] = None  # Timeline backbone
+_crisis_manager: Optional[CrisisManager] = None  # Crisis manager (Phase 2)
+_world_mood: Optional[WorldMood] = None  # World mood (Phase 2)
 _ollama: Optional[OllamaAI] = None
 _data_dir = Path(__file__).parent.parent / "data"
 _use_unified: bool = False  # Set to True to use Phase 12 unified architecture
@@ -40,7 +44,7 @@ _settings = GameSettings()
 
 def _initialize_systems(world: World) -> None:
     """Initialize all game systems for the world"""
-    global _timeline
+    global _timeline, _crisis_manager, _world_mood
     # Reset managers for new game using their reset() methods
     espionage_manager.reset()
     resource_manager.reset()
@@ -49,7 +53,13 @@ def _initialize_systems(world: World) -> None:
     # Initialize timeline manager
     _timeline = TimelineManager()
 
-    logger.info("Game systems initialized (espionage, resources, leaders, timeline)")
+    # Initialize crisis manager (Phase 2)
+    _crisis_manager = CrisisManager()
+
+    # Initialize world mood (Phase 2)
+    _world_mood = WorldMood()
+
+    logger.info("Game systems initialized (espionage, resources, leaders, timeline, crisis, mood)")
 
 
 def get_world() -> Union[World, UnifiedWorld]:
@@ -84,6 +94,22 @@ def get_timeline() -> TimelineManager:
     return _timeline
 
 
+def get_crisis_manager() -> CrisisManager:
+    """Get or initialize the crisis manager (Phase 2)"""
+    global _crisis_manager
+    if _crisis_manager is None:
+        _crisis_manager = CrisisManager()
+    return _crisis_manager
+
+
+def get_world_mood() -> WorldMood:
+    """Get or initialize the world mood (Phase 2)"""
+    global _world_mood
+    if _world_mood is None:
+        _world_mood = WorldMood()
+    return _world_mood
+
+
 def get_ollama() -> OllamaAI:
     """Get or initialize Ollama AI client"""
     global _ollama
@@ -102,7 +128,7 @@ def get_settings() -> GameSettings:
 
 def reset_world(seed: int = 42) -> Union[World, UnifiedWorld]:
     """Reset the world to initial state"""
-    global _world, _event_pool, _timeline, _use_unified
+    global _world, _event_pool, _timeline, _crisis_manager, _world_mood, _use_unified
     if _use_unified:
         _world = load_unified_world_from_json(_data_dir, seed=seed)
         logger.info(f"UnifiedWorld reset with seed {seed}")
@@ -111,6 +137,8 @@ def reset_world(seed: int = 42) -> Union[World, UnifiedWorld]:
         logger.info(f"Legacy World reset with seed {seed}")
     _event_pool = EventPool()
     _timeline = TimelineManager()  # Reset timeline on world reset
+    _crisis_manager = CrisisManager()  # Reset crisis manager
+    _world_mood = WorldMood()  # Reset world mood
     _initialize_systems(_world)
     return _world
 
@@ -175,6 +203,14 @@ class _GameState:
     @property
     def timeline(self) -> Optional[TimelineManager]:
         return _timeline
+
+    @property
+    def crisis_manager(self) -> Optional[CrisisManager]:
+        return _crisis_manager
+
+    @property
+    def world_mood(self) -> Optional[WorldMood]:
+        return _world_mood
 
     @property
     def is_unified(self) -> bool:

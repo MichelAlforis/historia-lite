@@ -1298,3 +1298,631 @@ def _generate_hindsight_note(
             f"{crisis.title_fr}.]"
         )
     return ""
+
+
+# =============================================================================
+# INTELLIGENT FILTERING (Phase 2 - Axe 7: Filtrage Intelligent)
+# Group events to reduce information overload
+# =============================================================================
+
+# Region mapping for grouping
+COUNTRY_REGIONS = {
+    "USA": "north_america", "CAN": "north_america", "MEX": "north_america",
+    "GBR": "europe", "FRA": "europe", "DEU": "europe", "ITA": "europe",
+    "ESP": "europe", "POL": "europe", "NLD": "europe", "BEL": "europe",
+    "RUS": "eurasia", "UKR": "eurasia", "BLR": "eurasia", "KAZ": "eurasia",
+    "CHN": "east_asia", "JPN": "east_asia", "KOR": "east_asia", "TWN": "east_asia", "PRK": "east_asia",
+    "IND": "south_asia", "PAK": "south_asia", "BGD": "south_asia",
+    "BRA": "south_america", "ARG": "south_america", "COL": "south_america", "CHL": "south_america",
+    "SAU": "middle_east", "IRN": "middle_east", "ISR": "middle_east", "TUR": "middle_east",
+    "IRQ": "middle_east", "SYR": "middle_east", "EGY": "middle_east", "ARE": "middle_east",
+    "NGA": "africa", "ZAF": "africa", "EGY": "africa", "KEN": "africa", "ETH": "africa",
+    "AUS": "oceania", "NZL": "oceania", "IDN": "southeast_asia", "VNM": "southeast_asia",
+    "THA": "southeast_asia", "PHL": "southeast_asia", "MYS": "southeast_asia", "SGP": "southeast_asia",
+}
+
+REGION_NAMES_FR = {
+    "north_america": "Amerique du Nord",
+    "europe": "Europe",
+    "eurasia": "Eurasie",
+    "east_asia": "Asie de l'Est",
+    "south_asia": "Asie du Sud",
+    "south_america": "Amerique du Sud",
+    "middle_east": "Moyen-Orient",
+    "africa": "Afrique",
+    "oceania": "Oceanie",
+    "southeast_asia": "Asie du Sud-Est",
+    "unknown": "Autres regions",
+}
+
+
+def get_region_for_country(country_id: str) -> str:
+    """Get the region for a country"""
+    return COUNTRY_REGIONS.get(country_id, "unknown")
+
+
+class GroupedEvents(BaseModel):
+    """Events grouped by category for reduced information overload"""
+    critical: List[TimelineEvent] = Field(default_factory=list)  # Importance 5
+    player_related: List[TimelineEvent] = Field(default_factory=list)  # Involving player
+    by_region: Dict[str, List[TimelineEvent]] = Field(default_factory=dict)
+    by_type: Dict[str, List[TimelineEvent]] = Field(default_factory=dict)
+    merged_minor: List[Dict[str, Any]] = Field(default_factory=list)  # Merged similar events
+
+
+class MonthlyHighlights(BaseModel):
+    """Auto-generated monthly summary"""
+    year: int
+    month: int
+
+    # Top events (by importance)
+    top_events: List[str] = Field(default_factory=list)  # Event IDs
+    top_events_data: List[Dict[str, Any]] = Field(default_factory=list)
+
+    # AI-generated summary
+    summary_fr: str = ""
+
+    # Statistics
+    total_events: int = 0
+    by_type: Dict[str, int] = Field(default_factory=dict)
+    by_importance: Dict[int, int] = Field(default_factory=dict)
+
+    # Trends detected
+    rising_tensions: List[str] = Field(default_factory=list)  # Country pairs
+    improving_relations: List[str] = Field(default_factory=list)  # Country pairs
+    active_regions: List[str] = Field(default_factory=list)  # Most active regions
+
+    # Crisis involvement
+    crisis_events_count: int = 0
+    precursor_events_count: int = 0
+
+
+def get_grouped_events(
+    timeline: "TimelineManager",
+    year: int,
+    month: int,
+    player_country: Optional[str] = None
+) -> GroupedEvents:
+    """
+    Group events by category to reduce information overload.
+    Critical events and player-related events are always separate.
+    Minor events are grouped by region and can be merged if similar.
+    """
+    events = timeline.get_events_for_month(year, month)
+    grouped = GroupedEvents()
+
+    for event in events:
+        # Critical events (importance 5) always separate
+        if event.importance >= 5:
+            grouped.critical.append(event)
+            continue
+
+        # Player-related events
+        if player_country and event.affects_country(player_country):
+            grouped.player_related.append(event)
+            continue
+
+        # Group by region
+        region = get_region_for_country(event.actor_country)
+        if region not in grouped.by_region:
+            grouped.by_region[region] = []
+        grouped.by_region[region].append(event)
+
+        # Also group by type
+        event_type = event.type if isinstance(event.type, str) else event.type.value
+        if event_type not in grouped.by_type:
+            grouped.by_type[event_type] = []
+        grouped.by_type[event_type].append(event)
+
+    # Merge similar minor events within each region
+    for region, region_events in grouped.by_region.items():
+        if len(region_events) > 3:
+            merged = _merge_similar_events(region_events)
+            grouped.merged_minor.extend(merged)
+
+    return grouped
+
+
+def _merge_similar_events(events: List[TimelineEvent]) -> List[Dict[str, Any]]:
+    """
+    Merge similar events into summaries.
+    Groups events by type and actor, creating summary entries.
+    """
+    merged = []
+
+    # Group by (type, actor)
+    type_actor_groups: Dict[tuple, List[TimelineEvent]] = {}
+    for event in events:
+        event_type = event.type if isinstance(event.type, str) else event.type.value
+        key = (event_type, event.actor_country)
+        if key not in type_actor_groups:
+            type_actor_groups[key] = []
+        type_actor_groups[key].append(event)
+
+    for (event_type, actor), group in type_actor_groups.items():
+        if len(group) >= 2:
+            # Merge into summary
+            merged.append({
+                "type": "merged",
+                "event_type": event_type,
+                "actor_country": actor,
+                "count": len(group),
+                "avg_importance": sum(e.importance for e in group) / len(group),
+                "event_ids": [e.id for e in group],
+                "summary_fr": f"{len(group)} evenements {event_type} de {actor}"
+            })
+        else:
+            # Keep as-is
+            for event in group:
+                merged.append({
+                    "type": "single",
+                    "event_id": event.id,
+                    "event_data": {
+                        "id": event.id,
+                        "title_fr": event.title_fr,
+                        "actor_country": event.actor_country,
+                        "importance": event.importance
+                    }
+                })
+
+    return merged
+
+
+def generate_monthly_highlights(
+    timeline: "TimelineManager",
+    year: int,
+    month: int,
+    player_country: Optional[str] = None
+) -> MonthlyHighlights:
+    """
+    Generate auto-highlights for a month.
+    Identifies top events, trends, and generates a summary.
+    """
+    events = timeline.get_events_for_month(year, month)
+
+    highlights = MonthlyHighlights(
+        year=year,
+        month=month,
+        total_events=len(events)
+    )
+
+    if not events:
+        highlights.summary_fr = "Aucun evenement significatif ce mois-ci."
+        return highlights
+
+    # Top events by importance
+    sorted_events = sorted(events, key=lambda e: (-e.importance, -e.date.day))
+    top_3 = sorted_events[:3]
+    highlights.top_events = [e.id for e in top_3]
+    highlights.top_events_data = [
+        {
+            "id": e.id,
+            "title_fr": e.title_fr,
+            "actor_country": e.actor_country,
+            "importance": e.importance,
+            "type": e.type if isinstance(e.type, str) else e.type.value,
+            "date": str(e.date)
+        }
+        for e in top_3
+    ]
+
+    # Statistics by type
+    for event in events:
+        event_type = event.type if isinstance(event.type, str) else event.type.value
+        highlights.by_type[event_type] = highlights.by_type.get(event_type, 0) + 1
+        highlights.by_importance[event.importance] = highlights.by_importance.get(event.importance, 0) + 1
+
+    # Count crisis and precursor events
+    highlights.crisis_events_count = sum(1 for e in events if e.type in ("crisis", EventType.CRISIS))
+    highlights.precursor_events_count = sum(1 for e in events if e.retrospective_label)
+
+    # Active regions
+    region_counts: Dict[str, int] = {}
+    for event in events:
+        region = get_region_for_country(event.actor_country)
+        region_counts[region] = region_counts.get(region, 0) + 1
+
+    sorted_regions = sorted(region_counts.items(), key=lambda x: -x[1])
+    highlights.active_regions = [r[0] for r in sorted_regions[:3]]
+
+    # Detect tension trends (pairs with multiple conflict events)
+    tension_pairs: Dict[str, int] = {}
+    cooperation_pairs: Dict[str, int] = {}
+
+    for event in events:
+        event_type = event.type if isinstance(event.type, str) else event.type.value
+        for target in event.target_countries:
+            pair = f"{event.actor_country}-{target}"
+            reverse_pair = f"{target}-{event.actor_country}"
+            pair_key = pair if pair < reverse_pair else reverse_pair
+
+            if event_type in ("war", "military", "crisis"):
+                tension_pairs[pair_key] = tension_pairs.get(pair_key, 0) + 1
+            elif event_type == "diplomatic" and _is_positive_event_quick(event):
+                cooperation_pairs[pair_key] = cooperation_pairs.get(pair_key, 0) + 1
+
+    # Pairs with 2+ tension events
+    highlights.rising_tensions = [p for p, c in tension_pairs.items() if c >= 2]
+    highlights.improving_relations = [p for p, c in cooperation_pairs.items() if c >= 2]
+
+    # Generate summary text
+    highlights.summary_fr = _generate_highlights_summary(highlights, events)
+
+    return highlights
+
+
+def _is_positive_event_quick(event: TimelineEvent) -> bool:
+    """Quick check if event is positive based on title keywords"""
+    positive_kw = ["accord", "traite", "paix", "cooperation", "aide", "summit", "alliance"]
+    title = (event.title + " " + event.title_fr).lower()
+    return any(kw in title for kw in positive_kw)
+
+
+def _generate_highlights_summary(highlights: MonthlyHighlights, events: List[TimelineEvent]) -> str:
+    """Generate a text summary for the monthly highlights"""
+    month_names_fr = [
+        "Janvier", "Fevrier", "Mars", "Avril", "Mai", "Juin",
+        "Juillet", "Aout", "Septembre", "Octobre", "Novembre", "Decembre"
+    ]
+    month_name = month_names_fr[highlights.month - 1]
+
+    lines = [f"{month_name} {highlights.year}: {highlights.total_events} evenements."]
+
+    # Critical events
+    critical_count = highlights.by_importance.get(5, 0)
+    if critical_count > 0:
+        lines.append(f"{critical_count} evenement(s) critique(s).")
+
+    # Top event
+    if highlights.top_events_data:
+        top = highlights.top_events_data[0]
+        lines.append(f"Fait marquant: {top['title_fr']}.")
+
+    # Tensions
+    if highlights.rising_tensions:
+        pairs = ", ".join(highlights.rising_tensions[:2])
+        lines.append(f"Tensions montantes: {pairs}.")
+
+    # Active regions
+    if highlights.active_regions:
+        regions_fr = [REGION_NAMES_FR.get(r, r) for r in highlights.active_regions[:2]]
+        lines.append(f"Regions actives: {', '.join(regions_fr)}.")
+
+    return " ".join(lines)
+
+
+# =============================================================================
+# STRATEGIC TIMELINE (Phase 2 - Axe 8: Timeline Strategique)
+# Timeline as an analysis tool, not just a journal
+# =============================================================================
+
+class TensionTrend(BaseModel):
+    """Trend for a country pair"""
+    pair: str  # "USA-CHN"
+    country_a: str
+    country_b: str
+    tension_delta: float  # Positive = rising, negative = falling
+    event_count: int
+    recent_events: List[str] = Field(default_factory=list)  # Event IDs
+
+
+class TimelineTrends(BaseModel):
+    """Analysis of timeline trends for strategic decisions"""
+
+    # Tension trends by country pair
+    tension_trends: List[TensionTrend] = Field(default_factory=list)
+
+    # Most active actors
+    most_active_actors: List[Dict[str, Any]] = Field(default_factory=list)
+
+    # Rising event types
+    rising_event_types: List[str] = Field(default_factory=list)
+
+    # AI predictions (if available)
+    ai_predictions: List[Dict[str, Any]] = Field(default_factory=list)
+
+    # Alerts for the player
+    alerts: List[Dict[str, Any]] = Field(default_factory=list)
+
+    # Global statistics
+    total_events_analyzed: int = 0
+    period_months: int = 6
+    avg_events_per_month: float = 0.0
+
+
+def analyze_trends(
+    timeline: "TimelineManager",
+    current_date: "GameDate",
+    lookback_months: int = 6,
+    player_country: Optional[str] = None
+) -> TimelineTrends:
+    """
+    Analyze timeline trends for strategic decision-making.
+    Identifies rising tensions, active actors, and generates alerts.
+    """
+    start_date = current_date.subtract_months(lookback_months)
+
+    # Get all events in period
+    events = []
+    for event in timeline.events:
+        if start_date <= event.date <= current_date:
+            events.append(event)
+
+    trends = TimelineTrends(
+        total_events_analyzed=len(events),
+        period_months=lookback_months,
+        avg_events_per_month=len(events) / lookback_months if lookback_months > 0 else 0
+    )
+
+    if not events:
+        return trends
+
+    # === Tension Trends ===
+    pair_tensions: Dict[str, Dict] = {}
+
+    for event in events:
+        event_type = event.type if isinstance(event.type, str) else event.type.value
+
+        # Weight based on event type and importance
+        if event_type in ("war", "military", "crisis"):
+            weight = event.importance * 2
+        elif event_type == "diplomatic":
+            # Positive diplomatic = negative tension
+            weight = -event.importance if _is_positive_event_quick(event) else event.importance
+        elif event_type == "economic":
+            weight = event.importance if "sanction" in event.title.lower() else 0
+        else:
+            weight = 0
+
+        # Apply to pairs
+        for target in event.target_countries:
+            pair_key = _make_pair_key(event.actor_country, target)
+
+            if pair_key not in pair_tensions:
+                pair_tensions[pair_key] = {
+                    "country_a": event.actor_country,
+                    "country_b": target,
+                    "tension_delta": 0,
+                    "event_count": 0,
+                    "events": []
+                }
+
+            pair_tensions[pair_key]["tension_delta"] += weight
+            pair_tensions[pair_key]["event_count"] += 1
+            pair_tensions[pair_key]["events"].append(event.id)
+
+    # Convert to list and sort by absolute tension
+    for pair_key, data in pair_tensions.items():
+        trends.tension_trends.append(TensionTrend(
+            pair=pair_key,
+            country_a=data["country_a"],
+            country_b=data["country_b"],
+            tension_delta=data["tension_delta"],
+            event_count=data["event_count"],
+            recent_events=data["events"][-5:]  # Last 5 events
+        ))
+
+    trends.tension_trends.sort(key=lambda t: abs(t.tension_delta), reverse=True)
+
+    # === Most Active Actors ===
+    actor_counts: Dict[str, int] = {}
+    for event in events:
+        actor_counts[event.actor_country] = actor_counts.get(event.actor_country, 0) + 1
+
+    sorted_actors = sorted(actor_counts.items(), key=lambda x: -x[1])
+    trends.most_active_actors = [
+        {"country": actor, "event_count": count}
+        for actor, count in sorted_actors[:5]
+    ]
+
+    # === Rising Event Types ===
+    # Compare first half vs second half of period
+    mid_point = start_date.add_months(lookback_months // 2)
+    first_half_types: Dict[str, int] = {}
+    second_half_types: Dict[str, int] = {}
+
+    for event in events:
+        event_type = event.type if isinstance(event.type, str) else event.type.value
+        if event.date < mid_point:
+            first_half_types[event_type] = first_half_types.get(event_type, 0) + 1
+        else:
+            second_half_types[event_type] = second_half_types.get(event_type, 0) + 1
+
+    # Types that increased
+    rising_types = []
+    for etype, count2 in second_half_types.items():
+        count1 = first_half_types.get(etype, 0)
+        if count2 > count1 * 1.5 and count2 >= 3:  # 50% increase, at least 3 events
+            rising_types.append(etype)
+
+    trends.rising_event_types = rising_types
+
+    # === Generate Alerts ===
+    alerts = []
+
+    # High tension alerts
+    for tension in trends.tension_trends[:5]:
+        if tension.tension_delta > 15:
+            alerts.append({
+                "level": "danger",
+                "type": "rising_tension",
+                "message": f"Tensions en forte hausse entre {tension.country_a} et {tension.country_b}",
+                "countries": [tension.country_a, tension.country_b],
+                "severity": min(100, int(tension.tension_delta * 3))
+            })
+        elif tension.tension_delta < -15:
+            alerts.append({
+                "level": "positive",
+                "type": "improving_relations",
+                "message": f"Amelioration des relations {tension.country_a}-{tension.country_b}",
+                "countries": [tension.country_a, tension.country_b],
+                "severity": min(100, int(abs(tension.tension_delta) * 2))
+            })
+
+    # Player-specific alerts
+    if player_country:
+        player_tensions = [t for t in trends.tension_trends if player_country in (t.country_a, t.country_b)]
+        for tension in player_tensions[:3]:
+            other = tension.country_b if tension.country_a == player_country else tension.country_a
+            if tension.tension_delta > 10:
+                alerts.append({
+                    "level": "warning",
+                    "type": "player_tension",
+                    "message": f"Vos relations avec {other} se deteriorent",
+                    "countries": [player_country, other],
+                    "severity": min(100, int(tension.tension_delta * 4))
+                })
+
+    # Event type alerts
+    if "war" in trends.rising_event_types or "military" in trends.rising_event_types:
+        alerts.append({
+            "level": "warning",
+            "type": "militarization",
+            "message": "Hausse des evenements militaires dans le monde",
+            "countries": [],
+            "severity": 60
+        })
+
+    if "crisis" in trends.rising_event_types:
+        alerts.append({
+            "level": "danger",
+            "type": "instability",
+            "message": "Multiplication des crises mondiales",
+            "countries": [],
+            "severity": 75
+        })
+
+    trends.alerts = alerts
+
+    return trends
+
+
+def _make_pair_key(country_a: str, country_b: str) -> str:
+    """Create a canonical pair key (alphabetically sorted)"""
+    if country_a < country_b:
+        return f"{country_a}-{country_b}"
+    return f"{country_b}-{country_a}"
+
+
+def get_strategic_overview(
+    timeline: "TimelineManager",
+    current_date: "GameDate",
+    crisis_manager: Optional[Any] = None,
+    world_mood: Optional[Any] = None,
+    player_country: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Get a complete strategic overview combining:
+    - Timeline trends
+    - Active crises
+    - World mood/era
+    - Monthly highlights
+    """
+    trends = analyze_trends(timeline, current_date, lookback_months=6, player_country=player_country)
+    highlights = generate_monthly_highlights(timeline, current_date.year, current_date.month, player_country)
+
+    overview = {
+        "current_date": str(current_date),
+        "player_country": player_country,
+
+        # Trends
+        "trends": {
+            "tension_trends": [t.model_dump() for t in trends.tension_trends[:10]],
+            "most_active_actors": trends.most_active_actors,
+            "rising_event_types": trends.rising_event_types,
+            "alerts": trends.alerts,
+            "total_events_analyzed": trends.total_events_analyzed
+        },
+
+        # Monthly highlights
+        "monthly_highlights": highlights.model_dump(),
+
+        # Crises (if available)
+        "active_crises": [],
+
+        # World mood (if available)
+        "world_mood": None,
+
+        # Summary stats
+        "summary": {
+            "danger_level": _calculate_danger_level(trends, highlights),
+            "stability_index": _calculate_stability_index(trends),
+            "key_regions": highlights.active_regions
+        }
+    }
+
+    # Add crisis data if available
+    if crisis_manager and hasattr(crisis_manager, 'active_crises'):
+        overview["active_crises"] = [
+            {
+                "id": c.id,
+                "name_fr": c.name_fr,
+                "phase": c.current_phase.value if hasattr(c.current_phase, 'value') else c.current_phase,
+                "intensity": c.intensity,
+                "actors": c.primary_actors
+            }
+            for c in crisis_manager.active_crises
+        ]
+
+    # Add world mood if available
+    if world_mood:
+        overview["world_mood"] = {
+            "era": world_mood.current_era.value if hasattr(world_mood.current_era, 'value') else world_mood.current_era,
+            "era_fr": world_mood.get_era_display('fr') if hasattr(world_mood, 'get_era_display') else str(world_mood.current_era),
+            "global_confidence": world_mood.global_confidence,
+            "war_fatigue": world_mood.war_fatigue,
+            "nuclear_anxiety": world_mood.nuclear_anxiety
+        }
+
+    return overview
+
+
+def _calculate_danger_level(trends: TimelineTrends, highlights: MonthlyHighlights) -> int:
+    """Calculate overall danger level (0-100)"""
+    danger = 0
+
+    # From alerts
+    for alert in trends.alerts:
+        if alert["level"] == "danger":
+            danger += 15
+        elif alert["level"] == "warning":
+            danger += 8
+
+    # From critical events
+    critical_count = highlights.by_importance.get(5, 0)
+    danger += critical_count * 10
+
+    # From crisis events
+    danger += highlights.crisis_events_count * 5
+
+    # From rising tensions
+    for tension in trends.tension_trends[:5]:
+        if tension.tension_delta > 20:
+            danger += 10
+        elif tension.tension_delta > 10:
+            danger += 5
+
+    return min(100, danger)
+
+
+def _calculate_stability_index(trends: TimelineTrends) -> int:
+    """Calculate global stability index (0-100, higher = more stable)"""
+    stability = 70  # Base stability
+
+    # Reduce for rising event types
+    if "war" in trends.rising_event_types:
+        stability -= 15
+    if "crisis" in trends.rising_event_types:
+        stability -= 10
+    if "military" in trends.rising_event_types:
+        stability -= 5
+
+    # Reduce for high tensions
+    high_tension_count = sum(1 for t in trends.tension_trends if t.tension_delta > 15)
+    stability -= high_tension_count * 5
+
+    # Increase for improving relations
+    improving_count = sum(1 for t in trends.tension_trends if t.tension_delta < -10)
+    stability += improving_count * 3
+
+    return max(0, min(100, stability))

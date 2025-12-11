@@ -1992,3 +1992,185 @@ export function getImportanceLabel(importance: number): string {
     default: return 'Anecdotique';
   }
 }
+
+// =============================================================================
+// INTELLIGENT FILTERING (Phase 2 - Axe 7: Filtrage Intelligent)
+// =============================================================================
+
+export interface GroupedEvents {
+  critical: TimelineEvent[];
+  player_related: TimelineEvent[];
+  by_region: Record<string, TimelineEvent[]>;
+  by_type: Record<string, TimelineEvent[]>;
+  merged_minor: MergedEventGroup[];
+}
+
+export interface MergedEventGroup {
+  type: 'merged' | 'single';
+  event_type?: string;
+  actor_country?: string;
+  count?: number;
+  avg_importance?: number;
+  event_ids?: string[];
+  summary_fr?: string;
+  event_id?: string;
+  event_data?: {
+    id: string;
+    title_fr: string;
+    actor_country: string;
+    importance: number;
+  };
+}
+
+export interface MonthlyHighlights {
+  year: number;
+  month: number;
+  top_events: string[];
+  top_events_data: Array<{
+    id: string;
+    title_fr: string;
+    actor_country: string;
+    importance: number;
+    type: string;
+    date: string;
+  }>;
+  summary_fr: string;
+  total_events: number;
+  by_type: Record<string, number>;
+  by_importance: Record<number, number>;
+  rising_tensions: string[];
+  improving_relations: string[];
+  active_regions: string[];
+  crisis_events_count: number;
+  precursor_events_count: number;
+}
+
+// Region names for display
+export const TIMELINE_REGION_NAMES_FR: Record<string, string> = {
+  north_america: 'Amerique du Nord',
+  europe: 'Europe',
+  eurasia: 'Eurasie',
+  east_asia: 'Asie de l\'Est',
+  south_asia: 'Asie du Sud',
+  south_america: 'Amerique du Sud',
+  middle_east: 'Moyen-Orient',
+  africa: 'Afrique',
+  oceania: 'Oceanie',
+  southeast_asia: 'Asie du Sud-Est',
+  unknown: 'Autres regions',
+};
+
+// =============================================================================
+// STRATEGIC TIMELINE (Phase 2 - Axe 8: Timeline Strategique)
+// =============================================================================
+
+export interface TensionTrend {
+  pair: string;
+  country_a: string;
+  country_b: string;
+  tension_delta: number;
+  event_count: number;
+  recent_events: string[];
+}
+
+export interface TimelineTrends {
+  tension_trends: TensionTrend[];
+  most_active_actors: Array<{ country: string; event_count: number }>;
+  rising_event_types: string[];
+  ai_predictions: Array<{
+    prediction: string;
+    confidence: number;
+    reasoning?: string;
+  }>;
+  alerts: TimelineAlert[];
+  total_events_analyzed: number;
+  period_months: number;
+  avg_events_per_month: number;
+}
+
+export interface TimelineAlert {
+  level: 'danger' | 'warning' | 'positive' | 'info';
+  type: string;
+  message: string;
+  countries: string[];
+  severity: number;
+}
+
+export interface StrategicOverview {
+  current_date: string;
+  player_country: string | null;
+  trends: {
+    tension_trends: TensionTrend[];
+    most_active_actors: Array<{ country: string; event_count: number }>;
+    rising_event_types: string[];
+    alerts: TimelineAlert[];
+    total_events_analyzed: number;
+  };
+  monthly_highlights: MonthlyHighlights;
+  active_crises: Array<{
+    id: string;
+    name_fr: string;
+    phase: string;
+    intensity: number;
+    actors: string[];
+  }>;
+  world_mood: {
+    era: string;
+    era_fr: string;
+    global_confidence: number;
+    war_fatigue: number;
+    nuclear_anxiety: number;
+  } | null;
+  summary: {
+    danger_level: number;
+    stability_index: number;
+    key_regions: string[];
+  };
+}
+
+// Alert level colors
+export const ALERT_LEVEL_COLORS: Record<string, string> = {
+  danger: 'bg-red-100 border-red-500 text-red-800',
+  warning: 'bg-amber-100 border-amber-500 text-amber-800',
+  positive: 'bg-green-100 border-green-500 text-green-800',
+  info: 'bg-blue-100 border-blue-500 text-blue-800',
+};
+
+// Alert level icons
+export const ALERT_LEVEL_ICONS: Record<string, string> = {
+  danger: '🚨',
+  warning: '⚠️',
+  positive: '✅',
+  info: 'ℹ️',
+};
+
+/**
+ * Get tension trend color based on delta
+ */
+export function getTensionColor(delta: number): string {
+  if (delta > 20) return 'text-red-600';
+  if (delta > 10) return 'text-orange-500';
+  if (delta > 0) return 'text-amber-500';
+  if (delta < -10) return 'text-green-500';
+  return 'text-gray-500';
+}
+
+/**
+ * Get stability index color
+ */
+export function getStabilityColor(index: number): string {
+  if (index >= 70) return 'bg-green-500';
+  if (index >= 50) return 'bg-yellow-500';
+  if (index >= 30) return 'bg-orange-500';
+  return 'bg-red-500';
+}
+
+/**
+ * Get danger level color
+ */
+export function getDangerColor(level: number): string {
+  if (level >= 70) return 'bg-red-600';
+  if (level >= 50) return 'bg-orange-500';
+  if (level >= 30) return 'bg-yellow-500';
+  return 'bg-green-500';
+}

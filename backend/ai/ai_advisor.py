@@ -10,6 +10,13 @@ import httpx
 from pydantic import BaseModel, Field
 
 from config import settings
+from ai.personalities import (
+    AdvisorPersonality,
+    get_personality,
+    get_personality_prompt,
+    apply_personality_to_prompt,
+    get_all_personalities,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -72,10 +79,29 @@ class AIAdvisor:
         self.model = model or "qwen2.5:7b"
         self.timeout = 30.0
 
+        # Current personality (can be changed per session)
+        self.current_personality: str = AdvisorPersonality.REALIST
+
         # Cooldowns to avoid spam
         self.last_advice_year: Dict[str, int] = {}
         self.last_briefing_year: int = 0
         self.last_media_year: int = 0
+
+    def set_personality(self, personality_id: str) -> bool:
+        """Set the advisor personality"""
+        if personality_id in [p.value for p in AdvisorPersonality]:
+            self.current_personality = personality_id
+            logger.info(f"Advisor personality set to: {personality_id}")
+            return True
+        return False
+
+    def get_current_personality(self) -> Dict[str, Any]:
+        """Get current personality info"""
+        return get_personality(self.current_personality)
+
+    def get_available_personalities(self) -> Dict[str, Any]:
+        """Get all available personalities"""
+        return get_all_personalities()
 
     async def _call_ollama(self, prompt: str, max_tokens: int = 500) -> Optional[str]:
         """Call Ollama API and return response"""
@@ -120,15 +146,19 @@ class AIAdvisor:
     # =========================================================================
 
     async def get_strategic_advice(
-        self, world: Any, player: Any, focus: str = None
+        self, world: Any, player: Any, focus: str = None, personality: str = None
     ) -> Optional[List[StrategicAdvice]]:
         """Generate proactive strategic advice for the player"""
+
+        # Use specified personality or current default
+        active_personality = personality or self.current_personality
+        personality_info = get_personality(active_personality)
 
         # Build context
         context = self._build_player_context(world, player)
         focus_hint = f"\nFocus particulier: {focus}" if focus else ""
 
-        prompt = f"""Tu es le conseiller strategique du dirigeant de {player.name_fr}.
+        base_prompt = f"""Tu es le conseiller strategique du dirigeant de {player.name_fr}.
 Analyse la situation et donne 2-3 conseils strategiques prioritaires.
 
 {context}
@@ -147,6 +177,9 @@ Reponds UNIQUEMENT avec ce JSON:
     }}
   ]
 }}"""
+
+        # Apply personality to prompt
+        prompt = apply_personality_to_prompt(base_prompt, active_personality)
 
         response = await self._call_ollama(prompt, 600)
         if not response:
@@ -502,9 +535,14 @@ CONFLITS MONDIAUX:
         player: Any,
         message: str,
         context: dict = None,
-        conversation_history: list = None
+        conversation_history: list = None,
+        personality: str = None
     ) -> Optional[str]:
         """Have a free-form conversation with the AI advisor"""
+
+        # Use specified personality or current default
+        active_personality = personality or self.current_personality
+        personality_info = get_personality(active_personality)
 
         # Build game context
         game_context = self._build_player_context(world, player)
@@ -533,7 +571,7 @@ CONFLITS MONDIAUX:
                 role = "Joueur" if msg.get("role") == "user" else "Conseiller"
                 history_text += f"{role}: {msg.get('content', '')}\n"
 
-        prompt = f"""Tu es un conseiller strategique expert en geopolitique pour le jeu PAX Mundi.
+        base_prompt = f"""Tu es un conseiller strategique expert en geopolitique pour le jeu PAX Mundi.
 Tu conseilles le dirigeant de {player.name_fr}.
 
 {game_context}
@@ -546,6 +584,9 @@ QUESTION DU JOUEUR: {message}
 Reponds de maniere concise, strategique et utile en francais.
 Donne des conseils actionables bases sur la situation actuelle.
 Maximum 3-4 phrases."""
+
+        # Apply personality to prompt
+        prompt = apply_personality_to_prompt(base_prompt, active_personality)
 
         response = await self._call_ollama(prompt, 400)
         if not response:
