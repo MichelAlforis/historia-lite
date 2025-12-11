@@ -89,7 +89,7 @@ class TierManager:
         if abs(natural_tier - current_tier) >= 2:
             logger.info(
                 f"{country.id}: Major tier change {current_tier} -> {natural_tier} "
-                f"(power={country.power_score})"
+                f"(power={country.get_power_score()})"
             )
             return natural_tier
 
@@ -198,7 +198,7 @@ class TierManager:
             c for c in countries.values()
             if c.region == focus_region and c.tier >= 5
         ]
-        candidates.sort(key=lambda c: c.power_score, reverse=True)
+        candidates.sort(key=lambda c: c.get_power_score(), reverse=True)
 
         promoted = 0
         for country in candidates:

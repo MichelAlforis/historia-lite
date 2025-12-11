@@ -1222,7 +1222,7 @@ def _check_era_transition(
         return GeopoliticalEra.SANCTIONS_ERA
 
     # Multipolar Shift: multiple strong powers emerging
-    strong_powers = [c for c in world.countries.values() if c.power_score > 200]
+    strong_powers = [c for c in world.countries.values() if c.get_power_score() > 200]
     if len(strong_powers) >= 5:
         return GeopoliticalEra.MULTIPOLAR_SHIFT
 

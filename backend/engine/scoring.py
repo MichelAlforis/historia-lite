@@ -282,7 +282,7 @@ class ScoringManager:
         """Get country rankings with optional fog of war"""
         countries = sorted(
             world.get_countries_list(),
-            key=lambda c: c.power_score,
+            key=lambda c: c.get_power_score(),
             reverse=True
         )
 
@@ -294,7 +294,7 @@ class ScoringManager:
                 "name": country.name,
                 "name_fr": country.name_fr,
                 "tier": country.tier,
-                "score": country.power_score,
+                "score": country.get_power_score(),
                 "confidence": "exact"
             }
 
@@ -311,7 +311,7 @@ class ScoringManager:
                     elif intel_quality in [IntelQuality.PARTIAL, IntelQuality.GOOD]:
                         import random
                         error = random.randint(-15, 15)
-                        entry["score"] = max(0, country.power_score + error)
+                        entry["score"] = max(0, country.get_power_score() + error)
                         entry["confidence"] = "estimate"
 
             results.append(entry)
