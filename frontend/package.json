@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev --port 3002",
-    "build": "NODE_ENV=production next build",
+    "build": "NODE_ENV=production next build && npm run postbuild",
+    "postbuild": "cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/ 2>/dev/null || true",
     "start": "next start --port 3001",
     "lint": "next lint"
   },
