@@ -111,7 +111,7 @@ async def advance_tick_with_ollama():
 
     old_year = world.year
 
-    events = await process_tick_with_ollama(
+    events, game_end_state = await process_tick_with_ollama(
         world=world,
         event_pool=event_pool,
         ollama=ollama,
@@ -127,11 +127,22 @@ async def advance_tick_with_ollama():
     summary = f"Year {old_year}: {ai_decisions} AI decisions, {decisions} algo decisions, {crises} crises"
     summary_fr = f"Annee {old_year}: {ai_decisions} decisions IA, {decisions} decisions algo, {crises} crises"
 
+    if game_end_state:
+        summary += f" - GAME ENDED: {game_end_state.message}"
+        summary_fr += f" - FIN DE PARTIE: {game_end_state.message_fr}"
+
     logger.info(f"Ollama tick completed: {summary}")
 
     return TickResponse(
         year=world.year,
         events=event_responses,
         summary=summary,
-        summary_fr=summary_fr
+        summary_fr=summary_fr,
+        game_ended=world.game_ended,
+        game_end_reason=world.game_end_reason,
+        game_end_message=world.game_end_message,
+        game_end_message_fr=world.game_end_message_fr,
+        is_victory=game_end_state.is_victory if game_end_state else False,
+        final_score=world.final_score,
+        defcon_level=world.defcon_level,
     )

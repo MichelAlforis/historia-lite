@@ -12,6 +12,7 @@ import {
 import { StatBar } from './StatBar';
 import { getPowerGlobalInfluence, getBasesByOwner } from '@/lib/api';
 import { InfluenceBreakdownMini } from './InfluenceBreakdownChart';
+import { PowerScoreCard } from './PowerScoreCard';
 
 interface CountryPanelProps {
   country: Country;
@@ -89,12 +90,10 @@ export function CountryPanel({ country, allCountries, onClose }: CountryPanelPro
         </div>
       </div>
 
-      {/* Power Score */}
-      <div className="bg-gray-700 rounded-lg p-4 mb-6 text-center">
-        <div className="text-3xl font-bold text-yellow-400">
-          {country.power_score.toFixed(1)}
-        </div>
-        <div className="text-sm text-gray-400">Score de puissance global</div>
+      {/* Power Scores - New Scoring System */}
+      <div className="mb-6">
+        <h3 className="font-bold text-gray-300 mb-2">Scores de Puissance</h3>
+        <PowerScoreCard countryId={country.id} />
       </div>
 
       {/* Personality */}

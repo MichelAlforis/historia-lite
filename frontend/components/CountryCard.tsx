@@ -1,7 +1,9 @@
 'use client';
 
-import { Country, TIER_NAMES, REGIME_NAMES, COUNTRY_FLAGS } from '@/lib/types';
+import { useState, useEffect } from 'react';
+import { Country, TIER_NAMES, REGIME_NAMES, COUNTRY_FLAGS, CountryScores, SCORING_CATEGORY_COLORS } from '@/lib/types';
 import { StatBar } from './StatBar';
+import { getCountryScores } from '@/lib/api';
 
 interface CountryCardProps {
   country: Country;
@@ -26,9 +28,15 @@ const TIER_GLOWS: Record<number, string> = {
 };
 
 export function CountryCard({ country, isSelected, onClick }: CountryCardProps) {
+  const [scores, setScores] = useState<CountryScores | null>(null);
   const tierGradient = TIER_GRADIENTS[country.tier] || TIER_GRADIENTS[4];
   const tierGlow = TIER_GLOWS[country.tier] || TIER_GLOWS[4];
   const flag = COUNTRY_FLAGS[country.id] || '';
+
+  // Load scores on mount
+  useEffect(() => {
+    getCountryScores(country.id).then(setScores).catch(() => {});
+  }, [country.id]);
 
   // Determine status indicators
   const isAtWar = country.at_war.length > 0;
@@ -87,7 +95,7 @@ export function CountryCard({ country, isSelected, onClick }: CountryCardProps) 
         </div>
       </div>
 
-      {/* Power score */}
+      {/* Power score with mini bars */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className={`px-3 py-1.5 rounded-lg ${
@@ -96,18 +104,45 @@ export function CountryCard({ country, isSelected, onClick }: CountryCardProps) 
             'bg-gray-700/50 border border-gray-600/50'
           }`}>
             <div className="text-xl font-bold text-yellow-400">
-              {country.power_score.toFixed(0)}
+              {scores?.global_score ?? country.power_score.toFixed(0)}
             </div>
           </div>
-          <div className="text-xs text-gray-500">
-            Score de<br/>puissance
-          </div>
+          {scores && (
+            <div className="flex gap-0.5">
+              {(['military', 'economic', 'stability', 'influence'] as const).map((cat) => {
+                const s = scores[cat];
+                const color = SCORING_CATEGORY_COLORS[cat] || 'bg-gray-500';
+                return (
+                  <div
+                    key={cat}
+                    className="w-1.5 h-6 bg-gray-700 rounded-sm overflow-hidden"
+                    title={`${cat}: ${s.score}`}
+                  >
+                    <div
+                      className={`w-full ${color}`}
+                      style={{ height: `${s.score}%`, marginTop: `${100 - s.score}%` }}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
-        {/* Population indicator */}
+        {/* Rank indicator */}
         <div className="text-right">
-          <div className="text-sm font-medium">{country.population}</div>
-          <div className="text-xs text-gray-500">Population</div>
+          {scores && (
+            <>
+              <div className="text-sm font-medium">#{scores.world_rank}</div>
+              <div className="text-xs text-gray-500">Rang mondial</div>
+            </>
+          )}
+          {!scores && (
+            <>
+              <div className="text-sm font-medium">{country.population}</div>
+              <div className="text-xs text-gray-500">Population</div>
+            </>
+          )}
         </div>
       </div>
 

@@ -1,8 +1,12 @@
 """Ollama LLM integration for Historia Lite AI decisions"""
+import asyncio
 import logging
 import httpx
 import json
-from typing import Optional, Dict, Any, List
+import time
+from typing import Optional, Dict, Any, List, Tuple
+from dataclasses import dataclass, field
+from collections import OrderedDict
 
 from config import settings
 from engine.country import Country
@@ -12,8 +16,115 @@ from engine.events import Event
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class CachedDecision:
+    """Cached decision with metadata"""
+    decision: Dict[str, Any]
+    created_tick: int
+    situation_hash: str
+
+
+class DecisionCache:
+    """LRU cache for AI decisions with TTL"""
+
+    def __init__(self, max_size: int = 100, ttl_ticks: int = 5):
+        self.cache: OrderedDict[str, CachedDecision] = OrderedDict()
+        self.max_size = max_size
+        self.ttl_ticks = ttl_ticks
+        self.hits = 0
+        self.misses = 0
+
+    def _make_key(self, country_id: str, situation_hash: str) -> str:
+        return f"{country_id}:{situation_hash}"
+
+    def _hash_situation(self, country: Country, world: World) -> str:
+        """Create hash of relevant situation factors"""
+        factors = [
+            country.economy // 10,  # Round to reduce cache misses
+            country.military // 10,
+            country.stability // 10,
+            len(country.at_war),
+            len(country.rivals),
+            world.global_tension // 20,
+            world.defcon_level,
+        ]
+        return "_".join(str(f) for f in factors)
+
+    def get(self, country: Country, world: World) -> Optional[Dict[str, Any]]:
+        """Get cached decision if valid"""
+        situation_hash = self._hash_situation(country, world)
+        key = self._make_key(country.id, situation_hash)
+
+        if key in self.cache:
+            cached = self.cache[key]
+            # Check TTL
+            if world.year - cached.created_tick <= self.ttl_ticks:
+                self.hits += 1
+                # Move to end (LRU)
+                self.cache.move_to_end(key)
+                logger.debug(f"Cache hit for {country.id}")
+                return cached.decision
+            else:
+                # Expired
+                del self.cache[key]
+
+        self.misses += 1
+        return None
+
+    def set(self, country: Country, world: World, decision: Dict[str, Any]):
+        """Cache a decision"""
+        situation_hash = self._hash_situation(country, world)
+        key = self._make_key(country.id, situation_hash)
+
+        # Evict oldest if at capacity
+        if len(self.cache) >= self.max_size:
+            self.cache.popitem(last=False)
+
+        self.cache[key] = CachedDecision(
+            decision=decision,
+            created_tick=world.year,
+            situation_hash=situation_hash
+        )
+
+    def get_stats(self) -> Dict[str, Any]:
+        """Get cache statistics"""
+        total = self.hits + self.misses
+        return {
+            "size": len(self.cache),
+            "hits": self.hits,
+            "misses": self.misses,
+            "hit_rate": self.hits / total if total > 0 else 0,
+        }
+
+    def clear(self):
+        """Clear cache"""
+        self.cache.clear()
+        self.hits = 0
+        self.misses = 0
+
+
+class RateLimiter:
+    """Simple rate limiter for API calls"""
+
+    def __init__(self, min_interval: float = 1.0):
+        self.min_interval = min_interval
+        self.last_request: Dict[str, float] = {}
+
+    async def wait(self, key: str = "default"):
+        """Wait if needed to respect rate limit"""
+        now = time.time()
+        last = self.last_request.get(key, 0)
+        wait_time = self.min_interval - (now - last)
+
+        if wait_time > 0:
+            logger.debug(f"Rate limiting: waiting {wait_time:.2f}s")
+            await asyncio.sleep(wait_time)
+
+        self.last_request[key] = time.time()
+
+
 class OllamaAI:
-    """AI decision making using Ollama LLM"""
+    """AI decision making using Ollama LLM with caching and rate limiting"""
 
     def __init__(
         self,
@@ -23,6 +134,15 @@ class OllamaAI:
         self.base_url = base_url
         self.model = model
         self.timeout = settings.ollama_timeout
+        self.cache = DecisionCache(
+            max_size=100,
+            ttl_ticks=getattr(settings, 'ollama_cache_ttl', 5)
+        )
+        self.rate_limiter = RateLimiter(
+            min_interval=getattr(settings, 'ollama_rate_limit', 1.0)
+        )
+        self.fallback_count = 0
+        self.success_count = 0
 
     async def is_available(self) -> bool:
         """Check if Ollama is available"""
@@ -69,7 +189,15 @@ class OllamaAI:
     async def make_decision(
         self, country: Country, world: World
     ) -> Optional[Dict[str, Any]]:
-        """Ask Ollama to make a decision for a country"""
+        """Ask Ollama to make a decision for a country (with caching and fallback)"""
+
+        # Check cache first
+        cached = self.cache.get(country, world)
+        if cached:
+            return cached
+
+        # Rate limit
+        await self.rate_limiter.wait(key="ollama")
 
         # Build context prompt
         prompt = self._build_prompt(country, world)
@@ -92,23 +220,103 @@ class OllamaAI:
 
                 if response.status_code != 200:
                     logger.error(f"Ollama error: {response.status_code}")
-                    return None
+                    self.fallback_count += 1
+                    return self._algorithmic_fallback(country, world)
 
                 result = response.json()
-                return self._parse_response(result.get("response", ""), country, world)
+                decision = self._parse_response(result.get("response", ""), country, world)
+
+                if decision:
+                    self.success_count += 1
+                    # Cache successful decision
+                    self.cache.set(country, world, decision)
+                    return decision
+                else:
+                    self.fallback_count += 1
+                    return self._algorithmic_fallback(country, world)
 
         except httpx.TimeoutException:
-            logger.warning(f"Ollama timeout for {country.id}")
-            return None
+            logger.warning(f"Ollama timeout for {country.id} - using fallback")
+            self.fallback_count += 1
+            return self._algorithmic_fallback(country, world)
         except httpx.ConnectError as e:
             logger.error(f"Ollama connection refused for {country.id}: {e}")
-            return None
+            self.fallback_count += 1
+            return self._algorithmic_fallback(country, world)
         except httpx.HTTPError as e:
             logger.error(f"Ollama HTTP error for {country.id}: {e}")
-            return None
+            self.fallback_count += 1
+            return self._algorithmic_fallback(country, world)
         except json.JSONDecodeError as e:
             logger.error(f"Ollama response parse error for {country.id}: {e}")
-            return None
+            self.fallback_count += 1
+            return self._algorithmic_fallback(country, world)
+
+    def _algorithmic_fallback(
+        self, country: Country, world: World
+    ) -> Optional[Dict[str, Any]]:
+        """Fallback to algorithmic decision when Ollama fails"""
+        logger.info(f"[Fallback] Using algorithmic decision for {country.id}")
+
+        # Simple priority-based decision
+        actions = []
+
+        # At war? Focus on military
+        if country.at_war:
+            actions.append(("MILITAIRE", None, "En guerre - renforcement militaire"))
+
+        # Low stability? Fix it
+        if country.stability < 40:
+            actions.append(("STABILITE", None, "Stabilite critique"))
+
+        # Low economy? Develop
+        if country.economy < 50:
+            actions.append(("ECONOMIE", None, "Economie faible"))
+
+        # Have rivals and strong? Consider sanctions
+        if country.rivals and country.economy > 60:
+            rival = country.rivals[0]
+            if rival not in country.sanctions_on:
+                actions.append(("SANCTIONS", rival, f"Sanction contre {rival}"))
+
+        # Tech behind? Research
+        if country.technology < 60 and country.economy > 50:
+            actions.append(("TECHNOLOGIE", None, "Retard technologique"))
+
+        # Nuclear program if tier 1-2 and tech high
+        if country.tier <= 2 and country.technology >= 70 and country.nuclear < 50:
+            actions.append(("NUCLEAIRE", None, "Developpement nucleaire"))
+
+        # Expand influence if stable
+        if country.stability > 70 and country.economy > 60:
+            actions.append(("INFLUENCE", None, "Expansion d'influence"))
+
+        # Default: economy
+        actions.append(("ECONOMIE", None, "Developpement par defaut"))
+
+        # Pick first valid action
+        action, target, reason = actions[0]
+
+        decision = {
+            "action": action,
+            "target": target,
+            "reason": reason,
+            "is_fallback": True,
+        }
+
+        # Cache fallback decision too
+        self.cache.set(country, world, decision)
+        return decision
+
+    def get_stats(self) -> Dict[str, Any]:
+        """Get AI statistics"""
+        total = self.success_count + self.fallback_count
+        return {
+            "success_count": self.success_count,
+            "fallback_count": self.fallback_count,
+            "success_rate": self.success_count / total if total > 0 else 0,
+            "cache_stats": self.cache.get_stats(),
+        }
 
     def _build_prompt(self, country: Country, world: World) -> str:
         """Build the decision prompt for Ollama"""

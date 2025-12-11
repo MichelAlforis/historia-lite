@@ -326,6 +326,58 @@ body {
 .animate-shrink { animation: shrink linear forwards; }
 .animate-bounce { animation: bounce 0.3s ease-in-out; }
 
+/* Phase 17: Procedural events animations */
+@keyframes pulse-subtle {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+@keyframes bounce-once {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  15% {
+    transform: translateY(-8px);
+  }
+  30% {
+    transform: translateY(0);
+  }
+  45% {
+    transform: translateY(-4px);
+  }
+  60% {
+    transform: translateY(0);
+  }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s ease-in-out infinite;
+}
+
+.animate-bounce-once {
+  animation: bounce-once 0.6s ease-out;
+}
+
+/* Float animation for victory particles */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translateY(-20px) scale(1.2);
+    opacity: 0.6;
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
 /* fadeInUp (same as slideUp but named differently) */
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(10px); }
@@ -1049,3 +1101,123 @@ body {
   color: #64748b;
   margin: 0;
 }
+
+/* ============================================================================
+   CRITICAL EVENTS ANIMATIONS
+   ============================================================================ */
+
+/* Flash rouge écran pour événements critiques (nuclear, war, DEFCON 1-2) */
+@keyframes criticalFlash {
+  0%, 100% { box-shadow: inset 0 0 0 0 transparent; }
+  50% { box-shadow: inset 0 0 100px 30px rgba(239, 68, 68, 0.4); }
+}
+
+.critical-flash {
+  animation: criticalFlash 0.5s ease-in-out 3;
+}
+
+/* Banner DEFCON slide animations */
+@keyframes defconSlideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes defconSlideUp {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+}
+
+.defcon-banner-enter {
+  animation: defconSlideDown 0.5s ease-out forwards;
+}
+
+.defcon-banner-exit {
+  animation: defconSlideUp 0.5s ease-in forwards;
+}
+
+/* Pulse border rouge pour événements critiques */
+@keyframes criticalBorderPulse {
+  0%, 100% {
+    border-color: rgba(239, 68, 68, 0.3);
+    box-shadow: 0 0 5px rgba(239, 68, 68, 0.2);
+  }
+  50% {
+    border-color: rgba(239, 68, 68, 0.8);
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
+  }
+}
+
+.critical-border-pulse {
+  animation: criticalBorderPulse 1s ease-in-out infinite;
+}
+
+/* Sirène d'alerte (rotation + scale) */
+@keyframes alertSiren {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  25% {
+    transform: scale(1.1) rotate(-5deg);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  75% {
+    transform: scale(1.1) rotate(5deg);
+    opacity: 0.9;
+  }
+}
+
+.animate-alert-siren {
+  animation: alertSiren 0.5s ease-in-out 3;
+}
+
+/* Glitch effect pour événements nucléaires */
+@keyframes glitch {
+  0%, 100% {
+    transform: translate(0);
+    filter: none;
+  }
+  20% {
+    transform: translate(-2px, 2px);
+    filter: hue-rotate(90deg);
+  }
+  40% {
+    transform: translate(-2px, -2px);
+    filter: hue-rotate(180deg);
+  }
+  60% {
+    transform: translate(2px, 2px);
+    filter: hue-rotate(270deg);
+  }
+  80% {
+    transform: translate(2px, -2px);
+    filter: hue-rotate(360deg);
+  }
+}
+
+.animate-glitch {
+  animation: glitch 0.3s ease-in-out 3;
+}
+
+/* DEFCON color classes */
+.defcon-1 { background-color: #7f1d1d; border-color: #ef4444; color: #fecaca; }
+.defcon-2 { background-color: #991b1b; border-color: #f87171; color: #fee2e2; }
+.defcon-3 { background-color: #9a3412; border-color: #fb923c; color: #fed7aa; }
+.defcon-4 { background-color: #854d0e; border-color: #facc15; color: #fef08a; }
+.defcon-5 { background-color: #166534; border-color: #22c55e; color: #bbf7d0; }

@@ -17,15 +17,21 @@ class Settings(BaseSettings):
     # CORS Configuration
     cors_origins: List[str] = [
         "http://localhost:3001",
+        "http://localhost:3002",
+        "http://localhost:3003",
         "http://127.0.0.1:3001",
+        "http://127.0.0.1:3002",
+        "http://127.0.0.1:3003",
         "https://historia.alforis.fr",
     ]
 
     # Ollama Configuration
     ollama_url: str = "http://localhost:11434"
     ollama_model: str = "qwen2.5:3b"
-    ollama_timeout: float = 30.0
+    ollama_timeout: float = 10.0  # Reduced from 30s for faster fallback
     ollama_tiers: List[int] = [1, 2]
+    ollama_rate_limit: float = 1.0  # Minimum seconds between requests
+    ollama_cache_ttl: int = 5  # Cache decisions for N ticks
 
     # Game Configuration
     default_seed: int = 42

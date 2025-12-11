@@ -142,7 +142,7 @@ class Tier4Country(BaseModel):
     # Simplified stats (4 instead of 8)
     economy: int = Field(default=25, ge=0, le=100)
     stability: int = Field(default=40, ge=0, le=100)
-    population: int = Field(default=15, ge=0, le=100)
+    population: int = Field(default=15, ge=0)  # Population in millions, no upper limit
     military: int = Field(default=15, ge=0, le=100)
 
     # Alignment system (-100 = pro-West, +100 = pro-China/Russia)
@@ -203,3 +203,130 @@ class Tier4Country(BaseModel):
     def shift_alignment(self, delta: int) -> None:
         """Shift alignment towards East (+) or West (-)"""
         self.alignment = max(-100, min(100, self.alignment + delta))
+
+
+class Tier5Country(BaseModel):
+    """
+    Small country model for Tier 5 (minor states).
+    Minimal AI - batch processing by region every 3 ticks.
+    Only 4 stats, no military, no individual relations.
+    """
+    id: str
+    name: str
+    name_fr: str
+    flag: str = ""
+    tier: int = Field(default=5, ge=5, le=5)
+    region: str = ""  # africa, asia, middle_east, latam, europe, oceania, caribbean
+
+    # Minimal stats (4 instead of 8)
+    economy: int = Field(default=20, ge=0, le=100)
+    stability: int = Field(default=40, ge=0, le=100)
+    population: int = Field(default=10, ge=0, le=100)
+    alignment: int = Field(default=0, ge=-100, le=100)  # -100=pro-West, +100=pro-East
+
+    # Neighbors (for regional interactions only)
+    neighbors: List[str] = Field(default_factory=list)
+
+    # Protector (major power that defends this country)
+    protector: Optional[str] = None  # USA, FRA, GBR, CHN, RUS, etc.
+
+    # Influence zone (for regional reactions)
+    influence_zone: Optional[str] = None  # western_europe, east_asia, etc.
+
+    # Crisis state
+    in_crisis: bool = False
+    crisis_type: Optional[str] = None  # coup, civil_unrest, economic_collapse, famine
+
+    def is_tier4(self) -> bool:
+        return False
+
+    def is_tier5(self) -> bool:
+        return True
+
+    def is_tier6(self) -> bool:
+        return False
+
+    def get_power_score(self) -> int:
+        """Calculate minimal power score (no military)"""
+        return int(
+            self.economy * 0.40 +
+            self.stability * 0.35 +
+            self.population * 0.25
+        )
+
+    def get_alignment_label(self) -> str:
+        """Get human-readable alignment label"""
+        if self.alignment <= -60:
+            return "pro_west"
+        elif self.alignment <= -20:
+            return "west_leaning"
+        elif self.alignment < 20:
+            return "neutral"
+        elif self.alignment < 60:
+            return "east_leaning"
+        else:
+            return "pro_east"
+
+    def shift_alignment(self, delta: int) -> None:
+        """Shift alignment towards East (+) or West (-)"""
+        self.alignment = max(-100, min(100, self.alignment + delta))
+
+
+class Tier6Country(BaseModel):
+    """
+    Micro-nation model for Tier 6 (micro-states, territories).
+    Passive AI - bulk update every 5 ticks, follows protector.
+    Only 3 stats, no autonomous decisions.
+    """
+    id: str
+    name: str
+    name_fr: str
+    flag: str = ""
+    tier: int = Field(default=6, ge=6, le=6)
+    region: str = ""  # europe, caribbean, pacific, indian_ocean, etc.
+
+    # Ultra-minimal stats (3 only)
+    economy: int = Field(default=30, ge=0, le=100)  # Can be high (Monaco, Luxembourg)
+    stability: int = Field(default=70, ge=0, le=100)  # Usually stable
+    population: int = Field(default=1, ge=0, le=10)  # Always very small (0-10 scale)
+
+    # Protector (usually required for Tier 6, but can be null for independent micro-states)
+    protector: Optional[str] = None  # USA, FRA, GBR, AUS, NZL, DNK, NLD, etc.
+
+    # Influence zone
+    influence_zone: Optional[str] = None  # western_europe, pacific, caribbean, etc.
+
+    # Special status
+    is_territory: bool = False  # True for non-sovereign territories (GUM, PYF, etc.)
+    special_status: Optional[str] = None  # tax_haven, tourism, strategic_base
+
+    def is_tier4(self) -> bool:
+        return False
+
+    def is_tier5(self) -> bool:
+        return False
+
+    def is_tier6(self) -> bool:
+        return True
+
+    def get_power_score(self) -> int:
+        """Calculate micro power score"""
+        return int(
+            self.economy * 0.50 +
+            self.stability * 0.40 +
+            self.population * 0.10
+        )
+
+    def get_protector_alignment(self, world) -> int:
+        """Get alignment from protector"""
+        if self.protector and hasattr(world, 'countries'):
+            protector = world.countries.get(self.protector)
+            if protector:
+                # Tier 6 follows protector's geopolitical stance
+                # Pro-West protectors (USA, FRA, GBR, etc.) = negative alignment
+                # Pro-East protectors (CHN, RUS) = positive alignment
+                if self.protector in ("USA", "GBR", "FRA", "DEU", "AUS", "NZL", "CAN", "JPN"):
+                    return -50
+                elif self.protector in ("CHN", "RUS"):
+                    return 50
+        return 0

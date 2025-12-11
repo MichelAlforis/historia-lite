@@ -13,7 +13,7 @@ from engine.world import World, load_world_from_json
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/saves", tags=["saves"])
+router = APIRouter(prefix="/api/saves", tags=["saves"])
 
 # Directory for save files
 SAVES_DIR = Path(__file__).parent.parent / "saves"

@@ -2,15 +2,90 @@
 import json
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 from pydantic import BaseModel, Field
 
-from .country import Country, Tier4Country
+from .country import Country, Tier4Country, Tier5Country, Tier6Country
 from .region import InfluenceZone, Region
 from .events import Event
 
 logger = logging.getLogger(__name__)
+
+
+# Month names for display
+MONTH_NAMES_EN = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+]
+MONTH_NAMES_FR = [
+    "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+    "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
+]
+
+
+class GameDate(BaseModel):
+    """Represents a specific date in the game timeline"""
+    year: int
+    month: int = 1  # 1-12
+    day: int = 1    # 1-31
+
+    def __str__(self) -> str:
+        """Format: 'February 15, 2025'"""
+        return f"{MONTH_NAMES_EN[self.month - 1]} {self.day}, {self.year}"
+
+    def to_french(self) -> str:
+        """Format: '15 Février 2025'"""
+        return f"{self.day} {MONTH_NAMES_FR[self.month - 1]} {self.year}"
+
+    def to_display_month(self, lang: str = "fr") -> str:
+        """Format: 'Février 2025' or 'February 2025'"""
+        if lang == "fr":
+            return f"{MONTH_NAMES_FR[self.month - 1]} {self.year}"
+        return f"{MONTH_NAMES_EN[self.month - 1]} {self.year}"
+
+    def to_ordinal(self) -> int:
+        """Convert to ordinal days for comparisons (approximate)"""
+        return self.year * 365 + self.month * 30 + self.day
+
+    def to_months(self) -> int:
+        """Convert to total months for easier comparisons"""
+        return self.year * 12 + self.month
+
+    def __lt__(self, other: "GameDate") -> bool:
+        return self.to_ordinal() < other.to_ordinal()
+
+    def __le__(self, other: "GameDate") -> bool:
+        return self.to_ordinal() <= other.to_ordinal()
+
+    def __gt__(self, other: "GameDate") -> bool:
+        return self.to_ordinal() > other.to_ordinal()
+
+    def __ge__(self, other: "GameDate") -> bool:
+        return self.to_ordinal() >= other.to_ordinal()
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, GameDate):
+            return False
+        return self.year == other.year and self.month == other.month and self.day == other.day
+
+    def __hash__(self) -> int:
+        return hash((self.year, self.month, self.day))
+
+    def add_months(self, months: int) -> "GameDate":
+        """Return a new GameDate with months added"""
+        total_months = self.year * 12 + (self.month - 1) + months
+        new_year = total_months // 12
+        new_month = (total_months % 12) + 1
+        return GameDate(year=new_year, month=new_month, day=self.day)
+
+    def subtract_months(self, months: int) -> "GameDate":
+        """Return a new GameDate with months subtracted"""
+        return self.add_months(-months)
+
+    def months_between(self, other: "GameDate") -> int:
+        """Calculate months between two dates"""
+        return abs(self.to_months() - other.to_months())
 
 
 class Conflict(BaseModel):
@@ -27,11 +102,19 @@ class Conflict(BaseModel):
 
 class World(BaseModel):
     """The complete game world state"""
+    # Timeline - now with month granularity
     year: int = 2025
+    month: int = 1      # 1-12
+    day: int = 1        # 1-31 (current day in simulation)
+    start_year: int = 2025
+    start_month: int = 1
+
     seed: int = 42
 
     countries: Dict[str, Country] = Field(default_factory=dict)
     tier4_countries: Dict[str, Tier4Country] = Field(default_factory=dict)
+    tier5_countries: Dict[str, Tier5Country] = Field(default_factory=dict)
+    tier6_countries: Dict[str, Tier6Country] = Field(default_factory=dict)
     regions: Dict[str, Region] = Field(default_factory=dict)
     influence_zones: Dict[str, InfluenceZone] = Field(default_factory=dict)
 
@@ -44,8 +127,60 @@ class World(BaseModel):
     oil_price: int = 80
     global_tension: int = 50
 
-    # Tick counter for Tier 4 processing (every 3 ticks)
-    tier4_tick_counter: int = 0
+    # Tick counter for tiered processing (now monthly)
+    tick_counter: int = 0
+    # Tier 4: process when tick_counter % 6 == 0 (every 6 months)
+    # Tier 5: process when tick_counter % 12 == 0 (every 12 months)
+    # Tier 6: process when tick_counter % 24 == 0 (every 24 months)
+
+    # Nuclear/DEFCON system
+    defcon_level: int = 5  # 5=peace, 1=imminent war, 0=nuclear war
+
+    # Game state
+    game_ended: bool = False
+    game_end_reason: Optional[str] = None
+    game_end_message: str = ""
+    game_end_message_fr: str = ""
+    final_score: int = 0
+
+    # Scenario tracking
+    scenario_id: Optional[str] = None
+    scenario_end_year: Optional[int] = None
+    active_objectives: List[dict] = Field(default_factory=list)
+
+    # Player tracking
+    player_country_id: Optional[str] = None
+
+    @property
+    def current_date(self) -> GameDate:
+        """Get current date as GameDate object"""
+        return GameDate(year=self.year, month=self.month, day=self.day)
+
+    @property
+    def date_display(self) -> str:
+        """Format for UI display: 'Février 2025'"""
+        return f"{MONTH_NAMES_FR[self.month - 1]} {self.year}"
+
+    @property
+    def date_display_en(self) -> str:
+        """Format for UI display: 'February 2025'"""
+        return f"{MONTH_NAMES_EN[self.month - 1]} {self.year}"
+
+    @property
+    def total_months_elapsed(self) -> int:
+        """Total months since game start"""
+        start_months = self.start_year * 12 + self.start_month
+        current_months = self.year * 12 + self.month
+        return current_months - start_months
+
+    def advance_month(self) -> None:
+        """Advance the calendar by one month"""
+        self.month += 1
+        if self.month > 12:
+            self.month = 1
+            self.year += 1
+        self.day = 1  # Reset to 1st of new month
+        self.tick_counter += 1
 
     def get_country(self, country_id: str) -> Optional[Country]:
         """Get a country by ID"""
@@ -88,9 +223,78 @@ class World(BaseModel):
         return [c for c in self.tier4_countries.values()
                 if c.get_alignment_label() == alignment_label]
 
+    # Tier 5 getters
+    def get_tier5_country(self, country_id: str) -> Optional[Tier5Country]:
+        """Get a Tier 5 country by ID"""
+        return self.tier5_countries.get(country_id)
+
+    def get_tier5_countries_list(self) -> List[Tier5Country]:
+        """Get all Tier 5 countries as a list"""
+        return list(self.tier5_countries.values())
+
+    def get_tier5_by_region(self, region: str) -> List[Tier5Country]:
+        """Get all Tier 5 countries in a specific region"""
+        return [c for c in self.tier5_countries.values() if c.region == region]
+
+    def get_tier5_by_alignment(self, alignment_label: str) -> List[Tier5Country]:
+        """Get Tier 5 countries by alignment label"""
+        return [c for c in self.tier5_countries.values()
+                if c.get_alignment_label() == alignment_label]
+
+    def get_tier5_by_protector(self, protector_id: str) -> List[Tier5Country]:
+        """Get Tier 5 countries protected by a specific power"""
+        return [c for c in self.tier5_countries.values()
+                if c.protector == protector_id]
+
+    # Tier 6 getters
+    def get_tier6_country(self, country_id: str) -> Optional[Tier6Country]:
+        """Get a Tier 6 country by ID"""
+        return self.tier6_countries.get(country_id)
+
+    def get_tier6_countries_list(self) -> List[Tier6Country]:
+        """Get all Tier 6 countries as a list"""
+        return list(self.tier6_countries.values())
+
+    def get_tier6_by_region(self, region: str) -> List[Tier6Country]:
+        """Get all Tier 6 countries in a specific region"""
+        return [c for c in self.tier6_countries.values() if c.region == region]
+
+    def get_tier6_by_protector(self, protector_id: str) -> List[Tier6Country]:
+        """Get Tier 6 countries protected by a specific power"""
+        return [c for c in self.tier6_countries.values()
+                if c.protector == protector_id]
+
+    # Universal getters
+    def get_any_country(self, country_id: str):
+        """Get any country by ID (searches all tiers)"""
+        if country_id in self.countries:
+            return self.countries[country_id]
+        if country_id in self.tier4_countries:
+            return self.tier4_countries[country_id]
+        if country_id in self.tier5_countries:
+            return self.tier5_countries[country_id]
+        if country_id in self.tier6_countries:
+            return self.tier6_countries[country_id]
+        return None
+
+    def get_countries_by_influence_zone(self, zone_id: str) -> List:
+        """Get all countries in a specific influence zone (Tier 4-6)"""
+        result = []
+        for c in self.tier4_countries.values():
+            if c.influence_zone == zone_id:
+                result.append(c)
+        for c in self.tier5_countries.values():
+            if c.influence_zone == zone_id:
+                result.append(c)
+        for c in self.tier6_countries.values():
+            if c.influence_zone == zone_id:
+                result.append(c)
+        return result
+
     def get_all_countries_count(self) -> int:
-        """Get total count of all countries (Tier 1-4)"""
-        return len(self.countries) + len(self.tier4_countries)
+        """Get total count of all countries (Tier 1-6)"""
+        return (len(self.countries) + len(self.tier4_countries) +
+                len(self.tier5_countries) + len(self.tier6_countries))
 
     def add_event(self, event: Event) -> None:
         """Add an event to history"""
@@ -190,6 +394,28 @@ def load_world_from_json(data_dir: Path, seed: int = 42) -> World:
                 country = Tier4Country(**country_data)
                 world.tier4_countries[country.id] = country
         logger.info(f"Loaded {len(world.tier4_countries)} Tier 4 countries")
+
+    # Load Tier 5 countries
+    tier5_file = data_dir / "countries_tier5.json"
+    if tier5_file.exists():
+        with open(tier5_file, "r", encoding="utf-8") as f:
+            tier5_data = json.load(f)
+            countries_list = tier5_data.get("countries", [])
+            for country_data in countries_list:
+                country = Tier5Country(**country_data)
+                world.tier5_countries[country.id] = country
+        logger.info(f"Loaded {len(world.tier5_countries)} Tier 5 countries")
+
+    # Load Tier 6 countries
+    tier6_file = data_dir / "countries_tier6.json"
+    if tier6_file.exists():
+        with open(tier6_file, "r", encoding="utf-8") as f:
+            tier6_data = json.load(f)
+            countries_list = tier6_data.get("countries", [])
+            for country_data in countries_list:
+                country = Tier6Country(**country_data)
+                world.tier6_countries[country.id] = country
+        logger.info(f"Loaded {len(world.tier6_countries)} Tier 6 countries")
 
     # Load influence zones
     zones_file = data_dir / "influence_zones.json"

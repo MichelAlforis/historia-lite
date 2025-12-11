@@ -376,19 +376,19 @@ def process_tier4_countries(
 ) -> List[Event]:
     """
     Process all Tier 4 countries.
-    Only processes every 3 ticks to reduce computation.
+    Only processes every 2 ticks to reduce computation.
 
     Args:
         world: The world state
-        tick_counter: Current tick count (0, 1, 2, 0, 1, 2, ...)
+        tick_counter: Current tick count
 
     Returns:
         List of events generated
     """
     events = []
 
-    # Only process on tick_counter == 0 (every 3 ticks)
-    if tick_counter % 3 != 0:
+    # Only process when tick_counter % 2 == 0 (every 2 ticks)
+    if tick_counter % 2 != 0:
         return events
 
     for country_id, country in world.tier4_countries.items():

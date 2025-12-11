@@ -1,0 +1,447 @@
+{
+  "events": [
+    {
+      "id": "taiwan_election_2024",
+      "year_trigger": 2024,
+      "type": "political",
+      "title": "Elections presidentielle a Taiwan",
+      "title_fr": "Elections presidentielle a Taiwan",
+      "description": "Taiwan holds presidential elections with candidates ranging from pro-independence to pro-unification.",
+      "description_fr": "Taiwan organise des elections presidentielles avec des candidats allant de l'independance au rapprochement avec la Chine.",
+      "probability": 100,
+      "effects": {
+        "countries": {
+          "TWN": {"stability": -5},
+          "CHN": {"relations": {"TWN": -10}}
+        },
+        "global_tension": 5
+      },
+      "conditions": {},
+      "tags": ["asia", "taiwan", "china", "elections"]
+    },
+    {
+      "id": "ukraine_counteroffensive",
+      "year_trigger": 2025,
+      "type": "military",
+      "title": "Ukraine Counteroffensive Operations",
+      "title_fr": "Operations de contre-offensive ukrainienne",
+      "description": "Ukraine continues military operations to regain territory.",
+      "description_fr": "L'Ukraine poursuit ses operations militaires pour reconquerir son territoire.",
+      "probability": 80,
+      "effects": {
+        "countries": {
+          "UKR": {"military": -2, "stability": -3},
+          "RUS": {"military": -2, "economy": -3}
+        },
+        "global_tension": 10
+      },
+      "conditions": {
+        "countries_at_war": ["UKR", "RUS"]
+      },
+      "tags": ["europe", "ukraine", "russia", "war"]
+    },
+    {
+      "id": "brics_expansion_2025",
+      "year_trigger": 2025,
+      "type": "diplomatic",
+      "title": "BRICS Expansion Summit",
+      "title_fr": "Sommet d'expansion des BRICS",
+      "description": "BRICS considers new members including Saudi Arabia, UAE, Egypt, Ethiopia, Iran, and Argentina.",
+      "description_fr": "Les BRICS envisagent de nouveaux membres dont l'Arabie Saoudite, les EAU, l'Egypte, l'Ethiopie, l'Iran et l'Argentine.",
+      "probability": 90,
+      "effects": {
+        "countries": {
+          "CHN": {"soft_power": 3},
+          "RUS": {"soft_power": 2},
+          "BRA": {"soft_power": 2},
+          "IND": {"soft_power": 2}
+        },
+        "global_tension": 3
+      },
+      "conditions": {},
+      "tags": ["diplomacy", "brics", "multipolar"]
+    },
+    {
+      "id": "us_elections_2024",
+      "year_trigger": 2024,
+      "type": "political",
+      "title": "US Presidential Election",
+      "title_fr": "Election presidentielle americaine",
+      "description": "The United States holds presidential elections with significant global implications.",
+      "description_fr": "Les Etats-Unis organisent des elections presidentielles aux implications mondiales significatives.",
+      "probability": 100,
+      "effects": {
+        "countries": {
+          "USA": {"stability": -3}
+        },
+        "global_tension": 5
+      },
+      "conditions": {},
+      "tags": ["usa", "elections", "politics"]
+    },
+    {
+      "id": "china_taiwan_exercises",
+      "year_trigger": 2026,
+      "type": "military",
+      "title": "Chinese Military Exercises Near Taiwan",
+      "title_fr": "Exercices militaires chinois pres de Taiwan",
+      "description": "China conducts large-scale military exercises in the Taiwan Strait.",
+      "description_fr": "La Chine mene des exercices militaires de grande envergure dans le detroit de Taiwan.",
+      "probability": 70,
+      "effects": {
+        "countries": {
+          "CHN": {"military": 2},
+          "TWN": {"stability": -10},
+          "USA": {"relations": {"CHN": -15}},
+          "JPN": {"relations": {"CHN": -10}}
+        },
+        "global_tension": 15
+      },
+      "conditions": {
+        "min_global_tension": 40
+      },
+      "tags": ["asia", "taiwan", "china", "military"]
+    },
+    {
+      "id": "iranian_nuclear_deal",
+      "year_trigger": 2026,
+      "type": "diplomatic",
+      "title": "Iran Nuclear Negotiations",
+      "title_fr": "Negociations nucleaires iraniennes",
+      "description": "World powers attempt to revive nuclear negotiations with Iran.",
+      "description_fr": "Les grandes puissances tentent de relancer les negociations nucleaires avec l'Iran.",
+      "probability": 50,
+      "effects": {
+        "countries": {
+          "IRN": {"soft_power": 5},
+          "USA": {"relations": {"IRN": 10}},
+          "ISR": {"stability": -5}
+        },
+        "global_tension": -5
+      },
+      "conditions": {
+        "max_global_tension": 70
+      },
+      "tags": ["middle_east", "iran", "nuclear", "diplomacy"]
+    },
+    {
+      "id": "arctic_tensions",
+      "year_trigger": 2027,
+      "type": "strategic",
+      "title": "Arctic Resource Competition",
+      "title_fr": "Competition pour les ressources arctiques",
+      "description": "Rising tensions over Arctic resources as ice melts open new shipping routes.",
+      "description_fr": "Tensions croissantes pour les ressources arctiques alors que la fonte des glaces ouvre de nouvelles routes maritimes.",
+      "probability": 60,
+      "effects": {
+        "countries": {
+          "RUS": {"resources": 5},
+          "USA": {"resources": 3},
+          "CAN": {"resources": 3},
+          "NOR": {"resources": 2}
+        },
+        "global_tension": 5
+      },
+      "conditions": {},
+      "tags": ["arctic", "resources", "climate"]
+    },
+    {
+      "id": "african_union_reform",
+      "year_trigger": 2026,
+      "type": "diplomatic",
+      "title": "African Union Security Reform",
+      "title_fr": "Reforme de securite de l'Union Africaine",
+      "description": "The African Union implements major security and economic reforms.",
+      "description_fr": "L'Union Africaine met en oeuvre d'importantes reformes de securite et economiques.",
+      "probability": 65,
+      "effects": {
+        "countries": {
+          "NGA": {"stability": 3, "soft_power": 2},
+          "ZAF": {"stability": 3, "soft_power": 2},
+          "EGY": {"stability": 2},
+          "KEN": {"stability": 2}
+        },
+        "global_tension": -2
+      },
+      "conditions": {},
+      "tags": ["africa", "diplomacy", "reform"]
+    },
+    {
+      "id": "space_race_2030",
+      "year_trigger": 2028,
+      "type": "technology",
+      "title": "New Space Race Intensifies",
+      "title_fr": "Intensification de la nouvelle course spatiale",
+      "description": "Competition between USA, China, and private companies for lunar resources.",
+      "description_fr": "Competition entre les USA, la Chine et les entreprises privees pour les ressources lunaires.",
+      "probability": 80,
+      "effects": {
+        "countries": {
+          "USA": {"technology": 3, "soft_power": 2},
+          "CHN": {"technology": 3, "soft_power": 2}
+        },
+        "global_tension": 3
+      },
+      "conditions": {},
+      "tags": ["space", "technology", "competition"]
+    },
+    {
+      "id": "south_china_sea_incident",
+      "year_trigger": 2027,
+      "type": "military",
+      "title": "South China Sea Incident",
+      "title_fr": "Incident en mer de Chine meridionale",
+      "description": "A naval incident occurs between Chinese and Philippine vessels in disputed waters.",
+      "description_fr": "Un incident naval survient entre des navires chinois et philippins dans les eaux contestees.",
+      "probability": 55,
+      "effects": {
+        "countries": {
+          "CHN": {"relations": {"PHL": -20, "USA": -10}},
+          "PHL": {"stability": -5},
+          "USA": {"relations": {"CHN": -10}}
+        },
+        "global_tension": 10
+      },
+      "conditions": {
+        "min_global_tension": 30
+      },
+      "tags": ["asia", "china", "philippines", "naval"]
+    },
+    {
+      "id": "indian_economic_rise",
+      "year_trigger": 2028,
+      "type": "economic",
+      "title": "India Becomes Third Largest Economy",
+      "title_fr": "L'Inde devient la troisieme economie mondiale",
+      "description": "India's economy surpasses Japan to become the world's third largest.",
+      "description_fr": "L'economie indienne depasse le Japon pour devenir la troisieme mondiale.",
+      "probability": 75,
+      "effects": {
+        "countries": {
+          "IND": {"economy": 5, "soft_power": 3},
+          "JPN": {"soft_power": -2}
+        },
+        "global_tension": 0
+      },
+      "conditions": {},
+      "tags": ["india", "japan", "economy"]
+    },
+    {
+      "id": "european_defense_force",
+      "year_trigger": 2029,
+      "type": "military",
+      "title": "European Defense Initiative",
+      "title_fr": "Initiative de defense europeenne",
+      "description": "EU member states agree to establish a rapid reaction force.",
+      "description_fr": "Les Etats membres de l'UE conviennent de creer une force de reaction rapide.",
+      "probability": 45,
+      "effects": {
+        "countries": {
+          "FRA": {"military": 3, "soft_power": 2},
+          "DEU": {"military": 3},
+          "ITA": {"military": 2},
+          "ESP": {"military": 2}
+        },
+        "global_tension": 3
+      },
+      "conditions": {
+        "min_global_tension": 40
+      },
+      "tags": ["europe", "eu", "defense", "military"]
+    },
+    {
+      "id": "middle_east_normalization",
+      "year_trigger": 2026,
+      "type": "diplomatic",
+      "title": "Saudi-Israel Normalization Talks",
+      "title_fr": "Pourparlers de normalisation Arabie Saoudite-Israel",
+      "description": "Saudi Arabia and Israel engage in historic normalization discussions.",
+      "description_fr": "L'Arabie Saoudite et Israel engagent des discussions historiques de normalisation.",
+      "probability": 40,
+      "effects": {
+        "countries": {
+          "SAU": {"relations": {"ISR": 30}, "soft_power": 3},
+          "ISR": {"relations": {"SAU": 30}, "soft_power": 3},
+          "IRN": {"relations": {"SAU": -20}}
+        },
+        "global_tension": -5
+      },
+      "conditions": {
+        "max_global_tension": 60
+      },
+      "tags": ["middle_east", "saudi", "israel", "diplomacy"]
+    },
+    {
+      "id": "korean_tensions",
+      "year_trigger": 2027,
+      "type": "military",
+      "title": "Korean Peninsula Crisis",
+      "title_fr": "Crise de la peninsule coreenne",
+      "description": "North Korea conducts provocative military tests raising regional tensions.",
+      "description_fr": "La Coree du Nord effectue des tests militaires provocateurs elevant les tensions regionales.",
+      "probability": 65,
+      "effects": {
+        "countries": {
+          "PRK": {"nuclear": 3},
+          "KOR": {"stability": -5, "military": 2},
+          "JPN": {"military": 2},
+          "USA": {"relations": {"PRK": -15}}
+        },
+        "global_tension": 12
+      },
+      "conditions": {},
+      "tags": ["asia", "korea", "nuclear", "military"]
+    },
+    {
+      "id": "global_economic_downturn",
+      "year_trigger": 2029,
+      "type": "economic",
+      "title": "Global Economic Slowdown",
+      "title_fr": "Ralentissement economique mondial",
+      "description": "A global economic recession affects major economies.",
+      "description_fr": "Une recession economique mondiale affecte les principales economies.",
+      "probability": 35,
+      "effects": {
+        "countries": {
+          "USA": {"economy": -5},
+          "CHN": {"economy": -4},
+          "DEU": {"economy": -4},
+          "JPN": {"economy": -3}
+        },
+        "global_tension": 8
+      },
+      "conditions": {},
+      "tags": ["economy", "crisis", "global"]
+    },
+    {
+      "id": "climate_summit_breakthrough",
+      "year_trigger": 2028,
+      "type": "diplomatic",
+      "title": "Historic Climate Agreement",
+      "title_fr": "Accord climatique historique",
+      "description": "Major powers agree on binding emissions targets.",
+      "description_fr": "Les grandes puissances s'accordent sur des objectifs d'emissions contraignants.",
+      "probability": 30,
+      "effects": {
+        "countries": {
+          "USA": {"soft_power": 3},
+          "CHN": {"soft_power": 3},
+          "UE": {"soft_power": 2}
+        },
+        "global_tension": -10
+      },
+      "conditions": {
+        "max_global_tension": 50
+      },
+      "tags": ["climate", "diplomacy", "environment"]
+    },
+    {
+      "id": "cyber_warfare_escalation",
+      "year_trigger": 2026,
+      "type": "technology",
+      "title": "Major Cyber Attack on Infrastructure",
+      "title_fr": "Cyberattaque majeure sur les infrastructures",
+      "description": "A significant cyber attack disrupts critical infrastructure in multiple countries.",
+      "description_fr": "Une cyberattaque importante perturbe les infrastructures critiques de plusieurs pays.",
+      "probability": 50,
+      "effects": {
+        "countries": {
+          "USA": {"stability": -3},
+          "RUS": {"relations": {"USA": -10}},
+          "CHN": {"relations": {"USA": -5}}
+        },
+        "global_tension": 8
+      },
+      "conditions": {
+        "min_global_tension": 35
+      },
+      "tags": ["cyber", "technology", "security"]
+    },
+    {
+      "id": "latin_america_integration",
+      "year_trigger": 2027,
+      "type": "economic",
+      "title": "Latin American Economic Integration",
+      "title_fr": "Integration economique latino-americaine",
+      "description": "MERCOSUR expands with new free trade agreements.",
+      "description_fr": "Le MERCOSUR s'elargit avec de nouveaux accords de libre-echange.",
+      "probability": 55,
+      "effects": {
+        "countries": {
+          "BRA": {"economy": 3, "soft_power": 2},
+          "ARG": {"economy": 2},
+          "MEX": {"economy": 2}
+        },
+        "global_tension": -2
+      },
+      "conditions": {},
+      "tags": ["latin_america", "economy", "integration"]
+    },
+    {
+      "id": "ai_military_race",
+      "year_trigger": 2030,
+      "type": "technology",
+      "title": "AI Military Systems Race",
+      "title_fr": "Course aux systemes militaires IA",
+      "description": "Major powers compete to deploy AI-powered military systems.",
+      "description_fr": "Les grandes puissances rivalisent pour deployer des systemes militaires bases sur l'IA.",
+      "probability": 70,
+      "effects": {
+        "countries": {
+          "USA": {"technology": 4, "military": 3},
+          "CHN": {"technology": 4, "military": 3},
+          "RUS": {"technology": 2, "military": 2}
+        },
+        "global_tension": 10
+      },
+      "conditions": {},
+      "tags": ["ai", "military", "technology"]
+    },
+    {
+      "id": "pakistan_india_thaw",
+      "year_trigger": 2029,
+      "type": "diplomatic",
+      "title": "India-Pakistan Dialogue",
+      "title_fr": "Dialogue Inde-Pakistan",
+      "description": "India and Pakistan resume diplomatic talks after years of tensions.",
+      "description_fr": "L'Inde et le Pakistan reprennent les pourparlers diplomatiques apres des annees de tensions.",
+      "probability": 25,
+      "effects": {
+        "countries": {
+          "IND": {"relations": {"PAK": 15}, "stability": 3},
+          "PAK": {"relations": {"IND": 15}, "stability": 3}
+        },
+        "global_tension": -8
+      },
+      "conditions": {
+        "max_global_tension": 55
+      },
+      "tags": ["asia", "india", "pakistan", "diplomacy"]
+    }
+  ],
+  "event_chains": [
+    {
+      "id": "taiwan_crisis_chain",
+      "name": "Taiwan Crisis Escalation",
+      "name_fr": "Escalade de la crise de Taiwan",
+      "events": ["taiwan_election_2024", "china_taiwan_exercises"],
+      "chain_effects": {
+        "if_both_triggered": {
+          "global_tension": 20,
+          "defcon_change": -1
+        }
+      }
+    },
+    {
+      "id": "multipolar_shift",
+      "name": "Multipolar World Order",
+      "name_fr": "Ordre mondial multipolaire",
+      "events": ["brics_expansion_2025", "indian_economic_rise"],
+      "chain_effects": {
+        "if_both_triggered": {
+          "global_tension": -5
+        }
+      }
+    }
+  ]
+}

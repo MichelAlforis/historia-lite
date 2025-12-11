@@ -118,3 +118,48 @@ class InfluenceZone(BaseModel):
                 p for p, level in self.influence_levels.items()
                 if p != dominant and level >= dominant_level - 20 and level >= 25
             ]
+
+
+class SubnationalRegion(BaseModel):
+    """Subnational region within a country for targeted attacks"""
+    id: str                                      # "USA-WEST", "CHN-COAST", "RUS-MOW"
+    country_id: str                              # ISO3 of parent country
+    name: str                                    # "West Coast"
+    name_fr: str                                 # "Cote Ouest"
+    region_type: str                             # "census_region", "federal_district", etc.
+
+    # Stats derived from parent country
+    power_score: int = Field(default=50, ge=0, le=100)
+    strategic_value: int = Field(default=5, ge=1, le=10)
+    population_share: int = Field(default=0, ge=0, le=100)    # % of country population
+    economic_share: int = Field(default=0, ge=0, le=100)      # % of country GDP
+    military_presence: int = Field(default=0, ge=0, le=100)   # Military bases/troops
+
+    # Characteristics
+    is_capital_region: bool = False              # Contains capital city
+    is_border_region: bool = False               # Adjacent to another country
+    is_coastal: bool = False                     # Has coastline
+
+    # Resources
+    has_oil: bool = False
+    has_strategic_resources: bool = False
+    resource_type: Optional[str] = None          # "oil", "minerals", "tech", "agriculture"
+
+    def get_attack_difficulty(self) -> int:
+        """Calculate difficulty to attack this region (0-100)"""
+        difficulty = self.military_presence
+        if self.is_capital_region:
+            difficulty += 20
+        if not self.is_border_region and not self.is_coastal:
+            difficulty += 15  # Landlocked interior regions are harder to reach
+        return min(100, difficulty)
+
+    def get_strategic_importance(self) -> int:
+        """Calculate overall strategic importance (0-100)"""
+        importance = self.strategic_value * 10
+        if self.is_capital_region:
+            importance += 20
+        if self.has_oil or self.has_strategic_resources:
+            importance += 10
+        importance += self.economic_share // 5
+        return min(100, importance)

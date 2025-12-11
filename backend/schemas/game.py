@@ -2,7 +2,7 @@
 from typing import Dict, List, Optional
 from pydantic import BaseModel
 
-from engine.country import Country, Personality, Tier4Country
+from engine.country import Country, Personality, Tier4Country, Tier5Country, Tier6Country
 from engine.region import InfluenceZone
 from engine.events import Event
 
@@ -146,6 +146,124 @@ class Tier4SummaryResponse(BaseModel):
     neutral: int
 
 
+class Tier5CountryResponse(BaseModel):
+    """Response for Tier 5 countries (small nations)"""
+    id: str
+    name: str
+    name_fr: str
+    flag: str
+    tier: int
+    region: str
+
+    # Minimal stats
+    economy: int
+    stability: int
+    population: int
+    alignment: int
+    alignment_label: str
+
+    # Protection
+    protector: Optional[str]
+    influence_zone: Optional[str]
+
+    # Status
+    in_crisis: bool
+    crisis_type: Optional[str]
+
+    # Neighbors
+    neighbors: List[str]
+
+    power_score: float
+
+    @classmethod
+    def from_tier5_country(cls, country: Tier5Country) -> "Tier5CountryResponse":
+        return cls(
+            id=country.id,
+            name=country.name,
+            name_fr=country.name_fr,
+            flag=country.flag,
+            tier=country.tier,
+            region=country.region,
+            economy=country.economy,
+            stability=country.stability,
+            population=country.population,
+            alignment=country.alignment,
+            alignment_label=country.get_alignment_label(),
+            protector=country.protector,
+            influence_zone=country.influence_zone,
+            in_crisis=country.in_crisis,
+            crisis_type=country.crisis_type,
+            neighbors=country.neighbors,
+            power_score=round(country.get_power_score(), 1),
+        )
+
+
+class Tier5SummaryResponse(BaseModel):
+    """Summary statistics for Tier 5 countries"""
+    total: int
+    by_region: Dict[str, int]
+    by_alignment: Dict[str, int]
+    by_protector: Dict[str, int]
+    in_crisis: int
+    pro_west: int
+    pro_east: int
+    neutral: int
+
+
+class Tier6CountryResponse(BaseModel):
+    """Response for Tier 6 countries (micro-nations)"""
+    id: str
+    name: str
+    name_fr: str
+    flag: str
+    tier: int
+    region: str
+
+    # Ultra-minimal stats
+    economy: int
+    stability: int
+    population: int
+
+    # Protection (usually required for Tier 6)
+    protector: Optional[str]
+    influence_zone: Optional[str]
+
+    # Special status
+    is_territory: bool
+    special_status: Optional[str]
+
+    power_score: float
+
+    @classmethod
+    def from_tier6_country(cls, country: Tier6Country) -> "Tier6CountryResponse":
+        return cls(
+            id=country.id,
+            name=country.name,
+            name_fr=country.name_fr,
+            flag=country.flag,
+            tier=country.tier,
+            region=country.region,
+            economy=country.economy,
+            stability=country.stability,
+            population=country.population,
+            protector=country.protector,
+            influence_zone=country.influence_zone,
+            is_territory=country.is_territory,
+            special_status=country.special_status,
+            power_score=round(country.get_power_score(), 1),
+        )
+
+
+class Tier6SummaryResponse(BaseModel):
+    """Summary statistics for Tier 6 countries"""
+    total: int
+    by_region: Dict[str, int]
+    by_protector: Dict[str, int]
+    by_special_status: Dict[str, int]
+    territories: int
+    sovereign: int
+
+
 class InfluenceZoneResponse(BaseModel):
     id: str
     name: str
@@ -211,6 +329,8 @@ class ConflictResponse(BaseModel):
 
 class WorldStateResponse(BaseModel):
     year: int
+    month: int = 1  # NEW: month field (1-12)
+    date_display: str = ""  # NEW: "Janvier 2025" format
     seed: int
     oil_price: int
     global_tension: int
@@ -225,9 +345,24 @@ class WorldStateResponse(BaseModel):
     nuclear_powers: int
     active_wars: int
 
-    # Tier 4 summary
+    # Tier counts and crisis summary
     tier4_count: int = 0
     tier4_in_crisis: int = 0
+    tier5_count: int = 0
+    tier5_in_crisis: int = 0
+    tier6_count: int = 0
+
+    # Game state
+    defcon_level: int = 5
+    game_ended: bool = False
+    game_end_reason: Optional[str] = None
+    game_end_message: str = ""
+    game_end_message_fr: str = ""
+    final_score: int = 0
+
+    # Timeline stats (NEW)
+    unread_events: int = 0
+    timeline_total: int = 0
 
 
 class TickResponse(BaseModel):
@@ -235,3 +370,12 @@ class TickResponse(BaseModel):
     events: List[EventResponse]
     summary: str
     summary_fr: str
+
+    # Game end state (if game ended this tick)
+    game_ended: bool = False
+    game_end_reason: Optional[str] = None
+    game_end_message: str = ""
+    game_end_message_fr: str = ""
+    is_victory: bool = False
+    final_score: int = 0
+    defcon_level: int = 5

@@ -2,7 +2,7 @@
 import asyncio
 import logging
 import random
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from .world import World
 from .country import Country
@@ -14,8 +14,18 @@ from .tick import (
     _process_influence,
     _update_relations,
     _apply_event,
+    _process_projects,
+    _detect_dilemmas,
+    _process_blocs,
+    _process_summits,
+    _process_special_events,
 )
+from .procedural_events import procedural_generator
+from ai.ai_event_generator import ai_event_generator
+from .victory import victory_manager, GameEndState
+from .nuclear import nuclear_manager
 from ai.ollama_ai import OllamaAI, execute_ollama_decision
+from ai.decision_tier4 import process_tier4_countries
 
 logger = logging.getLogger(__name__)
 
@@ -25,12 +35,26 @@ async def process_tick_with_ollama(
     event_pool: EventPool,
     ollama: OllamaAI,
     ollama_tiers: List[int] = [1, 2],  # Tiers to use Ollama for
-) -> List[Event]:
+) -> Tuple[List[Event], Optional[GameEndState]]:
     """Process one year with Ollama AI for major powers"""
     events: List[Event] = []
 
+    # Check if game already ended
+    if world.game_ended:
+        return events, victory_manager.game_end_state
+
     # Set random seed
     random.seed(world.seed + world.year)
+
+    # Phase 0: Check victory/defeat conditions BEFORE processing
+    game_ended, end_state = victory_manager.check_game_end(world)
+    if game_ended and end_state:
+        world.game_ended = True
+        world.game_end_reason = end_state.reason.value if end_state.reason else None
+        world.game_end_message = end_state.message
+        world.game_end_message_fr = end_state.message_fr
+        world.final_score = end_state.score
+        return events, end_state
 
     # Phase 1: Economy
     events.extend(_process_economy(world))
@@ -53,11 +77,87 @@ async def process_tick_with_ollama(
         _apply_event(world, event)
         events.append(event)
 
+    # Phase 5b: Procedural Events
+    player_id = None
+    player_country = None
+    for country in world.countries.values():
+        if country.is_player:
+            player_id = country.id
+            player_country = country
+            break
+    procedural_events = procedural_generator.generate_events(world, player_id)
+    for event in procedural_events:
+        _apply_event(world, event)
+        events.append(event)
+        logger.info(f"Procedural event: {event.title_fr}")
+
+    # Phase 5c: AI Narrative Events (async version for Ollama tick)
+    if player_country:
+        ai_event = await _generate_ai_narrative_event(world, player_country)
+        if ai_event:
+            _apply_event(world, ai_event)
+            events.append(ai_event)
+            logger.info(f"AI narrative event: {ai_event.title_fr}")
+
     # Phase 6: Influence
     events.extend(_process_influence(world))
 
     # Phase 7: Relations
     _update_relations(world)
+
+    # Phase 8: Projects
+    events.extend(_process_projects(world))
+
+    # Phase 9: Dilemmas
+    events.extend(_detect_dilemmas(world))
+
+    # Phase 10: Tier 4 Countries
+    tier4_events = process_tier4_countries(world, world.tier4_tick_counter)
+    events.extend(tier4_events)
+    world.tier4_tick_counter = (world.tier4_tick_counter + 1) % 3
+
+    # Phase 11: Blocs
+    events.extend(_process_blocs(world))
+
+    # Phase 12: Summits
+    events.extend(_process_summits(world))
+
+    # Phase 13: Special Events
+    events.extend(_process_special_events(world))
+
+    # Phase 14: Nuclear DEFCON updates
+    nuclear_events = nuclear_manager.update_defcon(world)
+    events.extend(nuclear_events)
+
+    # Check for nuclear war game end
+    if world.defcon_level == 0:
+        end_state = GameEndState(
+            is_victory=False,
+            reason=None,
+            message="Nuclear war has devastated the world.",
+            message_fr="Une guerre nucleaire a devaste le monde.",
+            score=0
+        )
+        world.game_ended = True
+        world.game_end_reason = "nuclear_annihilation"
+        world.game_end_message = end_state.message
+        world.game_end_message_fr = end_state.message_fr
+        world.final_score = 0
+        return events, end_state
+
+    # Phase 15: Country collapse processing
+    collapse_events = victory_manager.process_country_collapse(world)
+    events.extend(collapse_events)
+
+    # Check for player defeat after collapse
+    game_ended, end_state = victory_manager.check_game_end(world)
+    if game_ended and end_state:
+        world.game_ended = True
+        world.game_end_reason = end_state.reason.value if end_state.reason else None
+        world.game_end_message = end_state.message
+        world.game_end_message_fr = end_state.message_fr
+        world.final_score = end_state.score
+        return events, end_state
 
     # Advance year
     world.year += 1
@@ -67,7 +167,7 @@ async def process_tick_with_ollama(
         world.add_event(event)
 
     logger.info(f"Tick (Ollama) processed: Year {world.year - 1} -> {world.year}")
-    return events
+    return events, None
 
 
 async def _process_ollama_decisions(
@@ -134,4 +234,29 @@ async def _get_ollama_decision(
         return await ollama.make_decision(country, world)
     except Exception as e:
         logger.error(f"Ollama decision failed for {country.id}: {e}")
+        return None
+
+
+async def _generate_ai_narrative_event(
+    world: World, player: Country
+) -> Optional[Event]:
+    """Generate AI narrative event for player (async version)"""
+    try:
+        # Check cooldown
+        if not ai_event_generator._should_generate(player.id, world.year):
+            return None
+
+        # Random chance (30%)
+        import random
+        if random.random() > 0.30:
+            return None
+
+        # Generate event
+        return await ai_event_generator.generate_narrative_event(
+            world=world,
+            player=player,
+            force=True
+        )
+    except Exception as e:
+        logger.warning(f"AI narrative event generation failed: {e}")
         return None

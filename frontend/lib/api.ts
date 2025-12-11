@@ -10,6 +10,10 @@ import {
   OllamaStatus,
   Tier4Country,
   Tier4Summary,
+  Tier5Country,
+  Tier5Summary,
+  Tier6Country,
+  Tier6Summary,
   CommandResponse,
   ProjectListResponse,
   ProjectResponse,
@@ -25,10 +29,20 @@ import {
   ScenarioInitData,
 } from './types';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api';
+// Historia Lite specific API URL - use dedicated env var to avoid CRM conflicts
+const API_BASE = process.env.NEXT_PUBLIC_HISTORIA_API_URL || 'http://localhost:8001/api';
+const API_ROOT = process.env.NEXT_PUBLIC_HISTORIA_API_URL?.replace('/api', '') || 'http://localhost:8001';
 
 const api = axios.create({
   baseURL: API_BASE,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Root API instance (for routes not under /api)
+const apiRoot = axios.create({
+  baseURL: API_ROOT,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -137,6 +151,138 @@ export async function getTier4ByRegion(region: string): Promise<Tier4Country[]> 
 }
 
 // ============================================================================
+// TIER 5 ENDPOINTS
+// ============================================================================
+
+export async function getTier5Countries(params?: {
+  region?: string;
+  alignment?: string;
+  protector?: string;
+  in_crisis?: boolean;
+}): Promise<Tier5Country[]> {
+  const response = await api.get<Tier5Country[]>('/tier5', { params });
+  return response.data;
+}
+
+export async function getTier5Summary(): Promise<Tier5Summary> {
+  const response = await api.get<Tier5Summary>('/tier5/summary');
+  return response.data;
+}
+
+export async function getTier5Country(countryId: string): Promise<Tier5Country> {
+  const response = await api.get<Tier5Country>(`/tier5/${countryId}`);
+  return response.data;
+}
+
+export async function getTier5ByRegion(region: string): Promise<Tier5Country[]> {
+  const response = await api.get<Tier5Country[]>(`/tier5/region/${region}`);
+  return response.data;
+}
+
+export async function getTier5ByProtector(protectorId: string): Promise<Tier5Country[]> {
+  const response = await api.get<Tier5Country[]>(`/tier5/protector/${protectorId}`);
+  return response.data;
+}
+
+// ============================================================================
+// TIER 6 ENDPOINTS
+// ============================================================================
+
+export async function getTier6Countries(params?: {
+  region?: string;
+  protector?: string;
+  is_territory?: boolean;
+  special_status?: string;
+}): Promise<Tier6Country[]> {
+  const response = await api.get<Tier6Country[]>('/tier6', { params });
+  return response.data;
+}
+
+export async function getTier6Summary(): Promise<Tier6Summary> {
+  const response = await api.get<Tier6Summary>('/tier6/summary');
+  return response.data;
+}
+
+export async function getTier6Country(countryId: string): Promise<Tier6Country> {
+  const response = await api.get<Tier6Country>(`/tier6/${countryId}`);
+  return response.data;
+}
+
+export async function getTier6ByProtector(protectorId: string): Promise<Tier6Country[]> {
+  const response = await api.get<Tier6Country[]>(`/tier6/protector/${protectorId}`);
+  return response.data;
+}
+
+export async function getTier6Influence(countryId: string): Promise<{
+  country_id: string;
+  protector: string;
+  influence_zone: string;
+  protector_stats: {
+    id: string;
+    name: string;
+    power_score: number;
+    tier: number;
+  };
+  consequences_if_attacked: string[];
+}> {
+  const response = await api.get(`/tier6/${countryId}/influence`);
+  return response.data;
+}
+
+// ============================================================================
+// SUBNATIONAL REGIONS ENDPOINTS
+// ============================================================================
+
+import {
+  SubnationalRegion,
+  RegionsSummary,
+  AttackInfo,
+  RegionAttackResult,
+} from './types';
+
+export async function getRegions(params?: {
+  country_id?: string;
+  region_type?: string;
+  has_resources?: boolean;
+  is_coastal?: boolean;
+}): Promise<SubnationalRegion[]> {
+  const response = await apiRoot.get<SubnationalRegion[]>('/regions', { params });
+  return response.data;
+}
+
+export async function getRegionsSummary(): Promise<RegionsSummary> {
+  const response = await apiRoot.get<RegionsSummary>('/regions/summary');
+  return response.data;
+}
+
+export async function getRegionsByCountry(countryId: string): Promise<SubnationalRegion[]> {
+  const response = await apiRoot.get<SubnationalRegion[]>(`/regions/country/${countryId}`);
+  return response.data;
+}
+
+export async function getRegion(regionId: string): Promise<SubnationalRegion> {
+  const response = await apiRoot.get<SubnationalRegion>(`/regions/${regionId}`);
+  return response.data;
+}
+
+export async function getRegionAttackInfo(regionId: string): Promise<AttackInfo> {
+  const response = await apiRoot.get<AttackInfo>(`/regions/${regionId}/attack-info`);
+  return response.data;
+}
+
+export async function executeRegionAttack(
+  regionId: string,
+  attackerId: string,
+  attackType: string
+): Promise<RegionAttackResult> {
+  const response = await apiRoot.post<RegionAttackResult>(`/regions/${regionId}/attack`, {
+    attacker_id: attackerId,
+    attack_type: attackType,
+  });
+  return response.data;
+}
+
+// ============================================================================
 // COMMAND SYSTEM
 // ============================================================================
 
@@ -204,10 +350,15 @@ export async function accelerateProject(
 export async function getPendingDilemmas(
   countryId: string
 ): Promise<PendingDilemmasResponse> {
-  const response = await api.get<PendingDilemmasResponse>(
-    `/dilemmas/${countryId}/pending`
-  );
-  return response.data;
+  try {
+    const response = await api.get<PendingDilemmasResponse>(
+      `/dilemmas/${countryId}/pending`
+    );
+    return response.data;
+  } catch {
+    // Endpoint may not exist yet - return empty dilemmas
+    return { country_id: countryId, pending_dilemmas: [], count: 0 };
+  }
 }
 
 export async function resolveDilemma(
@@ -617,5 +768,345 @@ export async function startScenario(
 // Get objectives catalog
 export async function getObjectivesCatalog(): Promise<{ objectives: ObjectiveSummary[]; total: number }> {
   const response = await api.get('/scenarios/objectives/catalog');
+  return response.data;
+}
+
+// Get current scenario status
+export interface ScenarioStatus {
+  active: boolean;
+  scenario_id: string | null;
+  scenario_name: string | null;
+  player_country: string | null;
+  current_year: number;
+  end_year: number | null;
+  objectives: {
+    id: string;
+    name: string;
+    description: string;
+    type: string;
+    points: number;
+    status: 'pending' | 'in_progress' | 'completed' | 'failed';
+    progress: number;
+  }[];
+  total_score: number;
+  max_possible_score: number;
+  is_complete: boolean;
+  is_failed: boolean;
+}
+
+export async function getScenarioStatus(): Promise<ScenarioStatus> {
+  const response = await api.get('/scenarios/current/status');
+  return response.data;
+}
+
+// Check objectives manually
+export async function checkScenarioObjectives(): Promise<{
+  checked: boolean;
+  changes: string[];
+  objectives: ScenarioStatus['objectives'];
+  total_score: number;
+  is_complete: boolean;
+  is_failed: boolean;
+}> {
+  const response = await api.post('/scenarios/current/check-objectives');
+  return response.data;
+}
+
+// End current scenario
+export async function endScenario(): Promise<{
+  ended: boolean;
+  scenario_id: string;
+  scenario_name: string;
+  outcome: 'victory' | 'defeat' | 'incomplete';
+  message: string;
+  final_score: number;
+  objectives: ScenarioStatus['objectives'];
+  years_played: number;
+}> {
+  const response = await api.post('/scenarios/current/end');
+  return response.data;
+}
+
+// ============================================================================
+// REPLAY SYSTEM
+// ============================================================================
+
+import {
+  ReplayMetadata,
+  ReplayDetail,
+  ReplaySummary,
+  RecordingStatus,
+} from './types';
+
+// List all replays
+export async function listReplays(): Promise<{ replays: ReplayMetadata[]; total: number }> {
+  const response = await api.get('/replay/list');
+  return response.data;
+}
+
+// Start recording
+export async function startRecording(name: string, description?: string): Promise<{
+  success: boolean;
+  message: string;
+  start_year: number;
+}> {
+  const response = await api.post('/replay/start', { name, description });
+  return response.data;
+}
+
+// Stop recording and save replay
+export async function stopRecording(): Promise<{
+  success: boolean;
+  message: string;
+  replay_id: string;
+  frames_count: number;
+}> {
+  const response = await api.post('/replay/stop');
+  return response.data;
+}
+
+// Cancel recording without saving
+export async function cancelRecording(): Promise<{
+  success: boolean;
+  message: string;
+}> {
+  const response = await api.post('/replay/cancel');
+  return response.data;
+}
+
+// Get current recording status
+export async function getRecordingStatus(): Promise<RecordingStatus> {
+  const response = await api.get('/replay/status');
+  return response.data;
+}
+
+// Get full replay with all frames
+export async function getReplay(replayId: string): Promise<ReplayDetail> {
+  const response = await api.get(`/replay/${replayId}`);
+  return response.data;
+}
+
+// Get single frame
+export async function getReplayFrame(replayId: string, frameIndex: number): Promise<{
+  frame: Record<string, unknown>;
+  total_frames: number;
+  current_index: number;
+}> {
+  const response = await api.get(`/replay/${replayId}/frame/${frameIndex}`);
+  return response.data;
+}
+
+// Delete replay
+export async function deleteReplay(replayId: string): Promise<{
+  success: boolean;
+  message: string;
+}> {
+  const response = await api.delete(`/replay/${replayId}`);
+  return response.data;
+}
+
+// Get replay summary
+export async function getReplaySummary(replayId: string): Promise<ReplaySummary> {
+  const response = await api.get(`/replay/${replayId}/summary`);
+  return response.data;
+}
+
+// ============================================================================
+// SCORING SYSTEM
+// ============================================================================
+
+import {
+  CountryScores,
+  RankingEntry,
+  CategoryRankingEntry,
+  ScoringCategory,
+  ScoringSummary,
+  CountryComparison,
+} from './types';
+
+// Get scores for a specific country (with fog of war for intelligence)
+export async function getCountryScores(countryId: string, observerId?: string): Promise<CountryScores> {
+  const params = observerId ? { observer: observerId } : {};
+  const response = await api.get<CountryScores>(`/scoring/country/${countryId}`, { params });
+  return response.data;
+}
+
+// Get intel quality between two countries
+export async function getIntelQuality(observerId: string, targetId: string): Promise<{
+  intel_score: number;
+  intel_quality: string;
+  visible_categories: Record<string, boolean>;
+  nuclear_info: {
+    status: string;
+    display: string;
+    display_fr: string;
+    warheads: number | null;
+    confidence: string;
+  };
+}> {
+  const response = await api.get(`/scoring/intel/${observerId}/${targetId}`);
+  return response.data;
+}
+
+// Get global rankings for all countries
+export async function getGlobalRankings(): Promise<RankingEntry[]> {
+  const response = await api.get<RankingEntry[]>('/scoring/rankings/global');
+  return response.data;
+}
+
+// Get rankings for a specific category
+export async function getCategoryRankings(category: string): Promise<CategoryRankingEntry[]> {
+  const response = await api.get<CategoryRankingEntry[]>(`/scoring/rankings/${category}`);
+  return response.data;
+}
+
+// Compare two countries
+export async function compareCountries(
+  countryId1: string,
+  countryId2: string
+): Promise<CountryComparison> {
+  const response = await api.get<CountryComparison>(`/scoring/compare/${countryId1}/${countryId2}`);
+  return response.data;
+}
+
+// Get world power summary
+export async function getScoringSummary(): Promise<ScoringSummary> {
+  const response = await api.get<ScoringSummary>('/scoring/summary');
+  return response.data;
+}
+
+// Get information about all scoring categories
+export async function getScoringCategories(): Promise<ScoringCategory[]> {
+  const response = await api.get<ScoringCategory[]>('/scoring/categories');
+  return response.data;
+}
+
+// ============================================================================
+// STRATEGIC ADVICE
+// ============================================================================
+
+import {
+  StrategicAdvice,
+} from './types';
+
+// Get strategic advice for a player country
+export async function getStrategicAdvice(
+  countryId: string,
+  useOllama: boolean = true
+): Promise<StrategicAdvice> {
+  const response = await api.get<StrategicAdvice>(`/player/advice/${countryId}`, {
+    params: { use_ollama: useOllama },
+  });
+  return response.data;
+}
+
+// Get comprehensive geopolitical analysis of the world
+export async function getGeopoliticalAnalysis(): Promise<{
+  year: number;
+  global_tension: number;
+  oil_price: number;
+  power_distribution: Record<string, Array<{ id: string; name: string; power_score: number }>>;
+  active_conflicts: Array<{ parties: string[]; power_balance: number }>;
+  bloc_analysis: Record<string, { members: number; total_power: number; nuclear: boolean }>;
+  hot_zones: Array<{ zone: string; dominant: string | null; contested_by: string[]; tension_factor: number }>;
+  nuclear_powers: string[];
+  defcon_level: number;
+}> {
+  const response = await api.get('/player/geopolitical');
+  return response.data;
+}
+
+// ============================================================================
+// AI ADVISOR SYSTEM
+// ============================================================================
+
+export interface AIStrategicAdvice {
+  priority: string;
+  category: string;
+  title_fr: string;
+  advice_fr: string;
+  reasoning_fr: string;
+  suggested_action?: string;
+}
+
+export interface AIDiplomaticDialogue {
+  speaker_country: string;
+  speaker_name: string;
+  speaker_title: string;
+  tone: string;
+  message_fr: string;
+  context: string;
+}
+
+export interface AIAnnualBriefing {
+  year: number;
+  executive_summary_fr: string;
+  threats: Array<{ country: string; threat_level: string; description_fr: string }>;
+  opportunities: Array<{ domain: string; description_fr: string }>;
+  recommendations: string[];
+}
+
+export interface AIMediaComment {
+  source: string;
+  headline_fr: string;
+  excerpt_fr: string;
+  sentiment: string;
+}
+
+// Get AI strategic advice
+export async function getAIStrategicAdvice(
+  countryId: string,
+  focus?: string
+): Promise<{ success: boolean; advices: AIStrategicAdvice[]; error?: string }> {
+  const response = await api.get(`/ai-advisor/advice/${countryId}`, {
+    params: focus ? { focus } : {},
+  });
+  return response.data;
+}
+
+// Get AI diplomatic dialogue
+export async function getAIDiplomaticDialogue(
+  countryId: string,
+  targetId: string,
+  action: string = 'general',
+  accepted?: boolean
+): Promise<{ success: boolean; dialogue?: AIDiplomaticDialogue; error?: string }> {
+  const response = await api.get(`/ai-advisor/dialogue/${countryId}/${targetId}`, {
+    params: { action, ...(accepted !== undefined ? { accepted } : {}) },
+  });
+  return response.data;
+}
+
+// Get AI annual briefing
+export async function getAIAnnualBriefing(
+  countryId: string
+): Promise<{ success: boolean; briefing?: AIAnnualBriefing; error?: string }> {
+  const response = await api.get(`/ai-advisor/briefing/${countryId}`);
+  return response.data;
+}
+
+// Get AI media comment
+export async function getAIMediaComment(
+  countryId: string
+): Promise<{ success: boolean; comment?: AIMediaComment; error?: string }> {
+  const response = await api.get(`/ai-advisor/media/${countryId}`);
+  return response.data;
+}
+
+// Get AI opportunity event
+export async function getAIOpportunityEvent(
+  countryId: string
+): Promise<{ success: boolean; event?: Record<string, unknown>; error?: string }> {
+  const response = await api.get(`/ai-advisor/opportunity/${countryId}`);
+  return response.data;
+}
+
+// Check AI advisor status
+export async function getAIAdvisorStatus(): Promise<{
+  available: boolean;
+  model: string;
+  url: string;
+}> {
+  const response = await api.get('/ai-advisor/status');
   return response.data;
 }

@@ -1,0 +1,360 @@
+{
+  "events": [
+    {
+      "id": "coup_attempt",
+      "type": "political_crisis",
+      "title": "Coup Attempt",
+      "title_fr": "Tentative de coup d'etat",
+      "description": "Military officers attempt to seize power in {country}",
+      "description_fr": "Des officiers militaires tentent de prendre le pouvoir en {country}",
+      "probability": 0.4,
+      "conditions": {
+        "stability": {"max": 25},
+        "military": {"min": 50}
+      },
+      "effects": [
+        {"stat": "stability", "delta": -20},
+        {"stat": "economy", "delta": -10}
+      ],
+      "severity": "critical"
+    },
+    {
+      "id": "trade_deal",
+      "type": "economic",
+      "title": "Major Trade Agreement",
+      "title_fr": "Accord commercial majeur",
+      "description": "{country} signs a major trade agreement",
+      "description_fr": "{country} signe un accord commercial majeur",
+      "probability": 0.3,
+      "conditions": {
+        "economy": {"min": 50},
+        "soft_power": {"min": 40}
+      },
+      "effects": [
+        {"stat": "economy", "delta": 8},
+        {"stat": "soft_power", "delta": 3}
+      ],
+      "severity": "normal"
+    },
+    {
+      "id": "refugee_crisis",
+      "type": "humanitarian",
+      "title": "Refugee Crisis",
+      "title_fr": "Crise des refugies",
+      "description": "A wave of refugees arrives in {country}",
+      "description_fr": "Une vague de refugies arrive en {country}",
+      "probability": 0.25,
+      "conditions": {
+        "stability": {"min": 40}
+      },
+      "effects": [
+        {"stat": "stability", "delta": -8},
+        {"stat": "soft_power", "delta": 5}
+      ],
+      "severity": "normal"
+    },
+    {
+      "id": "tech_theft",
+      "type": "espionage",
+      "title": "Technology Theft",
+      "title_fr": "Vol de technologie",
+      "description": "Foreign agents steal advanced technology from {country}",
+      "description_fr": "Des agents etrangers volent de la technologie avancee en {country}",
+      "probability": 0.2,
+      "conditions": {
+        "technology": {"min": 60}
+      },
+      "effects": [
+        {"stat": "technology", "delta": -8}
+      ],
+      "severity": "normal"
+    },
+    {
+      "id": "cultural_renaissance",
+      "type": "positive",
+      "title": "Cultural Renaissance",
+      "title_fr": "Renaissance culturelle",
+      "description": "{country} experiences a cultural renaissance",
+      "description_fr": "{country} connait une renaissance culturelle",
+      "probability": 0.15,
+      "conditions": {
+        "stability": {"min": 60},
+        "economy": {"min": 50}
+      },
+      "effects": [
+        {"stat": "soft_power", "delta": 12},
+        {"stat": "stability", "delta": 5}
+      ],
+      "severity": "normal"
+    },
+    {
+      "id": "military_modernization",
+      "type": "military",
+      "title": "Military Modernization",
+      "title_fr": "Modernisation militaire",
+      "description": "{country} completes a major military modernization program",
+      "description_fr": "{country} acheve un programme de modernisation militaire",
+      "probability": 0.2,
+      "conditions": {
+        "economy": {"min": 60},
+        "technology": {"min": 50}
+      },
+      "effects": [
+        {"stat": "military", "delta": 10},
+        {"stat": "economy", "delta": -5}
+      ],
+      "severity": "normal"
+    },
+    {
+      "id": "natural_disaster",
+      "type": "crisis",
+      "title": "Natural Disaster",
+      "title_fr": "Catastrophe naturelle",
+      "description": "A devastating natural disaster strikes {country}",
+      "description_fr": "Une catastrophe naturelle devastatrice frappe {country}",
+      "probability": 0.08,
+      "conditions": {},
+      "effects": [
+        {"stat": "economy", "delta": -12},
+        {"stat": "stability", "delta": -5},
+        {"stat": "population", "delta": -3}
+      ],
+      "severity": "major"
+    },
+    {
+      "id": "currency_crisis",
+      "type": "economic_crisis",
+      "title": "Currency Crisis",
+      "title_fr": "Crise monetaire",
+      "description": "{country}'s currency collapses",
+      "description_fr": "La monnaie de {country} s'effondre",
+      "probability": 0.15,
+      "conditions": {
+        "economy": {"max": 40}
+      },
+      "effects": [
+        {"stat": "economy", "delta": -15},
+        {"stat": "stability", "delta": -8}
+      ],
+      "severity": "major"
+    },
+    {
+      "id": "diplomatic_breakthrough",
+      "type": "diplomatic",
+      "title": "Diplomatic Breakthrough",
+      "title_fr": "Percee diplomatique",
+      "description": "{country} achieves a major diplomatic breakthrough",
+      "description_fr": "{country} realise une percee diplomatique majeure",
+      "probability": 0.2,
+      "conditions": {
+        "soft_power": {"min": 55}
+      },
+      "effects": [
+        {"stat": "soft_power", "delta": 8}
+      ],
+      "severity": "normal"
+    },
+    {
+      "id": "energy_crisis",
+      "type": "economic_crisis",
+      "title": "Energy Crisis",
+      "title_fr": "Crise energetique",
+      "description": "{country} faces a severe energy shortage",
+      "description_fr": "{country} fait face a une grave penurie energetique",
+      "probability": 0.12,
+      "conditions": {
+        "resources": {"max": 40}
+      },
+      "effects": [
+        {"stat": "economy", "delta": -10},
+        {"stat": "stability", "delta": -5}
+      ],
+      "severity": "major"
+    },
+    {
+      "id": "scientific_discovery",
+      "type": "positive",
+      "title": "Scientific Discovery",
+      "title_fr": "Decouverte scientifique",
+      "description": "Scientists in {country} make a groundbreaking discovery",
+      "description_fr": "Des scientifiques de {country} font une decouverte revolutionnaire",
+      "probability": 0.1,
+      "conditions": {
+        "technology": {"min": 65}
+      },
+      "effects": [
+        {"stat": "technology", "delta": 12},
+        {"stat": "soft_power", "delta": 5}
+      ],
+      "severity": "normal"
+    },
+    {
+      "id": "corruption_scandal",
+      "type": "political",
+      "title": "Corruption Scandal",
+      "title_fr": "Scandale de corruption",
+      "description": "A major corruption scandal rocks {country}",
+      "description_fr": "Un scandale de corruption majeur secoue {country}",
+      "probability": 0.15,
+      "conditions": {
+        "stability": {"max": 60}
+      },
+      "effects": [
+        {"stat": "stability", "delta": -10},
+        {"stat": "soft_power", "delta": -5}
+      ],
+      "severity": "normal"
+    },
+    {
+      "id": "space_achievement",
+      "type": "positive",
+      "title": "Space Achievement",
+      "title_fr": "Exploit spatial",
+      "description": "{country} achieves a major milestone in space exploration",
+      "description_fr": "{country} atteint une etape majeure dans l'exploration spatiale",
+      "probability": 0.08,
+      "conditions": {
+        "technology": {"min": 70}
+      },
+      "effects": [
+        {"stat": "technology", "delta": 8},
+        {"stat": "soft_power", "delta": 10}
+      ],
+      "severity": "major"
+    },
+    {
+      "id": "terrorist_attack",
+      "type": "crisis",
+      "title": "Terrorist Attack",
+      "title_fr": "Attentat terroriste",
+      "description": "A terrorist attack strikes {country}",
+      "description_fr": "Un attentat terroriste frappe {country}",
+      "probability": 0.08,
+      "conditions": {},
+      "effects": [
+        {"stat": "stability", "delta": -12},
+        {"stat": "soft_power", "delta": -3}
+      ],
+      "severity": "major"
+    },
+    {
+      "id": "election_crisis",
+      "type": "political_crisis",
+      "title": "Election Crisis",
+      "title_fr": "Crise electorale",
+      "description": "Contested election results lead to unrest in {country}",
+      "description_fr": "Des resultats electoraux contestes menent a des troubles en {country}",
+      "probability": 0.12,
+      "conditions": {
+        "stability": {"max": 55}
+      },
+      "effects": [
+        {"stat": "stability", "delta": -8}
+      ],
+      "severity": "normal"
+    },
+    {
+      "id": "foreign_investment_boom",
+      "type": "economic",
+      "title": "Foreign Investment Boom",
+      "title_fr": "Boom des investissements etrangers",
+      "description": "Foreign investors flock to {country}",
+      "description_fr": "Les investisseurs etrangers affluent vers {country}",
+      "probability": 0.15,
+      "conditions": {
+        "stability": {"min": 60},
+        "economy": {"min": 55}
+      },
+      "effects": [
+        {"stat": "economy", "delta": 10}
+      ],
+      "severity": "normal"
+    },
+    {
+      "id": "brain_drain",
+      "type": "crisis",
+      "title": "Brain Drain",
+      "title_fr": "Fuite des cerveaux",
+      "description": "Skilled workers are leaving {country} in droves",
+      "description_fr": "Les travailleurs qualifies quittent {country} en masse",
+      "probability": 0.12,
+      "conditions": {
+        "economy": {"max": 45},
+        "stability": {"max": 50}
+      },
+      "effects": [
+        {"stat": "technology", "delta": -8},
+        {"stat": "economy", "delta": -5}
+      ],
+      "severity": "normal"
+    },
+    {
+      "id": "infrastructure_collapse",
+      "type": "crisis",
+      "title": "Infrastructure Collapse",
+      "title_fr": "Effondrement d'infrastructure",
+      "description": "Critical infrastructure fails in {country}",
+      "description_fr": "Une infrastructure critique cede en {country}",
+      "probability": 0.08,
+      "conditions": {
+        "economy": {"max": 40}
+      },
+      "effects": [
+        {"stat": "economy", "delta": -8},
+        {"stat": "stability", "delta": -5}
+      ],
+      "severity": "normal"
+    },
+    {
+      "id": "military_accident",
+      "type": "military",
+      "title": "Military Accident",
+      "title_fr": "Accident militaire",
+      "description": "A military accident causes casualties in {country}",
+      "description_fr": "Un accident militaire fait des victimes en {country}",
+      "probability": 0.06,
+      "conditions": {
+        "military": {"min": 50}
+      },
+      "effects": [
+        {"stat": "military", "delta": -5},
+        {"stat": "stability", "delta": -3}
+      ],
+      "severity": "minor"
+    },
+    {
+      "id": "peace_prize",
+      "type": "positive",
+      "title": "International Recognition",
+      "title_fr": "Reconnaissance internationale",
+      "description": "{country} receives international recognition for peace efforts",
+      "description_fr": "{country} recoit une reconnaissance internationale pour ses efforts de paix",
+      "probability": 0.05,
+      "conditions": {
+        "soft_power": {"min": 65}
+      },
+      "effects": [
+        {"stat": "soft_power", "delta": 15}
+      ],
+      "severity": "normal"
+    }
+  ],
+  "event_chains": [
+    {
+      "id": "economic_collapse_chain",
+      "name": "Economic Collapse",
+      "name_fr": "Effondrement economique",
+      "trigger_event": "currency_crisis",
+      "follow_up_events": ["brain_drain", "infrastructure_collapse"],
+      "probability": 0.3
+    },
+    {
+      "id": "political_instability_chain",
+      "name": "Political Instability",
+      "name_fr": "Instabilite politique",
+      "trigger_event": "corruption_scandal",
+      "follow_up_events": ["election_crisis", "coup_attempt"],
+      "probability": 0.25
+    }
+  ]
+}
