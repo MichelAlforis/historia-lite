@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
+from enum import Enum
 from pydantic import BaseModel, Field
 
 from .country import Country, Tier4Country, Tier5Country, Tier6Country
@@ -92,6 +93,139 @@ class GameDate(BaseModel):
         return self.to_months() - other.to_months()
 
 
+class GeopoliticalEra(str, Enum):
+    """Geopolitical eras that shape world dynamics - inspired by CK3/HOI4"""
+    EQUILIBRIUM = "equilibrium"           # Status quo, no strong trend
+    ALLIANCE_BUILDING = "alliance_building"  # Race to form alliances
+    SANCTIONS_ERA = "sanctions_era"       # Economic warfare dominant
+    MILITARY_BUILDUP = "military_buildup" # Generalized rearmament
+    DETENTE = "detente"                   # Thaw, reconciliation
+    CRISIS_MODE = "crisis_mode"           # Multiple simultaneous crises
+    COLD_WAR = "cold_war"                 # East/West bipolarization
+    MULTIPOLAR_SHIFT = "multipolar_shift" # Emergence of new power poles
+
+
+# Era display names
+ERA_NAMES_FR = {
+    GeopoliticalEra.EQUILIBRIUM: "Equilibre",
+    GeopoliticalEra.ALLIANCE_BUILDING: "Course aux alliances",
+    GeopoliticalEra.SANCTIONS_ERA: "Ere des sanctions",
+    GeopoliticalEra.MILITARY_BUILDUP: "Rearmement",
+    GeopoliticalEra.DETENTE: "Detente",
+    GeopoliticalEra.CRISIS_MODE: "Mode crise",
+    GeopoliticalEra.COLD_WAR: "Guerre froide",
+    GeopoliticalEra.MULTIPOLAR_SHIFT: "Basculement multipolaire",
+}
+
+ERA_NAMES_EN = {
+    GeopoliticalEra.EQUILIBRIUM: "Equilibrium",
+    GeopoliticalEra.ALLIANCE_BUILDING: "Alliance Building",
+    GeopoliticalEra.SANCTIONS_ERA: "Sanctions Era",
+    GeopoliticalEra.MILITARY_BUILDUP: "Military Buildup",
+    GeopoliticalEra.DETENTE: "Detente",
+    GeopoliticalEra.CRISIS_MODE: "Crisis Mode",
+    GeopoliticalEra.COLD_WAR: "Cold War",
+    GeopoliticalEra.MULTIPOLAR_SHIFT: "Multipolar Shift",
+}
+
+
+class WorldMood(BaseModel):
+    """
+    Collective emotional state of the world - influences all countries.
+    This is NOT the sum of individual memories, but a distinct global state.
+    """
+    # Main indicators (0-100)
+    global_confidence: int = 50      # Confidence in international system
+    war_fatigue: int = 0             # Collective war fatigue
+    economic_optimism: int = 50      # Global economic sentiment
+    diplomatic_openness: int = 50    # Openness to negotiations
+
+    # Volatility and risk
+    market_volatility: int = 30      # Market instability
+    nuclear_anxiety: int = 20        # Collective nuclear fear
+
+    # Current geopolitical trend ("era")
+    current_era: GeopoliticalEra = GeopoliticalEra.EQUILIBRIUM
+    era_start_year: int = 2025
+    era_start_month: int = 1
+    era_strength: int = 50           # Strength of era (0-100)
+    era_months_active: int = 0       # How long current era has been active
+
+    # World perception of player
+    player_reputation: int = 50      # How the world perceives the player
+
+    def get_era_display(self, lang: str = "fr") -> str:
+        """Get display name for current era"""
+        if lang == "fr":
+            return ERA_NAMES_FR.get(self.current_era, self.current_era.value)
+        return ERA_NAMES_EN.get(self.current_era, self.current_era.value)
+
+    def get_era_effects(self) -> dict:
+        """Get gameplay effects of current era"""
+        effects = {
+            GeopoliticalEra.EQUILIBRIUM: {
+                "description_fr": "Aucun modificateur particulier",
+                "war_cost_modifier": 1.0,
+                "diplomacy_success_modifier": 1.0,
+                "sanctions_effectiveness": 1.0,
+            },
+            GeopoliticalEra.ALLIANCE_BUILDING: {
+                "description_fr": "Les alliances se forment plus facilement",
+                "alliance_formation_bonus": 0.3,
+                "diplomacy_success_modifier": 1.2,
+            },
+            GeopoliticalEra.SANCTIONS_ERA: {
+                "description_fr": "Sanctions +50% efficaces, degats militaires -30%",
+                "sanctions_effectiveness": 1.5,
+                "military_damage_modifier": 0.7,
+            },
+            GeopoliticalEra.MILITARY_BUILDUP: {
+                "description_fr": "Depenses militaires reduites, tensions accrues",
+                "military_cost_modifier": 0.8,
+                "tension_increase_modifier": 1.3,
+            },
+            GeopoliticalEra.DETENTE: {
+                "description_fr": "+30% succes diplomatique, guerre plus couteuse",
+                "diplomacy_success_modifier": 1.3,
+                "war_cost_modifier": 1.5,
+            },
+            GeopoliticalEra.CRISIS_MODE: {
+                "description_fr": "Instabilite generalisee, tout est plus volatile",
+                "stability_decay_modifier": 1.5,
+                "market_volatility_bonus": 20,
+            },
+            GeopoliticalEra.COLD_WAR: {
+                "description_fr": "Bipolarisation, proxy wars facilites",
+                "bloc_cohesion_bonus": 0.2,
+                "proxy_war_cost_modifier": 0.6,
+            },
+            GeopoliticalEra.MULTIPOLAR_SHIFT: {
+                "description_fr": "Nouveaux acteurs emergent, alliances fluides",
+                "new_alliance_bonus": 0.4,
+                "bloc_cohesion_penalty": 0.2,
+            },
+        }
+        return effects.get(self.current_era, effects[GeopoliticalEra.EQUILIBRIUM])
+
+    def to_dict(self) -> dict:
+        """Serialize for API/frontend"""
+        return {
+            "global_confidence": self.global_confidence,
+            "war_fatigue": self.war_fatigue,
+            "economic_optimism": self.economic_optimism,
+            "diplomatic_openness": self.diplomatic_openness,
+            "market_volatility": self.market_volatility,
+            "nuclear_anxiety": self.nuclear_anxiety,
+            "current_era": self.current_era.value,
+            "era_display_fr": self.get_era_display("fr"),
+            "era_display_en": self.get_era_display("en"),
+            "era_strength": self.era_strength,
+            "era_months_active": self.era_months_active,
+            "era_effects": self.get_era_effects(),
+            "player_reputation": self.player_reputation,
+        }
+
+
 class Conflict(BaseModel):
     """Active conflict between countries"""
     id: str
@@ -139,6 +273,9 @@ class World(BaseModel):
 
     # Nuclear/DEFCON system
     defcon_level: int = 5  # 5=peace, 1=imminent war, 0=nuclear war
+
+    # World Mood - collective emotional state (Phase 2 Timeline)
+    mood: WorldMood = Field(default_factory=WorldMood)
 
     # Game state
     game_ended: bool = False

@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useGameStore } from '@/stores/gameStore';
-import { Send, Loader2, Check, X, ChevronDown } from 'lucide-react';
+import { Send, Loader2, Check, X, ChevronDown, TrendingUp, TrendingDown } from 'lucide-react';
+import { CommandCost } from '@/lib/types';
 
 // ============================================================================
 // Constants (TIER 4: No magic numbers)
@@ -19,12 +20,24 @@ interface ActionMessage {
   content: string;
   timestamp: Date;
   status?: 'pending' | 'confirmed' | 'cancelled';
+  cost?: CommandCost;
+  feasible?: boolean;
+  feasibilityReason?: string;
 }
 
 interface ActionDropupProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
+// Cost display labels
+const COST_LABELS: Record<keyof CommandCost, string> = {
+  economy: 'Economie',
+  military: 'Militaire',
+  stability: 'Stabilite',
+  soft_power: 'Influence',
+  technology: 'Technologie',
+};
 
 // ============================================================================
 // Component
@@ -35,15 +48,30 @@ export default function ActionDropup({ isOpen, onClose }: ActionDropupProps) {
     confirmPlayerCommand,
     cancelPlayerCommand,
     pendingCommand,
-    isLoading
+    isLoading,
+    year,
+    month,
   } = useGameStore();
 
   const [command, setCommand] = useState('');
   const [messages, setMessages] = useState<ActionMessage[]>([]);
+  const prevYearMonth = useRef<string>(`${year}-${month}`);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const focusTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // ============================================================================
+  // Clear messages when time advances
+  // ============================================================================
+  useEffect(() => {
+    const currentYearMonth = `${year}-${month}`;
+    if (prevYearMonth.current !== currentYearMonth) {
+      // Time has advanced, clear confirmed/cancelled messages
+      setMessages(prev => prev.filter(m => m.status === 'pending'));
+      prevYearMonth.current = currentYearMonth;
+    }
+  }, [year, month]);
 
   // ============================================================================
   // TIER 1: Memoized handlers (prevent re-renders)
@@ -54,7 +82,7 @@ export default function ActionDropup({ isOpen, onClose }: ActionDropupProps) {
     const userMsg: ActionMessage = {
       id: Date.now().toString(),
       type: 'user',
-      content: command.slice(0, MAX_MESSAGE_LENGTH), // TIER 2: Input validation
+      content: command.slice(0, MAX_MESSAGE_LENGTH),
       timestamp: new Date()
     };
     setMessages(prev => [...prev, userMsg]);
@@ -100,7 +128,6 @@ export default function ActionDropup({ isOpen, onClose }: ActionDropupProps) {
   }, [handleSend, onClose]);
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    // TIER 2: Input validation - limit length
     const value = e.target.value.slice(0, MAX_MESSAGE_LENGTH);
     setCommand(value);
   }, []);
@@ -117,17 +144,14 @@ export default function ActionDropup({ isOpen, onClose }: ActionDropupProps) {
   // TIER 1: Focus input when opened (with cleanup)
   useEffect(() => {
     if (isOpen && inputRef.current) {
-      // Clear any existing timeout
       if (focusTimeoutRef.current) {
         clearTimeout(focusTimeoutRef.current);
       }
-      // Use requestAnimationFrame for more reliable timing
       focusTimeoutRef.current = setTimeout(() => {
         inputRef.current?.focus();
       }, FOCUS_DELAY_MS);
     }
 
-    // Cleanup on unmount or when isOpen changes
     return () => {
       if (focusTimeoutRef.current) {
         clearTimeout(focusTimeoutRef.current);
@@ -136,7 +160,7 @@ export default function ActionDropup({ isOpen, onClose }: ActionDropupProps) {
     };
   }, [isOpen]);
 
-  // Add pending command to messages when it arrives
+  // Add pending command to messages when it arrives (with cost info)
   useEffect(() => {
     if (pendingCommand && !messages.find(m => m.id === pendingCommand.command_id)) {
       setMessages(prev => [...prev, {
@@ -144,7 +168,10 @@ export default function ActionDropup({ isOpen, onClose }: ActionDropupProps) {
         type: 'system',
         content: pendingCommand.confirmation_message_fr || pendingCommand.interpreted_as || 'Action en attente de confirmation',
         timestamp: new Date(),
-        status: 'pending'
+        status: 'pending',
+        cost: pendingCommand.cost,
+        feasible: pendingCommand.feasible,
+        feasibilityReason: pendingCommand.feasibility_reason || undefined,
       }]);
     }
   }, [pendingCommand, messages]);
@@ -166,6 +193,32 @@ export default function ActionDropup({ isOpen, onClose }: ActionDropupProps) {
     `${command.length}/${MAX_MESSAGE_LENGTH}`,
     [command.length]
   );
+
+  // ============================================================================
+  // Render cost item
+  // ============================================================================
+  const renderCostItem = (key: keyof CommandCost, value: number) => {
+    if (value === 0) return null;
+    const isPositive = value > 0;
+    return (
+      <div
+        key={key}
+        className={`flex items-center gap-1 text-xs ${
+          isPositive ? 'text-emerald-600' : 'text-rose-600'
+        }`}
+      >
+        {isPositive ? (
+          <TrendingUp className="w-3 h-3" />
+        ) : (
+          <TrendingDown className="w-3 h-3" />
+        )}
+        <span>{COST_LABELS[key]}</span>
+        <span className="font-medium">
+          {isPositive ? '+' : ''}{value}
+        </span>
+      </div>
+    );
+  };
 
   // ============================================================================
   // Render
@@ -210,7 +263,7 @@ export default function ActionDropup({ isOpen, onClose }: ActionDropupProps) {
 
           {/* Messages feed */}
           <div
-            className="h-64 overflow-y-auto p-3 space-y-2 bg-stone-50"
+            className="h-72 overflow-y-auto p-3 space-y-2 bg-stone-50"
             role="log"
             aria-live="polite"
             aria-label="Historique des actions"
@@ -226,7 +279,7 @@ export default function ActionDropup({ isOpen, onClose }: ActionDropupProps) {
                 key={msg.id}
                 className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                <div className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${
+                <div className={`max-w-[90%] rounded-xl px-3 py-2 text-sm ${
                   msg.type === 'user'
                     ? 'bg-emerald-500 text-white'
                     : msg.type === 'result'
@@ -237,14 +290,34 @@ export default function ActionDropup({ isOpen, onClose }: ActionDropupProps) {
                     ? 'bg-stone-200 text-stone-500 line-through'
                     : 'bg-white border border-stone-200 text-stone-700'
                 }`}>
-                  {msg.content}
+                  {/* Main content */}
+                  <div className="font-medium">{msg.content}</div>
+
+                  {/* Feasibility warning */}
+                  {msg.status === 'pending' && msg.feasible === false && (
+                    <div className="mt-2 p-2 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700">
+                      <span className="font-semibold">Non realisable:</span> {msg.feasibilityReason || 'Ressources insuffisantes'}
+                    </div>
+                  )}
+
+                  {/* Cost/Gain display */}
+                  {msg.status === 'pending' && msg.cost && (
+                    <div className="mt-2 p-2 bg-stone-50 rounded-lg space-y-1">
+                      <div className="text-xs font-medium text-stone-500 mb-1">Impact estime:</div>
+                      <div className="grid grid-cols-2 gap-1">
+                        {(Object.keys(msg.cost) as Array<keyof CommandCost>).map(key =>
+                          renderCostItem(key, msg.cost![key])
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Confirmation buttons for pending */}
                   {msg.status === 'pending' && pendingCommand && (
-                    <div className="flex gap-2 mt-2 pt-2 border-t border-stone-200">
+                    <div className="flex gap-2 mt-3 pt-2 border-t border-stone-200">
                       <button
                         onClick={handleCancel}
-                        className="flex-1 flex items-center justify-center gap-1 px-2 py-1
+                        className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5
                           bg-stone-100 text-stone-600 rounded-lg text-xs hover:bg-stone-200 transition"
                         aria-label="Annuler l'action"
                       >
@@ -253,10 +326,10 @@ export default function ActionDropup({ isOpen, onClose }: ActionDropupProps) {
                       </button>
                       <button
                         onClick={handleConfirm}
-                        disabled={isLoading}
-                        className="flex-1 flex items-center justify-center gap-1 px-2 py-1
+                        disabled={isLoading || msg.feasible === false}
+                        className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5
                           bg-emerald-500 text-white rounded-lg text-xs hover:bg-emerald-600 transition
-                          disabled:opacity-50"
+                          disabled:opacity-50 disabled:cursor-not-allowed"
                         aria-label="Confirmer l'action"
                       >
                         {isLoading ? (

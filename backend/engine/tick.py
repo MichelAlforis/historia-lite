@@ -3,7 +3,7 @@ import logging
 import random
 from typing import List, Tuple, Optional, Any, Dict
 
-from .world import World, GameDate
+from .world import World, GameDate, GeopoliticalEra
 from .country import Country
 from .events import Event, EventPool
 from .project import project_manager
@@ -147,6 +147,9 @@ def process_tick(
 
     # Phase 7: Relations (monthly drift)
     _update_relations_monthly(world)
+
+    # Phase 7b: World Mood update (collective emotional state)
+    _update_world_mood(world, timeline, timeline_events)
 
     # Phase 8: Projects (monthly progress)
     proj_events, proj_timeline = _process_projects_monthly(world, current_date, timeline)
@@ -918,6 +921,149 @@ def _apply_delayed_effect(world: World, effect: Any) -> None:
             new_value = max(0, min(100, current + delta))
             setattr(country, stat, new_value)
             logger.info(f"Delayed effect applied: {country.id}.{stat} += {delta}")
+
+
+def _update_world_mood(
+    world: World,
+    timeline: Optional[TimelineManager],
+    recent_events: List[TimelineEvent]
+) -> None:
+    """
+    Update the world's collective mood based on recent events.
+    This affects global gameplay modifiers for all countries.
+    """
+    mood = world.mood
+
+    # Count active wars
+    active_wars = len(world.active_conflicts)
+
+    # War fatigue: increases with conflicts, decays slowly
+    if active_wars > 0:
+        mood.war_fatigue = min(100, mood.war_fatigue + active_wars * 3)
+    else:
+        mood.war_fatigue = max(0, mood.war_fatigue - 2)
+
+    # Nuclear anxiety based on DEFCON level
+    if world.defcon_level <= 2:
+        mood.nuclear_anxiety = min(100, mood.nuclear_anxiety + 10)
+    elif world.defcon_level == 3:
+        mood.nuclear_anxiety = min(100, mood.nuclear_anxiety + 3)
+    else:
+        mood.nuclear_anxiety = max(0, mood.nuclear_anxiety - 2)
+
+    # Market volatility based on global tension
+    if world.global_tension > 70:
+        mood.market_volatility = min(100, mood.market_volatility + 5)
+    elif world.global_tension < 40:
+        mood.market_volatility = max(10, mood.market_volatility - 3)
+
+    # Analyze recent timeline events for mood indicators
+    economic_crises = 0
+    diplomatic_events = 0
+    military_events = 0
+    alliance_events = 0
+
+    for event in recent_events:
+        event_type = event.type.value if hasattr(event.type, 'value') else str(event.type)
+        importance = event.importance
+
+        if event_type == "economic" and importance >= 4:
+            economic_crises += 1
+        elif event_type == "diplomatic":
+            diplomatic_events += 1
+            if "alliance" in event.title.lower() or "treaty" in event.title.lower():
+                alliance_events += 1
+        elif event_type in ["military", "war"]:
+            military_events += 1
+
+    # Economic optimism
+    if economic_crises > 0:
+        mood.economic_optimism = max(0, mood.economic_optimism - economic_crises * 8)
+    elif world.oil_price < 60:
+        mood.economic_optimism = min(100, mood.economic_optimism + 2)
+    else:
+        mood.economic_optimism = min(100, mood.economic_optimism + 1)
+
+    # Diplomatic openness
+    if diplomatic_events > military_events:
+        mood.diplomatic_openness = min(100, mood.diplomatic_openness + 3)
+    elif military_events > diplomatic_events:
+        mood.diplomatic_openness = max(0, mood.diplomatic_openness - 2)
+
+    # Global confidence
+    if mood.war_fatigue > 60 or mood.nuclear_anxiety > 60:
+        mood.global_confidence = max(0, mood.global_confidence - 3)
+    elif mood.economic_optimism > 60 and mood.war_fatigue < 30:
+        mood.global_confidence = min(100, mood.global_confidence + 2)
+
+    # Check for era transitions
+    new_era = _check_era_transition(world, mood, timeline, alliance_events)
+    if new_era and new_era != mood.current_era:
+        logger.info(f"World era changed: {mood.current_era.value} -> {new_era.value}")
+        mood.current_era = new_era
+        mood.era_start_year = world.year
+        mood.era_start_month = world.month
+        mood.era_months_active = 0
+        mood.era_strength = 50
+    else:
+        mood.era_months_active += 1
+        # Era strength increases over time
+        if mood.era_months_active > 6:
+            mood.era_strength = min(100, mood.era_strength + 2)
+
+
+def _check_era_transition(
+    world: World,
+    mood: Any,
+    timeline: Optional[TimelineManager],
+    alliance_events: int
+) -> Optional[GeopoliticalEra]:
+    """Check if conditions are met for an era transition"""
+
+    # Crisis Mode: extreme tensions or DEFCON 2
+    if world.global_tension > 80 and mood.nuclear_anxiety > 70:
+        return GeopoliticalEra.CRISIS_MODE
+    if world.defcon_level <= 2:
+        return GeopoliticalEra.CRISIS_MODE
+
+    # Detente: after exhausting wars, no active conflicts, low tensions
+    if mood.war_fatigue > 70 and len(world.active_conflicts) == 0 and world.global_tension < 40:
+        return GeopoliticalEra.DETENTE
+
+    # Cold War: two superpowers at odds, bloc tension high
+    usa = world.get_country("USA")
+    chn = world.get_country("CHN")
+    rus = world.get_country("RUS")
+    if usa and chn:
+        us_china_relations = usa.relations.get("CHN", 0)
+        if us_china_relations < -50 and world.global_tension > 60:
+            return GeopoliticalEra.COLD_WAR
+    if usa and rus:
+        us_russia_relations = usa.relations.get("RUS", 0)
+        if us_russia_relations < -50 and world.global_tension > 60:
+            return GeopoliticalEra.COLD_WAR
+
+    # Alliance Building: many alliances being formed
+    if alliance_events >= 2:
+        return GeopoliticalEra.ALLIANCE_BUILDING
+
+    # Military Buildup: high military spending events
+    avg_military = sum(c.military for c in world.countries.values()) / max(1, len(world.countries))
+    if avg_military > 70 and world.global_tension > 50:
+        return GeopoliticalEra.MILITARY_BUILDUP
+
+    # Sanctions Era: many sanctions active
+    total_sanctions = sum(len(c.sanctions_on) for c in world.countries.values())
+    if total_sanctions > 10:
+        return GeopoliticalEra.SANCTIONS_ERA
+
+    # Multipolar Shift: multiple strong powers emerging
+    strong_powers = [c for c in world.countries.values() if c.power_score > 200]
+    if len(strong_powers) >= 5:
+        return GeopoliticalEra.MULTIPOLAR_SHIFT
+
+    # No change - remain in equilibrium or current era
+    return None
 
 
 def _process_economy_monthly(

@@ -50,6 +50,10 @@ const RelationMatrix = dynamic(() => import('@/components/RelationMatrix'), {
   loading: () => <ModalLoader />,
 });
 
+const TimelineModal = dynamic(() => import('@/components/TimelineModal'), {
+  loading: () => <ModalLoader />,
+});
+
 // Map - no SSR, heavy component with WebGL
 const WorldMapGL = dynamic(() => import('@/components/map/WorldMapGL'), {
   ssr: false,
@@ -564,6 +568,12 @@ export default function PaxPage() {
           setShowMatrix(false);
           setSelectedMapCountry(countryId);
         }}
+      />
+
+      {/* Timeline Modal - Full history navigation */}
+      <TimelineModal
+        isOpen={timelineModalOpen}
+        onClose={closeTimelineModal}
       />
     </div>
   );

@@ -147,6 +147,81 @@ export interface Conflict {
   nuclear_risk: number;
 }
 
+// Geopolitical Era - shapes world dynamics
+export type GeopoliticalEra =
+  | 'equilibrium'
+  | 'alliance_building'
+  | 'sanctions_era'
+  | 'military_buildup'
+  | 'detente'
+  | 'crisis_mode'
+  | 'cold_war'
+  | 'multipolar_shift';
+
+// Era display names
+export const ERA_NAMES_FR: Record<GeopoliticalEra, string> = {
+  equilibrium: 'Equilibre',
+  alliance_building: 'Course aux alliances',
+  sanctions_era: 'Ere des sanctions',
+  military_buildup: 'Rearmement',
+  detente: 'Detente',
+  crisis_mode: 'Mode crise',
+  cold_war: 'Guerre froide',
+  multipolar_shift: 'Basculement multipolaire',
+};
+
+export const ERA_NAMES_EN: Record<GeopoliticalEra, string> = {
+  equilibrium: 'Equilibrium',
+  alliance_building: 'Alliance Building',
+  sanctions_era: 'Sanctions Era',
+  military_buildup: 'Military Buildup',
+  detente: 'Detente',
+  crisis_mode: 'Crisis Mode',
+  cold_war: 'Cold War',
+  multipolar_shift: 'Multipolar Shift',
+};
+
+// Era colors for UI
+export const ERA_COLORS: Record<GeopoliticalEra, string> = {
+  equilibrium: 'bg-stone-500',
+  alliance_building: 'bg-blue-500',
+  sanctions_era: 'bg-amber-500',
+  military_buildup: 'bg-red-500',
+  detente: 'bg-green-500',
+  crisis_mode: 'bg-rose-600',
+  cold_war: 'bg-indigo-500',
+  multipolar_shift: 'bg-purple-500',
+};
+
+// World Mood - collective emotional state of the world
+export interface WorldMood {
+  // Main indicators (0-100)
+  global_confidence: number;
+  war_fatigue: number;
+  economic_optimism: number;
+  diplomatic_openness: number;
+
+  // Volatility and risk
+  market_volatility: number;
+  nuclear_anxiety: number;
+
+  // Current era
+  current_era: GeopoliticalEra;
+  era_display_fr: string;
+  era_display_en: string;
+  era_strength: number;
+  era_months_active: number;
+
+  // Era effects
+  era_effects: {
+    description_fr: string;
+    [key: string]: number | string;
+  };
+
+  // Player reputation
+  player_reputation: number;
+}
+
 export interface WorldState {
   year: number;
   seed: number;
@@ -176,6 +251,9 @@ export interface WorldState {
   game_end_message: string;
   game_end_message_fr: string;
   final_score: number;
+
+  // World Mood - collective emotional state (Phase 2 Timeline)
+  mood?: WorldMood;
 }
 
 // Tier 4 Country (simplified model)
