@@ -285,6 +285,9 @@ export default function ActionDropup({ isOpen, onClose }: ActionDropupProps) {
                 onKeyDown={handleKeyDown}
                 placeholder="Decrivez votre action..."
                 maxLength={MAX_MESSAGE_LENGTH}
+                autoComplete="off"
+                data-lpignore="true"
+                data-form-type="other"
                 className="flex-1 px-3 py-2 bg-stone-50 rounded-xl border-none text-sm
                   text-stone-800 placeholder-stone-400
                   focus:outline-none focus:ring-2 focus:ring-emerald-200"

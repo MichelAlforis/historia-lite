@@ -369,6 +369,9 @@ export default function AdvisorDropleft({ isOpen, onClose }: AdvisorDropleftProp
               placeholder="Posez une question..."
               maxLength={MAX_MESSAGE_LENGTH}
               disabled={isInputDisabled}
+              autoComplete="off"
+              data-lpignore="true"
+              data-form-type="other"
               className="flex-1 border border-stone-300 rounded-lg px-3 py-2 text-sm
                 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent
                 disabled:bg-stone-50 disabled:text-stone-400"
