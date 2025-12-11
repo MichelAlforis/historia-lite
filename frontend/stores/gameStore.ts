@@ -327,9 +327,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
         type: te.type as TimelineEvent['type'],
         source: 'procedural' as TimelineEvent['source'],
         importance: te.importance,
+        family: 'tactical' as TimelineEvent['family'],
         read: false,
         caused_by: null,
         triggers: [],
+        caused_by_chain: [],
+        effects_chain: [],
+        ripple_weight: 0,
+        ripple_targets: [],
       }));
 
       // Add new events to timeline
