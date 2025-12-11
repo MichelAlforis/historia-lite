@@ -375,17 +375,44 @@ Commande a analyser: "{command}"
         )
 
     def _extract_country(self, command: str, world: "World") -> Optional[str]:
-        """Extract country ID from command text"""
+        """Extract country ID from command text - searches all countries dynamically"""
+        # Normalize command for matching
+        cmd_normalized = self._normalize_text(command)
+
+        # 1. First check hardcoded aliases (common variations)
         for alias, country_id in COUNTRY_ALIASES.items():
-            if alias in command:
+            if alias in cmd_normalized:
                 return country_id
 
-        # Also check actual country IDs
-        for country_id in world.countries.keys():
-            if country_id.lower() in command:
+        # 2. Search in ALL countries from world data (dynamic)
+        for country_id, country in world.countries.items():
+            # Check country ID (e.g., "PRT", "USA")
+            if country_id.lower() in cmd_normalized:
                 return country_id
+
+            # Check English name (e.g., "Portugal", "Germany")
+            if hasattr(country, 'name') and country.name:
+                name_normalized = self._normalize_text(country.name)
+                if name_normalized in cmd_normalized:
+                    return country_id
+
+            # Check French name (e.g., "Portugal", "Allemagne")
+            if hasattr(country, 'name_fr') and country.name_fr:
+                name_fr_normalized = self._normalize_text(country.name_fr)
+                if name_fr_normalized in cmd_normalized:
+                    return country_id
 
         return None
+
+    def _normalize_text(self, text: str) -> str:
+        """Normalize text for matching - remove accents, lowercase"""
+        import unicodedata
+        # Lowercase
+        text = text.lower()
+        # Remove accents (é -> e, ç -> c, etc.)
+        text = unicodedata.normalize('NFD', text)
+        text = ''.join(c for c in text if unicodedata.category(c) != 'Mn')
+        return text
 
     def _extract_project(self, command: str) -> Optional[str]:
         """Extract project ID from command text"""

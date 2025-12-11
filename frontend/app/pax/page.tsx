@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, memo } from 'react';
 import { useGameStore } from '@/stores/gameStore';
 import { COUNTRY_FLAGS, ERA_NAMES_FR, ERA_COLORS, GeopoliticalEra, CrisisArc } from '@/lib/types';
 import dynamic from 'next/dynamic';
-import { Zap, MessageCircle, Lightbulb, Loader2, X, Users, ChevronRight, ChevronLeft, Grid3X3, Map, Calendar, AlertTriangle } from 'lucide-react';
+import { Zap, MessageCircle, Lightbulb, Loader2, X, Users, ChevronRight, ChevronLeft, Grid3X3, Map, Calendar, AlertTriangle, Trophy } from 'lucide-react';
 import { useMemo } from 'react';
 
 // Static components (lightweight, always needed)
@@ -13,6 +13,7 @@ import VideoSkeleton from '@/components/VideoSkeleton';
 import EventToast from '@/components/EventToast';
 import BreakingNews from '@/components/BreakingNews';
 import ReputationBar from '@/components/ReputationBar';
+import AchievementsPanel from '@/components/AchievementsPanel';
 
 // API
 import { getScenarioStatus, ScenarioStatus } from '@/lib/api';
@@ -138,6 +139,7 @@ export default function PaxPage() {
   const [showEventHistory, setShowEventHistory] = useState(false);
   const [showRelations, setShowRelations] = useState(false);
   const [showMatrix, setShowMatrix] = useState(false);
+  const [showAchievements, setShowAchievements] = useState(false);
 
   // Map view mode
   const [mapViewMode, setMapViewMode] = useState<'power' | 'relations'>('power');
@@ -447,6 +449,15 @@ export default function PaxPage() {
                   {unreadEventCount}
                 </span>
               )}
+            </button>
+
+            {/* Achievements button */}
+            <button
+              onClick={() => setShowAchievements(true)}
+              className="flex items-center gap-2 px-3 py-2 bg-amber-100 hover:bg-amber-200 rounded-xl transition"
+              title="Achievements"
+            >
+              <Trophy className="w-4 h-4 text-amber-600" />
             </button>
           </div>
         </div>

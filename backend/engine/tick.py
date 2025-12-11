@@ -21,6 +21,7 @@ from .procedural_events import procedural_generator
 from .timeline import TimelineManager, TimelineEvent, EventType, EventSource
 from .crisis import CrisisManager, detect_potential_crisis
 from .stats_history import stats_history
+from .achievements import achievement_manager
 from ai.decision_tier4 import process_tier4_countries
 from ai.ai_event_generator import ai_event_generator
 from ai.decision_tier5 import process_tier5_countries
@@ -302,6 +303,12 @@ def process_tick(
 
     # Record stats history before advancing
     stats_history.record_all(world)
+
+    # Check achievements
+    achievement_manager.update_trackers(world)
+    newly_unlocked = achievement_manager.check_achievements(world)
+    for ach_id in newly_unlocked:
+        logger.info(f"Achievement unlocked: {ach_id}")
 
     # Advance to next month
     old_date = f"{world.month}/{world.year}"
