@@ -555,10 +555,14 @@ Maximum 3-4 phrases."""
         # Try to extract if response contains JSON, otherwise return raw
         try:
             data = self._parse_json(response)
-            if data and "response" in data:
-                return data["response"]
-            if data and "message" in data:
-                return data["message"]
+            if data:
+                # Check various possible keys the AI might use
+                for key in ["response", "message", "conseil", "advice", "answer", "reponse"]:
+                    if key in data:
+                        return data[key]
+                # If it's a dict with a single key, return its value
+                if len(data) == 1:
+                    return list(data.values())[0]
         except Exception:
             pass
 
