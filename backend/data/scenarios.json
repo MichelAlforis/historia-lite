@@ -2,15 +2,22 @@
   "scenarios": [
     {
       "id": "modern_2025",
-      "name": "Monde Moderne 2025",
-      "name_fr": "Monde Moderne 2025",
-      "description": "Le monde tel qu'il est en 2025. Tensions USA-Chine, guerre en Ukraine, montee des BRICS.",
+      "name": "Modern Tensions",
+      "name_fr": "Tensions Contemporaines",
+      "description": "The world as it is in 2025. US-China tensions, war in Ukraine, rise of BRICS.",
+      "description_fr": "Le monde tel qu'il est en 2025. Tensions USA-Chine, guerre en Ukraine, montee des BRICS.",
+      "start_date": {"year": 2025, "month": 1, "day": 1},
       "start_year": 2025,
-      "difficulty": "normal",
+      "end_year": 2040,
+      "difficulty": "medium",
+      "initial_defcon": 4,
       "duration": null,
-      "icon": "🌍",
-      "tags": ["actuel", "realiste"],
+      "icon": "globe",
+      "tags": ["actuel", "realiste", "multipolar"],
+      "playable_countries": ["USA", "CHN", "RUS", "GBR", "FRA", "DEU", "JPN", "IND", "BRA", "IRN", "SAU", "TUR", "KOR", "TWN"],
+      "major_powers": ["USA", "CHN", "RUS", "GBR", "FRA", "DEU", "JPN", "IND"],
       "recommended_countries": ["USA", "CHN", "RUS", "FRA", "DEU"],
+      "active_rivalries": ["usa_china", "russia_nato", "india_pakistan", "israel_iran", "china_taiwan", "korea_north_south", "saudi_iran"],
       "initial_state": {
         "global_tension": 65,
         "oil_price": 75
@@ -29,21 +36,28 @@
     },
     {
       "id": "cold_war_1962",
-      "name": "Cold War - Cuban Crisis",
-      "name_fr": "Guerre Froide - Crise de Cuba",
-      "description": "Octobre 1962. Le monde au bord de la guerre nucleaire. Khrouchtchev vs Kennedy.",
+      "name": "Cuban Missile Crisis",
+      "name_fr": "Crise des Missiles de Cuba",
+      "description": "October 1962. The world on the brink of nuclear war. Khrushchev vs Kennedy. You have 13 days to prevent Armageddon.",
+      "description_fr": "Octobre 1962. Le monde au bord de la guerre nucleaire. Khrouchtchev vs Kennedy. Vous avez 13 jours pour eviter l'Armageddon.",
+      "start_date": {"year": 1962, "month": 10, "day": 16},
       "start_year": 1962,
+      "end_year": 1972,
       "difficulty": "hard",
+      "initial_defcon": 2,
       "duration": 30,
-      "icon": "☢️",
-      "tags": ["historique", "nucleaire", "guerre_froide"],
+      "icon": "nuclear",
+      "tags": ["historique", "nucleaire", "guerre_froide", "crisis"],
+      "playable_countries": ["USA", "RUS", "GBR", "FRA", "CHN", "CUB"],
+      "major_powers": ["USA", "RUS", "GBR", "FRA", "CHN"],
       "recommended_countries": ["USA", "RUS"],
+      "active_rivalries": ["usa_ussr", "china_taiwan", "india_pakistan"],
       "initial_state": {
         "global_tension": 95,
         "oil_price": 3
       },
       "modified_countries": {
-        "RUS": {"name": "URSS", "flag": "☭", "ideology": "communist", "nuclear": 1500},
+        "RUS": {"name": "URSS", "name_fr": "Union Sovietique", "flag": "soviet", "ideology": "communist", "nuclear": 1500},
         "USA": {"nuclear": 1000, "ideology": "capitalist"},
         "CHN": {"tier": 2, "nuclear": 5, "ideology": "communist"},
         "DEU": {"divided": true}
@@ -58,8 +72,112 @@
         "USA": ["prevent_nuclear_war", "contain_communism", "defend_berlin", "moon_landing"],
         "RUS": ["spread_communism", "match_usa_nuclear", "cuba_missiles", "space_race"]
       },
+      "initial_events": [
+        {
+          "type": "crisis",
+          "title": "Soviet Missiles Discovered in Cuba",
+          "title_fr": "Missiles Sovietiques Decouverts a Cuba",
+          "description_fr": "Des avions espions U-2 ont photographie des rampes de lancement de missiles nucleaires sovietiques a Cuba, a moins de 150km des cotes americaines.",
+          "countries_involved": ["USA", "RUS", "CUB"]
+        }
+      ],
       "special_events": [
         {"year": 1962, "month": 10, "event": "cuban_missile_crisis", "auto_trigger": true}
+      ]
+    },
+    {
+      "id": "new_cold_war_1980",
+      "name": "Second Cold War",
+      "name_fr": "Nouvelle Guerre Froide",
+      "description": "January 1980. Reagan era begins. The USSR invades Afghanistan. The arms race intensifies. Will détente collapse?",
+      "description_fr": "Janvier 1980. L'ere Reagan commence. L'URSS envahit l'Afghanistan. La course aux armements s'intensifie. La detente va-t-elle s'effondrer?",
+      "start_date": {"year": 1980, "month": 1, "day": 1},
+      "start_year": 1980,
+      "end_year": 1992,
+      "difficulty": "medium",
+      "initial_defcon": 4,
+      "duration": null,
+      "icon": "missile",
+      "tags": ["historique", "guerre_froide", "proxy_wars", "arms_race"],
+      "playable_countries": ["USA", "RUS", "GBR", "FRA", "DEU", "CHN", "JPN", "IRN", "IRQ", "AFG"],
+      "major_powers": ["USA", "RUS", "GBR", "FRA", "CHN", "DEU", "JPN"],
+      "recommended_countries": ["USA", "RUS", "CHN"],
+      "active_rivalries": ["usa_ussr", "china_taiwan", "india_pakistan", "iran_iraq", "israel_arab"],
+      "initial_state": {
+        "global_tension": 70,
+        "oil_price": 35
+      },
+      "modified_countries": {
+        "RUS": {"name": "URSS", "name_fr": "Union Sovietique", "flag": "soviet", "ideology": "communist", "nuclear": 6000, "stability": 60},
+        "USA": {"nuclear": 5500, "ideology": "capitalist", "stability": 70},
+        "CHN": {"tier": 2, "nuclear": 200, "ideology": "communist", "stability": 50},
+        "IRN": {"ideology": "theocratic", "stability": 45},
+        "AFG": {"stability": 20, "at_war": ["RUS"]}
+      },
+      "disabled_countries": ["UKR", "BLR", "KAZ", "UZB", "GEO", "ARM", "AZE"],
+      "active_conflicts": [
+        {"attacker": "RUS", "defender": "AFG", "type": "war", "intensity": "high"}
+      ],
+      "blocs_override": {
+        "warsaw_pact": ["RUS", "POL", "DDR", "CZE", "HUN", "ROM", "BGR"],
+        "nato_1980": ["USA", "GBR", "FRA", "DEU", "ITA", "CAN", "NLD", "BEL", "NOR", "DNK", "PRT", "GRC", "TUR", "ESP"]
+      },
+      "objectives": {
+        "USA": ["contain_soviets", "arm_mujahideen", "star_wars_program", "survive_decade"],
+        "RUS": ["pacify_afghanistan", "maintain_eastern_bloc", "arms_parity", "survive_decade"]
+      },
+      "initial_events": [
+        {
+          "type": "war",
+          "title": "Soviet Invasion of Afghanistan",
+          "title_fr": "Invasion Sovietique de l'Afghanistan",
+          "description_fr": "Les troupes sovietiques ont franchi la frontiere afghane le 24 decembre 1979. Le monde condamne cette agression. Les USA boycottent les JO de Moscou.",
+          "countries_involved": ["RUS", "AFG"]
+        }
+      ]
+    },
+    {
+      "id": "new_world_order_1991",
+      "name": "New World Order",
+      "name_fr": "Nouvel Ordre Mondial",
+      "description": "December 26, 1991. The Soviet Union has collapsed. America stands as the sole superpower. A new era begins.",
+      "description_fr": "26 decembre 1991. L'Union Sovietique s'effondre. L'Amerique est la seule superpuissance. Une nouvelle ere commence.",
+      "start_date": {"year": 1991, "month": 12, "day": 26},
+      "start_year": 1991,
+      "end_year": 2005,
+      "difficulty": "easy",
+      "initial_defcon": 5,
+      "duration": null,
+      "icon": "globe",
+      "tags": ["historique", "post_cold_war", "unipolarity", "transitions"],
+      "playable_countries": ["USA", "RUS", "GBR", "FRA", "DEU", "CHN", "JPN", "IND", "IRN", "IRQ", "UKR"],
+      "major_powers": ["USA", "RUS", "GBR", "FRA", "CHN", "DEU", "JPN", "IND"],
+      "recommended_countries": ["USA", "RUS", "CHN"],
+      "active_rivalries": ["india_pakistan", "israel_iran", "china_taiwan", "korea_north_south"],
+      "initial_state": {
+        "global_tension": 30,
+        "oil_price": 20
+      },
+      "modified_countries": {
+        "RUS": {"name": "Russie", "name_fr": "Federation de Russie", "ideology": "transitional", "nuclear": 6000, "stability": 35, "economy": 30},
+        "USA": {"nuclear": 5500, "stability": 80, "economy": 90},
+        "UKR": {"tier": 3, "nuclear": 1800, "stability": 40},
+        "CHN": {"tier": 2, "nuclear": 300, "economy": 50, "stability": 65}
+      },
+      "active_conflicts": [],
+      "objectives": {
+        "USA": ["maintain_hegemony", "nato_expansion", "stabilize_russia", "middle_east_peace"],
+        "RUS": ["economic_recovery", "maintain_influence", "nuclear_reduction", "prevent_nato_expansion"],
+        "CHN": ["economic_growth", "hong_kong_handover", "taiwan_strategy", "regional_influence"]
+      },
+      "initial_events": [
+        {
+          "type": "political",
+          "title": "Dissolution of the Soviet Union",
+          "title_fr": "Dissolution de l'Union Sovietique",
+          "description_fr": "Le drapeau sovietique est abaisse pour la derniere fois au Kremlin. Gorbatchev demissionne. La Russie et 14 nouvelles republiques emergent des cendres de l'URSS.",
+          "countries_involved": ["RUS", "UKR", "BLR", "KAZ"]
+        }
       ]
     },
     {
