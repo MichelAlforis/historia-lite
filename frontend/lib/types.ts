@@ -2210,3 +2210,295 @@ export function getDangerColor(level: number): string {
   if (level >= 30) return 'bg-yellow-500';
   return 'bg-green-500';
 }
+
+// =============================================================================
+// DAILY TICK & AUTO-ADVANCE SYSTEM
+// =============================================================================
+
+/**
+ * Extended GameDate with full daily support
+ */
+export interface GameDateFull extends GameDate {
+  display_short: string;   // "02/11/1980"
+  day_of_week: number;     // 0=Monday, 6=Sunday
+  day_of_year: number;     // 1-365
+  is_monday: boolean;
+  is_first_of_month: boolean;
+}
+
+/**
+ * Day of week names
+ */
+export const DAY_NAMES_FR = [
+  'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'
+];
+
+export const DAY_NAMES_EN = [
+  'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
+];
+
+/**
+ * Auto-advance pause reasons
+ */
+export type PauseReason =
+  | 'war_declared'
+  | 'war_ended'
+  | 'crisis_started'
+  | 'crisis_escalated'
+  | 'defcon_changed'
+  | 'nuclear_event'
+  | 'player_attacked'
+  | 'player_mentioned'
+  | 'important_event'
+  | 'watched_country'
+  | 'goal_conflict'
+  | 'max_days_reached'
+  | 'manual_pause';
+
+/**
+ * Pause reason display names (French)
+ */
+export const PAUSE_REASON_NAMES_FR: Record<PauseReason, string> = {
+  war_declared: 'Guerre declaree',
+  war_ended: 'Guerre terminee',
+  crisis_started: 'Crise commencee',
+  crisis_escalated: 'Crise escaladee',
+  defcon_changed: 'Niveau DEFCON modifie',
+  nuclear_event: 'Evenement nucleaire',
+  player_attacked: 'Votre pays attaque',
+  player_mentioned: 'Evenement vous concernant',
+  important_event: 'Evenement important',
+  watched_country: 'Pays surveille',
+  goal_conflict: 'Conflit d\'objectifs',
+  max_days_reached: 'Limite de jours atteinte',
+  manual_pause: 'Pause manuelle',
+};
+
+/**
+ * Auto-advance configuration
+ */
+export interface AutoAdvanceConfig {
+  pause_on_war: boolean;
+  pause_on_crisis: boolean;
+  pause_on_defcon_change: boolean;
+  pause_on_nuclear: boolean;
+  pause_on_player_attacked: boolean;
+  pause_on_player_mentioned: boolean;
+  min_event_importance: number;  // 1-5
+  watch_countries: string[];
+  max_days: number;
+}
+
+/**
+ * Default auto-advance config
+ */
+export const DEFAULT_AUTO_ADVANCE_CONFIG: AutoAdvanceConfig = {
+  pause_on_war: true,
+  pause_on_crisis: true,
+  pause_on_defcon_change: true,
+  pause_on_nuclear: true,
+  pause_on_player_attacked: true,
+  pause_on_player_mentioned: true,
+  min_event_importance: 4,
+  watch_countries: [],
+  max_days: 180,
+};
+
+/**
+ * Auto-advance response
+ */
+export interface AutoAdvanceResponse {
+  days_advanced: number;
+  paused: boolean;
+  pause_reason: PauseReason | null;
+  pause_message: string | null;
+  pause_message_fr: string | null;
+  events_count: number;
+  final_date: string;
+  final_date_fr: string;
+  game_ended: boolean;
+  game_end_reason: string | null;
+}
+
+/**
+ * Daily tick response
+ */
+export interface DailyTickResponse {
+  year: number;
+  month: number;
+  day: number;
+  date_display: string;
+  date_display_fr: string;
+  events: GameEvent[];
+  timeline_events: TimelineEventBrief[];
+  summary: string;
+  summary_fr: string;
+  game_ended: boolean;
+  game_end_reason: string | null;
+  game_end_message: string;
+  game_end_message_fr: string;
+  is_victory: boolean;
+  final_score: number;
+  defcon_level: number;
+  unread_events: number;
+}
+
+// =============================================================================
+// NATION AGENDA & AUTONOMOUS AI SYSTEM
+// =============================================================================
+
+/**
+ * Strategic goal types for nations
+ */
+export type GoalType =
+  | 'territorial'
+  | 'hegemony'
+  | 'nuclear'
+  | 'economic'
+  | 'alliance'
+  | 'revenge'
+  | 'defense'
+  | 'ideology'
+  | 'resource'
+  | 'stability';
+
+/**
+ * Goal type display names (French)
+ */
+export const GOAL_TYPE_NAMES_FR: Record<GoalType, string> = {
+  territorial: 'Territorial',
+  hegemony: 'Hegemonie',
+  nuclear: 'Nucleaire',
+  economic: 'Economique',
+  alliance: 'Alliance',
+  revenge: 'Revanche',
+  defense: 'Defense',
+  ideology: 'Ideologie',
+  resource: 'Ressources',
+  stability: 'Stabilite',
+};
+
+/**
+ * Goal type colors
+ */
+export const GOAL_TYPE_COLORS: Record<GoalType, string> = {
+  territorial: 'bg-red-500',
+  hegemony: 'bg-purple-500',
+  nuclear: 'bg-yellow-500',
+  economic: 'bg-green-500',
+  alliance: 'bg-blue-500',
+  revenge: 'bg-orange-600',
+  defense: 'bg-gray-500',
+  ideology: 'bg-pink-500',
+  resource: 'bg-amber-500',
+  stability: 'bg-cyan-500',
+};
+
+/**
+ * Strategic goal of a nation
+ */
+export interface StrategicGoal {
+  id: string;
+  type: GoalType;
+  name: string;
+  name_fr: string;
+  description_fr: string;
+  priority: number;  // 1-5
+  progress: number;  // 0-100
+  target_countries: string[];
+  conflicts_with: string[];  // IDs of conflicting goals
+  active: boolean;
+}
+
+/**
+ * Nation agenda (AI objectives)
+ */
+export interface NationAgenda {
+  country_id: string;
+  country_name_fr: string;
+  goals: StrategicGoal[];
+  patience: number;      // 0-100
+  opportunism: number;   // 0-100
+  active_plan: string | null;  // Current goal being pursued
+}
+
+/**
+ * Goal conflict intensity
+ */
+export type ConflictIntensity = 'none' | 'minor' | 'moderate' | 'major' | 'existential';
+
+/**
+ * Conflict intensity colors
+ */
+export const CONFLICT_INTENSITY_COLORS: Record<ConflictIntensity, string> = {
+  none: 'bg-gray-200',
+  minor: 'bg-yellow-300',
+  moderate: 'bg-orange-400',
+  major: 'bg-red-500',
+  existential: 'bg-red-700',
+};
+
+/**
+ * Conflict intensity names (French)
+ */
+export const CONFLICT_INTENSITY_NAMES_FR: Record<ConflictIntensity, string> = {
+  none: 'Aucun',
+  minor: 'Mineur',
+  moderate: 'Modere',
+  major: 'Majeur',
+  existential: 'Existentiel',
+};
+
+/**
+ * Goal conflict between nations
+ */
+export interface GoalConflict {
+  goal1_id: string;
+  goal2_id: string;
+  country1_id: string;
+  country2_id: string;
+  intensity: ConflictIntensity;
+  tension_level: number;
+  description_fr: string;
+}
+
+// =============================================================================
+// HISTORICAL RIVALRIES
+// =============================================================================
+
+/**
+ * Historical rivalry between nations
+ */
+export interface HistoricalRivalry {
+  id: string;
+  parties: string[];
+  name: string;
+  name_fr: string;
+  base_tension: number;
+  root_cause_fr: string;
+  flash_points_fr: string[];
+  nuclear_dimension: boolean;
+  incidents_probability: number;
+  valid_from_year: number;
+  valid_to_year?: number;
+}
+
+/**
+ * Format full date display
+ */
+export function formatFullDate(year: number, month: number, day: number, lang: 'fr' | 'en' = 'fr'): string {
+  const months = lang === 'fr' ? MONTH_NAMES_FR : MONTH_NAMES_EN;
+  if (lang === 'fr') {
+    return `${day} ${months[month - 1]} ${year}`;
+  }
+  return `${months[month - 1]} ${day}, ${year}`;
+}
+
+/**
+ * Format short date display
+ */
+export function formatShortDate(year: number, month: number, day: number): string {
+  const d = day.toString().padStart(2, '0');
+  const m = month.toString().padStart(2, '0');
+  return `${d}/${m}/${year}`;
+}

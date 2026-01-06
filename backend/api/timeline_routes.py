@@ -797,3 +797,183 @@ async def get_date_full():
         "is_monday": world.is_monday,
         "is_first_of_month": world.is_first_of_month
     }
+
+
+# =============================================================================
+# JUMP SUGGESTION - Intelligent duration recommendation
+# =============================================================================
+
+class UpcomingEventInfo(BaseModel):
+    """Info about an upcoming event"""
+    id: str
+    title_fr: str
+    date_display: str
+    type: str
+    importance: int
+    days_until: int
+    months_until: float
+
+
+class JumpSuggestionResponse(BaseModel):
+    """Suggestion for jump duration based on timeline"""
+    suggested_duration: str  # week, month, quarter, year, next_event
+    suggested_code: str  # 7D, 30D, 90D, 365D, EVT
+    reason_fr: str
+    urgency: str  # low, medium, high, critical
+    next_major_event: Optional[UpcomingEventInfo] = None
+    upcoming_events: list[UpcomingEventInfo] = []
+    safe_to_jump_long: bool = True
+
+
+@router.get("/jump-suggestion")
+async def get_jump_suggestion() -> JumpSuggestionResponse:
+    """
+    Get intelligent suggestion for jump duration based on upcoming timeline events.
+
+    Logic:
+    - If critical event (importance 5) within 7 days -> suggest week
+    - If major event (importance 4+) within 30 days -> suggest month
+    - If significant event (importance 3+) within 90 days -> suggest quarter
+    - Otherwise -> safe to jump a year
+
+    Also considers:
+    - Active crises
+    - High world tension
+    - Historical scripted events
+    """
+    from engine.historical_events import historical_events_manager
+
+    world = get_world()
+    timeline = get_timeline()
+    current_date = world.current_date
+
+    # Get upcoming historical events (up to 24 months ahead)
+    upcoming_historical = historical_events_manager.get_upcoming_events(world, months_ahead=24)
+
+    # Get timeline events that are scheduled for the future
+    # (usually these are procedural or triggered events)
+    future_events = []
+    for event in timeline.events:
+        if event.date > current_date:
+            future_events.append(event)
+
+    # Build list of all upcoming events with days_until
+    upcoming_events: list[UpcomingEventInfo] = []
+
+    # Add historical events
+    for hist_event in upcoming_historical:
+        event_date = GameDate(
+            year=hist_event.year_trigger,
+            month=hist_event.month_trigger or 1,
+            day=15  # Mid-month estimate
+        )
+        days_until = event_date.days_since(current_date)
+        if days_until < 0:
+            days_until = 0
+
+        upcoming_events.append(UpcomingEventInfo(
+            id=hist_event.id,
+            title_fr=hist_event.title_fr,
+            date_display=f"{_get_month_name_fr(hist_event.month_trigger or 1)} {hist_event.year_trigger}",
+            type=hist_event.type,
+            importance=5 if "crisis" in hist_event.type.lower() or "war" in hist_event.type.lower() else 4,
+            days_until=days_until,
+            months_until=days_until / 30.0
+        ))
+
+    # Add future timeline events
+    for event in future_events:
+        days_until = event.date.days_since(current_date)
+        if days_until < 0:
+            continue
+
+        upcoming_events.append(UpcomingEventInfo(
+            id=event.id,
+            title_fr=event.title_fr,
+            date_display=event.date.to_french(),
+            type=event.type if isinstance(event.type, str) else event.type.value,
+            importance=event.importance,
+            days_until=days_until,
+            months_until=days_until / 30.0
+        ))
+
+    # Sort by days_until
+    upcoming_events.sort(key=lambda e: e.days_until)
+
+    # Find the next major event (importance >= 4)
+    next_major = None
+    for event in upcoming_events:
+        if event.importance >= 4:
+            next_major = event
+            break
+
+    # Determine suggestion based on events
+    suggested_duration = "year"
+    suggested_code = "365D"
+    reason_fr = "Aucun evenement majeur a l'horizon. Vous pouvez avancer d'un an."
+    urgency = "low"
+    safe_to_jump_long = True
+
+    # Check world tension
+    if world.global_tension > 70:
+        suggested_duration = "week"
+        suggested_code = "7D"
+        reason_fr = f"Tensions mondiales elevees ({world.global_tension}%). Prudence recommandee."
+        urgency = "high"
+        safe_to_jump_long = False
+    elif world.defcon_level <= 2:
+        suggested_duration = "week"
+        suggested_code = "7D"
+        reason_fr = f"DEFCON {world.defcon_level} - Situation critique. Avancez prudemment."
+        urgency = "critical"
+        safe_to_jump_long = False
+    elif next_major:
+        if next_major.days_until <= 7:
+            suggested_duration = "week"
+            suggested_code = "7D"
+            reason_fr = f"'{next_major.title_fr}' dans {next_major.days_until} jour(s)!"
+            urgency = "critical"
+            safe_to_jump_long = False
+        elif next_major.days_until <= 30:
+            suggested_duration = "month"
+            suggested_code = "30D"
+            reason_fr = f"'{next_major.title_fr}' prevu en {next_major.date_display}."
+            urgency = "high"
+            safe_to_jump_long = False
+        elif next_major.days_until <= 90:
+            suggested_duration = "quarter"
+            suggested_code = "90D"
+            reason_fr = f"'{next_major.title_fr}' dans environ {int(next_major.months_until)} mois."
+            urgency = "medium"
+            safe_to_jump_long = False
+        elif next_major.days_until <= 180:
+            suggested_duration = "quarter"
+            suggested_code = "90D"
+            reason_fr = f"Evenement majeur dans ~{int(next_major.months_until)} mois. Trimestre conseille."
+            urgency = "low"
+
+    # If "next_event" makes sense (event very close)
+    if next_major and next_major.days_until <= 45 and next_major.importance >= 4:
+        # Also suggest next_event as alternative
+        pass  # Keep current suggestion but frontend can show next_event option
+
+    return JumpSuggestionResponse(
+        suggested_duration=suggested_duration,
+        suggested_code=suggested_code,
+        reason_fr=reason_fr,
+        urgency=urgency,
+        next_major_event=next_major,
+        upcoming_events=upcoming_events[:5],  # Top 5 upcoming
+        safe_to_jump_long=safe_to_jump_long
+    )
+
+
+def _get_month_name_fr(month: int) -> str:
+    """Get French month name"""
+    months = [
+        "Janvier", "Fevrier", "Mars", "Avril", "Mai", "Juin",
+        "Juillet", "Aout", "Septembre", "Octobre", "Novembre", "Decembre"
+    ]
+    if 1 <= month <= 12:
+        return months[month - 1]
+    return "?"

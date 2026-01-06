@@ -22,7 +22,7 @@ import PlayerStats from "./PlayerStats";
 import DefconBanner from "./DefconBanner";
 import NarrativeMap from "./NarrativeMap";
 import { ActionQueue } from "./ActionQueue";
-import { JumpForwardModal, JumpForwardButton } from "./JumpForwardModal";
+import { JumpForwardButton } from "./JumpForwardModal";
 import { EventPlayback } from "./EventPlayback";
 import { LeaderPanel } from "./LeaderPanel";
 import { DramaticWrapper, DefconOverlay, TensionVignette } from "./DramaticEffects";
@@ -54,7 +54,6 @@ export default function NarrativeGame() {
   const canConfirm = useNarrativeStore(selectCanConfirm);
   const totalCost = useNarrativeStore(selectTotalActionCost);
 
-  const [showJumpModal, setShowJumpModal] = useState(false);
   const [selectedZone, setSelectedZone] = useState<string | null>(null);
 
   useEffect(() => {
@@ -122,7 +121,7 @@ export default function NarrativeGame() {
             {/* Right: DEFCON + Jump */}
             <div className="flex items-center gap-4">
               <DefconBanner level={defcon} />
-              <JumpForwardButton onClick={() => setShowJumpModal(true)} />
+              <JumpForwardButton />
             </div>
           </div>
         </div>
@@ -136,6 +135,15 @@ export default function NarrativeGame() {
           <div className="col-span-3 flex flex-col gap-4 overflow-hidden">
             {gamePhase === "accumulating" && (
               <>
+                {/* Encart situation actuelle - visible quand queue vide */}
+                {actionQueue.length === 0 && (
+                  <SituationBrief
+                    zones={zones}
+                    defcon={defcon}
+                    worldTension={world_tension}
+                  />
+                )}
+
                 <CommandInput />
                 <div className="flex-1 overflow-auto">
                   <ActionQueue />
@@ -218,11 +226,7 @@ export default function NarrativeGame() {
         </div>
       )}
 
-      {/* Modals */}
-      <JumpForwardModal
-        isOpen={showJumpModal}
-        onClose={() => setShowJumpModal(false)}
-      />
+      {/* Event Playback */}
       <EventPlayback />
     </div>
   );
@@ -426,6 +430,93 @@ function QueueSummaryCard({ summary }: { summary: { count: number; total_cost: n
           Actions risquees incluses
         </div>
       )}
+    </div>
+  );
+}
+
+// =============================================================================
+// SITUATION BRIEF - Encart narratif au retour en ACCUMULATING
+// =============================================================================
+
+interface SituationBriefProps {
+  zones: Record<string, { name_fr: string; influence_us: number; influence_ussr: number; stability: number; dominant: string }>;
+  defcon: number;
+  worldTension: number;
+}
+
+function SituationBrief({ zones, defcon, worldTension }: SituationBriefProps) {
+  // Genere des observations narratives basees sur l'etat du monde
+  const observations: string[] = [];
+
+  // Analyser les zones
+  const zoneList = Object.entries(zones);
+  const contested = zoneList.filter(([_, z]) => z.dominant === "contested");
+  const usControlled = zoneList.filter(([_, z]) => z.dominant === "US");
+  const ussrControlled = zoneList.filter(([_, z]) => z.dominant === "USSR");
+  const unstable = zoneList.filter(([_, z]) => z.stability < 40);
+
+  // Observation sur le DEFCON (sans mentionner le chiffre directement)
+  if (defcon <= 2) {
+    observations.push("Le monde est au bord de l'abime nucleaire");
+  } else if (defcon === 3) {
+    observations.push("Les forces sont en alerte maximale");
+  }
+
+  // Observation sur la tension
+  if (worldTension >= 70) {
+    observations.push("Les tensions internationales sont a leur paroxysme");
+  } else if (worldTension >= 50) {
+    observations.push("L'atmosphere diplomatique reste tendue");
+  }
+
+  // Zones contestees importantes
+  if (contested.length > 0) {
+    const contestedNames = contested.slice(0, 2).map(([_, z]) => z.name_fr);
+    if (contestedNames.length === 1) {
+      observations.push(`${contestedNames[0]} reste un terrain d'affrontement`);
+    } else {
+      observations.push(`${contestedNames.join(" et ")} sont des zones disputees`);
+    }
+  }
+
+  // Zones instables
+  if (unstable.length > 0) {
+    const unstableName = unstable[0][1].name_fr;
+    observations.push(`${unstableName} menace de basculer dans le chaos`);
+  }
+
+  // Equilibre des forces
+  if (ussrControlled.length > usControlled.length + 2) {
+    observations.push("L'URSS etend son influence de maniere preoccupante");
+  } else if (usControlled.length > ussrControlled.length + 2) {
+    observations.push("Les Etats-Unis maintiennent leur avantage strategique");
+  }
+
+  // Si pas d'observations particulieres
+  if (observations.length === 0) {
+    observations.push("La situation reste sous controle");
+    observations.push("Vos agents attendent vos ordres");
+  }
+
+  // Limiter a 3 observations max
+  const displayedObs = observations.slice(0, 3);
+
+  return (
+    <div className="bg-slate-900/50 border border-slate-700/50 rounded-lg p-4 mb-4">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-1.5 h-1.5 rounded-full bg-cyan-500" />
+        <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider">
+          Situation Actuelle
+        </span>
+      </div>
+
+      <div className="space-y-2">
+        {displayedObs.map((obs, idx) => (
+          <p key={idx} className="text-xs text-slate-400 leading-relaxed">
+            - {obs}
+          </p>
+        ))}
+      </div>
     </div>
   );
 }

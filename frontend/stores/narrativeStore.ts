@@ -61,6 +61,59 @@ export interface QueueSummary {
   has_high_risk: boolean;
 }
 
+// Narrative Scene - composee par le Chef d'Orchestre backend
+export interface NarrativeSceneData {
+  narrative: string;
+  mood: string;  // neutral, tense, hopeful, dark, triumphant
+  importance: string;  // minor, normal, major, critical
+
+  // Elements optionnels - le Chef d'Orchestre decide
+  leader_dialogue?: {
+    speaker: string;
+    title: string;
+    tone: string;
+    message: string;
+    country?: string;
+    portrait_style?: string;
+  };
+  press_headlines?: Array<{
+    source: string;
+    source_id: string;
+    headline: string;
+    excerpt: string;
+    sentiment: string;
+    bias: string;
+    country: string;
+    credibility: string;
+  }>;
+  intel_report?: {
+    classification: string;
+    content: string;
+    reliability: string;
+    source_type: string;
+    analyst_note?: string;
+  };
+  causal_context?: {
+    caused_by?: string;
+    caused_by_date?: string;
+    effects_preview?: string[];
+    domino_zones?: string[];
+  };
+  consequence_teaser?: string;
+
+  // Metadata
+  year?: number;
+  month?: number;
+  zone?: string;
+  zone_name_fr?: string;
+  event_type?: string;
+
+  // Flags
+  is_player_caused?: boolean;
+  is_crisis?: boolean;
+  is_turning_point?: boolean;
+}
+
 // Jump event (for playback)
 export interface JumpEvent {
   id: string;
@@ -78,6 +131,9 @@ export interface JumpEvent {
   risk_level: string;
   caused_by: string | null;
   triggers: string[];
+
+  // Scene narrative composee par le Chef d'Orchestre (optionnelle)
+  narrative_scene?: NarrativeSceneData;
 }
 
 // Playback state
