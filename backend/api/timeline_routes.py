@@ -559,3 +559,241 @@ def _get_tension_message(delta: float, country_a: str, country_b: str) -> str:
         return f"Relations {country_a}-{country_b} en amelioration."
     else:
         return f"Relations stables entre {country_a} et {country_b}."
+
+
+# =============================================================================
+# AUTO-ADVANCE SYSTEM - Time progression controls
+# =============================================================================
+
+from engine.auto_advance import (
+    AutoAdvanceConfig,
+    AutoAdvanceResult,
+    auto_advance_engine,
+    PauseReason
+)
+from engine.tick import process_daily_tick
+from api.game_state import get_event_pool
+
+
+class AutoAdvanceRequest(BaseModel):
+    """Request for auto-advance"""
+    pause_on_war: bool = True
+    pause_on_crisis: bool = True
+    pause_on_defcon_change: bool = True
+    pause_on_nuclear: bool = True
+    pause_on_player_attacked: bool = True
+    pause_on_player_mentioned: bool = True
+    min_event_importance: int = 4
+    watch_countries: List[str] = []
+    max_days: int = 180
+
+
+class AutoAdvanceResponse(BaseModel):
+    """Response from auto-advance"""
+    days_advanced: int
+    paused: bool
+    pause_reason: Optional[str] = None
+    pause_message: Optional[str] = None
+    pause_message_fr: Optional[str] = None
+    events_count: int
+    final_date: str
+    final_date_fr: str
+    game_ended: bool = False
+    game_end_reason: Optional[str] = None
+
+
+@router.post("/auto-advance")
+async def auto_advance(request: AutoAdvanceRequest) -> AutoAdvanceResponse:
+    """
+    Auto-advance time until a pause condition is met.
+    Processes multiple days at once, pausing on important events.
+    """
+    world = get_world()
+    timeline = get_timeline()
+    event_pool = get_event_pool()
+
+    config = AutoAdvanceConfig(
+        pause_on_war=request.pause_on_war,
+        pause_on_crisis=request.pause_on_crisis,
+        pause_on_defcon_change=request.pause_on_defcon_change,
+        pause_on_nuclear=request.pause_on_nuclear,
+        pause_on_player_attacked=request.pause_on_player_attacked,
+        pause_on_player_mentioned=request.pause_on_player_mentioned,
+        min_event_importance=request.min_event_importance,
+        watch_countries=request.watch_countries,
+        max_days=request.max_days
+    )
+
+    result = auto_advance_engine.advance_days(
+        world=world,
+        config=config,
+        process_tick_fn=process_daily_tick,
+        timeline=timeline,
+        event_pool=event_pool
+    )
+
+    return AutoAdvanceResponse(
+        days_advanced=result.days_advanced,
+        paused=result.paused,
+        pause_reason=result.pause_reason.value if result.pause_reason else None,
+        pause_message=result.pause_message,
+        pause_message_fr=result.pause_message_fr,
+        events_count=len(result.events),
+        final_date=result.final_date,
+        final_date_fr=result.final_date_fr,
+        game_ended=result.game_ended,
+        game_end_reason=result.game_end_reason
+    )
+
+
+@router.post("/advance-day")
+async def advance_day() -> AutoAdvanceResponse:
+    """Advance exactly one day"""
+    world = get_world()
+    timeline = get_timeline()
+    event_pool = get_event_pool()
+
+    config = AutoAdvanceConfig(
+        pause_on_war=True,
+        pause_on_crisis=True,
+        pause_on_defcon_change=True,
+        pause_on_nuclear=True,
+        pause_on_player_attacked=True,
+        pause_on_player_mentioned=False,
+        min_event_importance=5,
+        max_days=1
+    )
+
+    result = auto_advance_engine.advance_days(
+        world=world,
+        config=config,
+        process_tick_fn=process_daily_tick,
+        timeline=timeline,
+        event_pool=event_pool
+    )
+
+    return AutoAdvanceResponse(
+        days_advanced=result.days_advanced,
+        paused=result.paused,
+        pause_reason=result.pause_reason.value if result.pause_reason else None,
+        pause_message=result.pause_message,
+        pause_message_fr=result.pause_message_fr,
+        events_count=len(result.events),
+        final_date=result.final_date,
+        final_date_fr=result.final_date_fr,
+        game_ended=result.game_ended,
+        game_end_reason=result.game_end_reason
+    )
+
+
+@router.post("/advance-week")
+async def advance_week() -> AutoAdvanceResponse:
+    """Advance approximately one week (7 days)"""
+    world = get_world()
+    timeline = get_timeline()
+    event_pool = get_event_pool()
+
+    result = auto_advance_engine.advance_week(
+        world=world,
+        process_tick_fn=process_daily_tick,
+        timeline=timeline,
+        event_pool=event_pool
+    )
+
+    return AutoAdvanceResponse(
+        days_advanced=result.days_advanced,
+        paused=result.paused,
+        pause_reason=result.pause_reason.value if result.pause_reason else None,
+        pause_message=result.pause_message,
+        pause_message_fr=result.pause_message_fr,
+        events_count=len(result.events),
+        final_date=result.final_date,
+        final_date_fr=result.final_date_fr,
+        game_ended=result.game_ended,
+        game_end_reason=result.game_end_reason
+    )
+
+
+@router.post("/advance-month")
+async def advance_month() -> AutoAdvanceResponse:
+    """Advance approximately one month (30 days)"""
+    world = get_world()
+    timeline = get_timeline()
+    event_pool = get_event_pool()
+
+    result = auto_advance_engine.advance_month(
+        world=world,
+        process_tick_fn=process_daily_tick,
+        timeline=timeline,
+        event_pool=event_pool
+    )
+
+    return AutoAdvanceResponse(
+        days_advanced=result.days_advanced,
+        paused=result.paused,
+        pause_reason=result.pause_reason.value if result.pause_reason else None,
+        pause_message=result.pause_message,
+        pause_message_fr=result.pause_message_fr,
+        events_count=len(result.events),
+        final_date=result.final_date,
+        final_date_fr=result.final_date_fr,
+        game_ended=result.game_ended,
+        game_end_reason=result.game_end_reason
+    )
+
+
+@router.post("/advance-to-event")
+async def advance_to_next_event(
+    max_days: int = Query(default=365, ge=1, le=730)
+) -> AutoAdvanceResponse:
+    """Advance until any significant event occurs"""
+    world = get_world()
+    timeline = get_timeline()
+    event_pool = get_event_pool()
+
+    result = auto_advance_engine.advance_to_next_event(
+        world=world,
+        process_tick_fn=process_daily_tick,
+        timeline=timeline,
+        event_pool=event_pool,
+        max_days=max_days
+    )
+
+    return AutoAdvanceResponse(
+        days_advanced=result.days_advanced,
+        paused=result.paused,
+        pause_reason=result.pause_reason.value if result.pause_reason else None,
+        pause_message=result.pause_message,
+        pause_message_fr=result.pause_message_fr,
+        events_count=len(result.events),
+        final_date=result.final_date,
+        final_date_fr=result.final_date_fr,
+        game_ended=result.game_ended,
+        game_end_reason=result.game_end_reason
+    )
+
+
+@router.get("/watch-config")
+async def get_watch_config():
+    """Get current watch configuration"""
+    return {
+        "default_config": AutoAdvanceConfig().model_dump(),
+        "available_pause_reasons": [r.value for r in PauseReason]
+    }
+
+
+@router.get("/date-full")
+async def get_date_full():
+    """Get full date display for UI"""
+    world = get_world()
+    return {
+        "year": world.year,
+        "month": world.month,
+        "day": world.day,
+        "display": world.date_display_full,
+        "display_short": world.current_date.to_short_display("fr"),
+        "day_of_week": world.current_date.day_of_week,
+        "day_of_year": world.day_of_year,
+        "is_monday": world.is_monday,
+        "is_first_of_month": world.is_first_of_month
+    }
