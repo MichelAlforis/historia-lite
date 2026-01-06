@@ -38,6 +38,8 @@ from engine.jump_engine import JumpEngine, create_jump_engine
 from engine.intent_parser import IntentParser, ParseResult, ParsedIntention
 from engine.action_generator import ActionGenerator, GeneratedAction
 from engine.adversary_ai import AdversaryAI, AIAction
+from engine.stop_moment import get_stop_moment_for_reason
+from engine.council_suggestions import detect_urgent_dossiers, UrgentDossier
 from api.game_state import get_ollama, get_settings
 
 logger = logging.getLogger(__name__)
@@ -215,6 +217,9 @@ class JumpForwardResponse(BaseModel):
     events_count: int
     first_event: Optional[dict] = None
     game_phase: str
+    # "Moment de Verite" - pourquoi le monde s'est arrete
+    stop_reason: Optional[str] = None
+    stop_moment: Optional[dict] = None
 
 
 class EventResponse(BaseModel):
@@ -231,6 +236,14 @@ class InterveneResponse(BaseModel):
     """Response after intervening during playback"""
     success: bool
     cancelled_events_count: int
+    game_phase: str
+
+
+class CouncilSuggestionsResponse(BaseModel):
+    """Response with council suggestions (urgent dossiers)"""
+    dossiers: List[dict]
+    count: int
+    has_critical: bool
     game_phase: str
 
 
@@ -597,6 +610,51 @@ async def get_queue_preview():
     )
 
 
+@router.get("/council-suggestions", response_model=CouncilSuggestionsResponse)
+async def get_council_suggestions():
+    """Get council suggestions - urgent dossiers to address BEFORE jump
+
+    Le "Conseil des urgences" presente les dossiers brulants:
+    - Crises actives (zones instables)
+    - Opportunites (zones contestees)
+    - Pressions internes (domestic stability basse)
+    - Sommets possibles (diplomatie)
+    - Menaces imminentes (DEFCON bas)
+
+    Chaque dossier propose 2-3 suggestions d'actions.
+    Cliquer une suggestion = pre-remplir la queue (pas executer).
+
+    Philosophie: "Le joueur prepare ses decisions pendant que
+    le monde prepare ses consequences."
+    """
+    state = get_narrative_state()
+
+    # Seulement en phase ACCUMULATING
+    if state.game_phase != GamePhase.ACCUMULATING:
+        return CouncilSuggestionsResponse(
+            dossiers=[],
+            count=0,
+            has_critical=False,
+            game_phase=state.game_phase.value,
+        )
+
+    # Detecter les dossiers urgents
+    dossiers = detect_urgent_dossiers(state)
+
+    # Convertir en dict pour la reponse
+    dossiers_dict = [d.to_dict() for d in dossiers]
+
+    # Verifier s'il y a des dossiers critiques
+    has_critical = any(d.urgency.value == "critical" for d in dossiers)
+
+    return CouncilSuggestionsResponse(
+        dossiers=dossiers_dict,
+        count=len(dossiers),
+        has_critical=has_critical,
+        game_phase=state.game_phase.value,
+    )
+
+
 @router.post("/jump-forward", response_model=JumpForwardResponse)
 async def jump_forward(request: JumpForwardRequest):
     """Trigger Jump Forward - resolve all queued actions and generate events
@@ -607,6 +665,16 @@ async def jump_forward(request: JumpForwardRequest):
     3. All actions (player + adversary) are resolved
     4. Events are generated
     5. Player reads events one by one (Save/Intervene)
+
+    Le "Moment de Verite" est genere en analysant POURQUOI le jeu s'arrete:
+    - Guerre declaree? "Le premier coup de feu a ete tire."
+    - Crise? "Le telephone rouge sonne."
+    - DEFCON change? "Les silos s'ouvrent."
+
+    SILENCE MECHANICS:
+    - Queue vide = le joueur n'a rien fait = le monde avance sans lui
+    - Les acteurs autonomes (Politburo, Pentagon...) peuvent agir
+    - "L'Histoire n'attend pas que le chef d'Etat soit inspire"
     """
     state = get_narrative_state()
     jump_engine = get_jump_engine()
@@ -618,11 +686,32 @@ async def jump_forward(request: JumpForwardRequest):
         )
 
     queue = state.get_action_queue()
-    if len(queue.get_active_actions()) == 0:
-        raise HTTPException(
-            status_code=400,
-            detail="No actions in queue. Add actions before jumping forward."
-        )
+    action_count = len(queue.get_active_actions())
+
+    # SILENCE MECHANICS: Tracker l'activite du joueur
+    # Queue vide = le joueur n'a rien fait = le monde avance sans lui
+    # Queue non-vide = reset du silence_streak
+    silence_events = []
+    silence_events_objs = state.check_silence_consequences(
+        action_count=action_count,
+        ignored_dossier_ids=[]  # TODO: tracker les dossiers ignores
+    )
+
+    # Convertir en dicts pour l'affichage
+    for se in silence_events_objs:
+        silence_events.append({
+            "type": "silence_consequence",
+            "category": "autonomous_action",
+            "title_fr": se.narrative,
+            "description_fr": se.narrative,
+            "actor": se.actor.value if se.actor else None,
+            "event_type": se.event_type.value,
+            "effects": se.effects,
+            "importance": "major" if se.event_type.value in ["fait_accompli", "loss_of_control"] else "normal",
+        })
+
+    if silence_events:
+        logger.info(f"Silence mechanics: {len(silence_events)} events from player inactivity")
 
     # Ensure adversary has planned
     adversary_ai = get_adversary_ai()
@@ -638,6 +727,24 @@ async def jump_forward(request: JumpForwardRequest):
     # Convert to dicts for storage
     events = [e.to_dict() for e in jump_events]
 
+    # Ajouter les evenements de silence AU DEBUT (ils se sont passes pendant l'inaction)
+    if silence_events:
+        events = silence_events + events
+
+    # Determiner la raison d'arret principale (pour le "Moment de Verite")
+    stop_reason = _determine_stop_reason(events, state)
+    stop_moment = None
+    if stop_reason:
+        stop_moment = get_stop_moment_for_reason(
+            stop_reason,
+            context={
+                "defcon": state.defcon,
+                "tension": state.world_tension,
+                "year": state.year,
+                "month": state.month,
+            }
+        )
+
     # Start playback
     state.start_playback(events)
 
@@ -646,6 +753,8 @@ async def jump_forward(request: JumpForwardRequest):
         events_count=len(events),
         first_event=events[0] if events else None,
         game_phase=state.game_phase.value,
+        stop_reason=stop_reason,
+        stop_moment=stop_moment,
     )
 
 
@@ -1014,3 +1123,157 @@ def _generate_narrative_summary(
         "fr": "\n".join(lines_fr),
         "en": "",  # Could add English version
     }
+
+
+def _determine_stop_reason(events: List[dict], state: NarrativeWorldState) -> Optional[str]:
+    """
+    Determine la raison d'arret principale pour le "Moment de Verite".
+
+    Analyse les evenements generes et determine POURQUOI le monde s'arrete.
+    Priorite: nucleaire > guerre > crise > DEFCON > evenement important
+
+    Returns:
+        Une cle de stop_reason (ex: "defcon_changed", "war_declared")
+        ou None si aucun evenement majeur
+    """
+    # Priorite des raisons (du plus grave au moins grave)
+    REASON_PRIORITY = [
+        "nuclear_event",
+        "war_declared",
+        "player_attacked",
+        "defcon_changed",
+        "crisis_started",
+        "crisis_escalated",
+        "player_mentioned",
+        "goal_conflict",
+        "important_event",
+    ]
+
+    detected_reasons = set()
+
+    for event in events:
+        event_type = event.get("type", "").lower()
+        category = event.get("category", "").lower()
+        importance = event.get("importance", "normal")
+
+        # Detecter les evenements nucleaires
+        if "nuclear" in event_type or "nuclear" in category:
+            detected_reasons.add("nuclear_event")
+
+        # Detecter les guerres
+        if "war" in event_type or event_type == "war_declared":
+            detected_reasons.add("war_declared")
+
+        # Detecter les attaques sur le joueur
+        if "player_attacked" in event_type or (
+            event.get("target_actor") == "USA" and "attack" in event_type
+        ):
+            detected_reasons.add("player_attacked")
+
+        # Detecter les changements DEFCON
+        if "defcon" in event_type or "defcon" in category:
+            detected_reasons.add("defcon_changed")
+
+        # Detecter les crises
+        if "crisis" in event_type:
+            if "escalat" in event_type:
+                detected_reasons.add("crisis_escalated")
+            else:
+                detected_reasons.add("crisis_started")
+
+        # Detecter les evenements importants
+        if importance in ["critical", "major"]:
+            detected_reasons.add("important_event")
+
+    # Retourner la raison la plus prioritaire
+    for reason in REASON_PRIORITY:
+        if reason in detected_reasons:
+            return reason
+
+    # Si aucun evenement majeur, verifier l'etat du monde
+    if state.defcon <= 2:
+        return "defcon_changed"
+
+    if state.world_tension > 80:
+        return "important_event"
+
+    # Fallback: evenement important generique si des evenements existent
+    if events and len(events) > 1:
+        return "important_event"
+
+    return None
+
+
+# =============================================================================
+# GAME OVER DEBRIEF ENDPOINT
+# =============================================================================
+
+class GameOverDebriefResponse(BaseModel):
+    """Response with game over debrief"""
+    end_reason: str
+    victory: bool
+    title_fr: str
+    narrative_fr: str
+    causes: List[dict]
+    leader_dialogue: Optional[dict] = None
+    press_headlines: List[dict]
+    final_state_summary: dict
+
+
+@router.get("/game-over-debrief", response_model=GameOverDebriefResponse)
+async def get_game_over_debrief():
+    """
+    Get narrative debrief for game over.
+
+    Explains WHY the player lost (or won) without showing numbers.
+    Just a narrative reading of what happened.
+
+    > "Votre silence sur Cuba a laisse l'armee agir.
+    > Votre fermete a Berlin a isole vos allies.
+    > Le monde a glisse."
+
+    PHILOSOPHIE:
+    - Pas de blame ("vous avez fait X erreurs")
+    - Pas de chiffres ("stabilite -45")
+    - Juste une lecture historique narrative
+    - Le joueur comprend a posteriori, pas pendant
+
+    Returns GameOverDebriefResponse with:
+    - title_fr: Dramatic title
+    - narrative_fr: Main narrative text
+    - causes: List of key decisions that led to the outcome
+    - leader_dialogue: Optional dialogue from a leader
+    - press_headlines: World press reactions
+    - final_state_summary: Narrativized state summary (no numbers!)
+    """
+    state = get_narrative_state()
+
+    if not state.game_over:
+        raise HTTPException(
+            status_code=400,
+            detail="Game is not over yet. Cannot generate debrief."
+        )
+
+    # Import debrief generator
+    from engine.game_debrief import generate_game_debrief
+
+    # Get silence state for cause analysis
+    silence_state = state.get_silence_state()
+
+    # Generate debrief
+    debrief = await generate_game_debrief(
+        world_state=state,
+        silence_state=silence_state,
+        turn_history=state.turn_history,
+    )
+
+    return GameOverDebriefResponse(
+        end_reason=debrief.get("end_reason", "unknown"),
+        victory=debrief.get("victory", False),
+        title_fr=debrief.get("title_fr", "Fin de partie"),
+        narrative_fr=debrief.get("narrative_fr", ""),
+        causes=debrief.get("causes", []),
+        leader_dialogue=debrief.get("leader_dialogue"),
+        press_headlines=debrief.get("press_headlines", []),
+        final_state_summary=debrief.get("final_state_summary", {}),
+    )
