@@ -1,8 +1,9 @@
 """World state for Historia Lite"""
+import calendar
 import json
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 from enum import Enum
 from pydantic import BaseModel, Field
@@ -91,6 +92,83 @@ class GameDate(BaseModel):
     def months_since(self, other: "GameDate") -> int:
         """Calculate months since another date (can be negative)"""
         return self.to_months() - other.to_months()
+
+    # ========== DAILY PROGRESSION METHODS ==========
+
+    def days_in_month(self) -> int:
+        """Get number of days in current month"""
+        return calendar.monthrange(self.year, self.month)[1]
+
+    def add_days(self, days: int) -> "GameDate":
+        """Return a new GameDate with days added"""
+        new_year = self.year
+        new_month = self.month
+        new_day = self.day + days
+
+        while new_day > calendar.monthrange(new_year, new_month)[1]:
+            days_in_current = calendar.monthrange(new_year, new_month)[1]
+            new_day -= days_in_current
+            new_month += 1
+            if new_month > 12:
+                new_month = 1
+                new_year += 1
+
+        while new_day < 1:
+            new_month -= 1
+            if new_month < 1:
+                new_month = 12
+                new_year -= 1
+            new_day += calendar.monthrange(new_year, new_month)[1]
+
+        return GameDate(year=new_year, month=new_month, day=new_day)
+
+    def subtract_days(self, days: int) -> "GameDate":
+        """Return a new GameDate with days subtracted"""
+        return self.add_days(-days)
+
+    def to_display_day(self, lang: str = "fr") -> str:
+        """Format: '2 Novembre 1980' or 'November 2, 1980'"""
+        if lang == "fr":
+            return f"{self.day} {MONTH_NAMES_FR[self.month - 1]} {self.year}"
+        return f"{MONTH_NAMES_EN[self.month - 1]} {self.day}, {self.year}"
+
+    def to_short_display(self, lang: str = "fr") -> str:
+        """Format: '02/11/1980' (FR) or '11/02/1980' (EN)"""
+        if lang == "fr":
+            return f"{self.day:02d}/{self.month:02d}/{self.year}"
+        return f"{self.month:02d}/{self.day:02d}/{self.year}"
+
+    def day_of_year(self) -> int:
+        """Get day of year (1-366)"""
+        days = sum(calendar.monthrange(self.year, m)[1] for m in range(1, self.month))
+        return days + self.day
+
+    def day_of_week(self) -> int:
+        """Get day of week (0=Monday, 6=Sunday)"""
+        return calendar.weekday(self.year, self.month, self.day)
+
+    def day_of_week_name(self, lang: str = "fr") -> str:
+        """Get day of week name"""
+        days_en = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        days_fr = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
+        dow = self.day_of_week()
+        return days_fr[dow] if lang == "fr" else days_en[dow]
+
+    def days_between(self, other: "GameDate") -> int:
+        """Calculate absolute days between two dates"""
+        return abs(self.to_ordinal() - other.to_ordinal())
+
+    def days_since(self, other: "GameDate") -> int:
+        """Calculate days since another date (can be negative)"""
+        return self.to_ordinal() - other.to_ordinal()
+
+    def is_first_of_month(self) -> bool:
+        """Check if this is the first day of the month"""
+        return self.day == 1
+
+    def is_first_of_week(self) -> bool:
+        """Check if this is Monday"""
+        return self.day_of_week() == 0
 
 
 class GeopoliticalEra(str, Enum):
@@ -315,13 +393,62 @@ class World(BaseModel):
         return current_months - start_months
 
     def advance_month(self) -> None:
-        """Advance the calendar by one month"""
+        """Advance the calendar by one month (legacy)"""
         self.month += 1
         if self.month > 12:
             self.month = 1
             self.year += 1
         self.day = 1  # Reset to 1st of new month
         self.tick_counter += 1
+
+    def advance_day(self) -> None:
+        """Advance the calendar by one day"""
+        days_in_current_month = calendar.monthrange(self.year, self.month)[1]
+        self.day += 1
+        if self.day > days_in_current_month:
+            self.day = 1
+            self.month += 1
+            if self.month > 12:
+                self.month = 1
+                self.year += 1
+        self.tick_counter += 1
+
+    @property
+    def day_of_week(self) -> int:
+        """Get current day of week (0=Monday, 6=Sunday)"""
+        return calendar.weekday(self.year, self.month, self.day)
+
+    @property
+    def is_monday(self) -> bool:
+        """Check if today is Monday (weekly processing day)"""
+        return self.day_of_week == 0
+
+    @property
+    def is_first_of_month(self) -> bool:
+        """Check if today is the 1st (monthly processing day)"""
+        return self.day == 1
+
+    @property
+    def total_days_elapsed(self) -> int:
+        """Total days since game start (approximate)"""
+        start_ordinal = self.start_year * 365 + self.start_month * 30 + 1
+        current_ordinal = self.year * 365 + self.month * 30 + self.day
+        return current_ordinal - start_ordinal
+
+    @property
+    def date_display_full(self) -> str:
+        """Full date display: '15 Mars 1983'"""
+        return f"{self.day} {MONTH_NAMES_FR[self.month - 1]} {self.year}"
+
+    @property
+    def date_display_full_en(self) -> str:
+        """Full date display in English: 'March 15, 1983'"""
+        return f"{MONTH_NAMES_EN[self.month - 1]} {self.day}, {self.year}"
+
+    @property
+    def date_short(self) -> str:
+        """Short date: '15/03/1983'"""
+        return f"{self.day:02d}/{self.month:02d}/{self.year}"
 
     def get_country(self, country_id: str) -> Optional[Country]:
         """Get a country by ID"""

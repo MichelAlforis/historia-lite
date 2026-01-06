@@ -1,4 +1,4 @@
-"""Tick processing for Historia Lite - Monthly granularity with Timeline backbone"""
+"""Tick processing for Historia Lite - Daily granularity with Timeline backbone"""
 import logging
 import random
 from typing import List, Tuple, Optional, Any, Dict
@@ -27,6 +27,7 @@ from ai.decision_tier4 import process_tier4_countries
 from ai.ai_event_generator import ai_event_generator
 from ai.decision_tier5 import process_tier5_countries
 from ai.decision_tier6 import process_tier6_countries
+from ai.nation_agenda import agenda_manager, chain_manager, process_agenda_tick, initialize_agendas
 
 logger = logging.getLogger(__name__)
 
@@ -356,6 +357,490 @@ def process_tick(
 
     logger.info(f"Tick processed: {old_date} -> {new_date} ({len(timeline_events)} timeline events)")
     return events, timeline_events, None
+
+
+# ============================================================================
+# DAILY TICK PROCESSING - New system with agenda conflicts and chain reactions
+# ============================================================================
+
+def process_daily_tick(
+    world: World,
+    event_pool: EventPool,
+    timeline: Optional[TimelineManager] = None
+) -> Tuple[List[Event], List[TimelineEvent], Optional[GameEndState]]:
+    """
+    Process one DAY of simulation.
+    Uses frequency-based processing:
+    - Daily: conflicts, random events (1.2%), agenda processing
+    - Weekly (Monday): economy, AI decisions, memory decay
+    - Monthly (1st): influence, blocs, world mood
+    - Quarterly (Jan/Apr/Jul/Oct 1st): special events
+    """
+    events: List[Event] = []
+    timeline_events: List[TimelineEvent] = []
+
+    # Check if game already ended
+    if world.game_ended:
+        return events, timeline_events, victory_manager.game_end_state
+
+    # Set random seed for reproducibility
+    day_seed = world.year * 365 + world.current_date.day_of_year()
+    random.seed(world.seed + day_seed)
+
+    current_date = world.current_date
+    is_monday = world.is_monday
+    is_first_of_month = world.is_first_of_month
+
+    # Phase 0: Check victory/defeat conditions
+    game_ended, end_state = victory_manager.check_game_end(world)
+    if game_ended and end_state:
+        world.game_ended = True
+        world.game_end_reason = end_state.reason.value if end_state.reason else None
+        world.game_end_message = end_state.message
+        world.game_end_message_fr = end_state.message_fr
+        world.final_score = end_state.score
+        return events, timeline_events, end_state
+
+    # =========================================================================
+    # DAILY PROCESSING (every tick)
+    # =========================================================================
+
+    # Phase 1: Agenda conflicts and chain reactions (CORE NEW FEATURE)
+    agenda_events = process_agenda_tick(world)
+    for evt in agenda_events:
+        # Convert dict events to timeline events
+        te = _create_timeline_event_from_agenda(evt, current_date, timeline)
+        if te:
+            timeline_events.append(te)
+
+    # Phase 2: Conflicts/Wars (daily attrition)
+    conflict_events, conflict_timeline = _process_conflicts_daily(world, current_date, timeline)
+    events.extend(conflict_events)
+    timeline_events.extend(conflict_timeline)
+
+    # Phase 3: Random Events (1.2% daily = ~30% monthly)
+    if random.random() < 0.012:
+        random_events = event_pool.get_random_events(
+            world.get_countries_list(), world.year, world.seed + world.tick_counter
+        )
+        for event in random_events[:1]:
+            _apply_event(world, event)
+            events.append(event)
+            if timeline:
+                te = _convert_to_timeline_event(event, current_date, timeline)
+                timeline_events.append(te)
+
+    # Phase 4: Historical Events (check daily for date-specific events)
+    historical_events = historical_events_manager.check_events(world)
+    events.extend(historical_events)
+    for e in historical_events:
+        if timeline:
+            te = _convert_to_timeline_event(e, current_date, timeline, source=EventSource.HISTORICAL)
+            timeline_events.append(te)
+
+    # Phase 5: Nuclear DEFCON updates (daily check)
+    if world.global_tension > 80 or random.random() < 0.05:
+        nuclear_events = nuclear_manager.update_defcon(world)
+        events.extend(nuclear_events)
+        for e in nuclear_events:
+            if timeline:
+                timeline_events.append(_convert_to_timeline_event(e, current_date, timeline))
+
+    # =========================================================================
+    # WEEKLY PROCESSING (Mondays)
+    # =========================================================================
+    if is_monday:
+        # Economy (weekly = monthly/4)
+        econ_events, econ_timeline = _process_economy_weekly(world, current_date, timeline)
+        events.extend(econ_events)
+        timeline_events.extend(econ_timeline)
+
+        # AI Decisions (weekly)
+        ai_events, ai_timeline = _process_ai_decisions_weekly(world, current_date, timeline)
+        events.extend(ai_events)
+        timeline_events.extend(ai_timeline)
+
+        # Relations drift (weekly)
+        _update_relations_weekly(world)
+
+        # Espionage (weekly)
+        espionage_events = _process_espionage(world)
+        events.extend(espionage_events)
+        for e in espionage_events:
+            if timeline:
+                timeline_events.append(_convert_to_timeline_event(e, current_date, timeline))
+
+        # Resource management (weekly)
+        resource_events = _process_resources(world)
+        events.extend(resource_events)
+        for e in resource_events:
+            if timeline:
+                timeline_events.append(_convert_to_timeline_event(e, current_date, timeline))
+
+    # =========================================================================
+    # MONTHLY PROCESSING (1st of each month)
+    # =========================================================================
+    if is_first_of_month:
+        # Influence processing
+        inf_events, inf_timeline = _process_influence_monthly(world, current_date, timeline)
+        events.extend(inf_events)
+        timeline_events.extend(inf_timeline)
+
+        # World Mood update
+        _update_world_mood(world, timeline, timeline_events)
+
+        # Player Reputation update
+        _update_player_reputation(world, events)
+
+        # Crisis Management
+        crisis_messages = crisis_manager.process_monthly(world, timeline)
+        for msg in crisis_messages:
+            logger.info(f"Crisis update: {msg}")
+
+        # Bloc processing
+        bloc_events, bloc_timeline = _process_blocs_monthly(world, current_date, timeline)
+        events.extend(bloc_events)
+        timeline_events.extend(bloc_timeline)
+
+        # Projects progress
+        proj_events, proj_timeline = _process_projects_monthly(world, current_date, timeline)
+        events.extend(proj_events)
+        timeline_events.extend(proj_timeline)
+
+        # Dilemma Detection
+        dilemma_events, dilemma_timeline = _detect_dilemmas_monthly(world, current_date, timeline)
+        events.extend(dilemma_events)
+        timeline_events.extend(dilemma_timeline)
+
+        # Summits
+        summit_events, summit_timeline = _process_summits_monthly(world, current_date, timeline)
+        events.extend(summit_events)
+        timeline_events.extend(summit_timeline)
+
+        # Tier processing (adjusted for daily - every ~180 days instead of 6 months)
+        days_elapsed = world.total_days_elapsed
+        if days_elapsed % 180 == 0:
+            tier4_events = process_tier4_countries(world, world.tick_counter)
+            events.extend(tier4_events)
+            for e in tier4_events:
+                if timeline:
+                    timeline_events.append(_convert_to_timeline_event(e, current_date, timeline))
+
+        if days_elapsed % 360 == 0:
+            tier5_events = process_tier5_countries(world, world.tick_counter)
+            events.extend(tier5_events)
+            for e in tier5_events:
+                if timeline:
+                    timeline_events.append(_convert_to_timeline_event(e, current_date, timeline))
+
+        if days_elapsed % 720 == 0:
+            tier6_events = process_tier6_countries(world, world.tick_counter)
+            events.extend(tier6_events)
+            for e in tier6_events:
+                if timeline:
+                    timeline_events.append(_convert_to_timeline_event(e, current_date, timeline))
+
+        # Legacy processing
+        legacy_messages = legacy_manager.process_monthly(world, current_date)
+        for msg in legacy_messages:
+            logger.info(f"Legacy: {msg}")
+
+        # Leaders (monthly check)
+        if random.random() < 0.02:
+            leader_events = _process_leaders(world)
+            events.extend(leader_events)
+            for e in leader_events:
+                if timeline:
+                    timeline_events.append(_convert_to_timeline_event(e, current_date, timeline))
+
+    # =========================================================================
+    # QUARTERLY PROCESSING (Jan 1, Apr 1, Jul 1, Oct 1)
+    # =========================================================================
+    if is_first_of_month and world.month in [1, 4, 7, 10]:
+        # Technology advancement
+        tech_events, tech_timeline = _process_technology_monthly(world, current_date, timeline)
+        events.extend(tech_events)
+        timeline_events.extend(tech_timeline)
+
+        # Special events in December
+        if world.month == 1:  # Process last year's special events
+            special_events, special_timeline = _process_special_events_monthly(world, current_date, timeline)
+            events.extend(special_events)
+            timeline_events.extend(special_timeline)
+
+            # Yearly legacy effects
+            yearly_legacy_messages = legacy_manager.process_yearly(world, current_date)
+            for msg in yearly_legacy_messages:
+                logger.info(f"Legacy (yearly): {msg}")
+
+    # =========================================================================
+    # POST-PROCESSING
+    # =========================================================================
+
+    # Detect new crises from high-importance events
+    for te in timeline_events:
+        if te.importance >= 4:
+            new_crisis = detect_potential_crisis(te, world, crisis_manager)
+            if new_crisis:
+                logger.info(f"New crisis detected: {new_crisis.name_fr}")
+
+            # Mark precursors
+            if timeline:
+                precursors_marked = mark_precursors(te, timeline, lookback_months=1)
+                if precursors_marked > 0:
+                    logger.info(f"Marked {precursors_marked} precursors for {te.id}")
+
+            # Create legacies
+            legacies = legacy_manager.create_legacies_from_event_auto(
+                event_id=te.id,
+                event_title=te.title,
+                event_title_fr=te.title_fr,
+                event_date=te.date,
+                affected_country=te.actor_country,
+                event_type=te.type.value if hasattr(te.type, 'value') else str(te.type),
+                importance=te.importance
+            )
+            for legacy in legacies:
+                logger.info(f"Created legacy: {legacy.effect_description_fr}")
+
+    # Check for nuclear war
+    if world.defcon_level == 0:
+        end_state = GameEndState(
+            is_victory=False,
+            reason=None,
+            message="Nuclear war has devastated the world.",
+            message_fr="Une guerre nucleaire a devaste le monde.",
+            score=0
+        )
+        world.game_ended = True
+        world.game_end_reason = "nuclear_annihilation"
+        world.game_end_message = end_state.message
+        world.game_end_message_fr = end_state.message_fr
+        world.final_score = 0
+        return events, timeline_events, end_state
+
+    # Check for player defeat
+    game_ended, end_state = victory_manager.check_game_end(world)
+    if game_ended and end_state:
+        world.game_ended = True
+        world.game_end_reason = end_state.reason.value if end_state.reason else None
+        world.game_end_message = end_state.message
+        world.game_end_message_fr = end_state.message_fr
+        world.final_score = end_state.score
+        return events, timeline_events, end_state
+
+    # Add events to timeline
+    if timeline:
+        for te in timeline_events:
+            timeline.add_event(te)
+        delayed = timeline.process_delayed_effects(current_date)
+        for effect in delayed:
+            _apply_delayed_effect(world, effect)
+
+    # Store events in history
+    for event in events:
+        world.add_event(event)
+
+    # Record stats history
+    stats_history.record_all(world)
+
+    # Check achievements
+    achievement_manager.update_trackers(world)
+    newly_unlocked = achievement_manager.check_achievements(world)
+    for ach_id in newly_unlocked:
+        logger.info(f"Achievement unlocked: {ach_id}")
+
+    # Advance to next day
+    old_date = world.date_display_full
+    world.advance_day()
+    new_date = world.date_display_full
+
+    # Record replay frame
+    if _record_frame_callback is not None:
+        try:
+            _record_frame_callback([e.model_dump() if hasattr(e, 'model_dump') else vars(e) for e in events])
+        except Exception as e:
+            logger.warning(f"Failed to record replay frame: {e}")
+
+    logger.debug(f"Daily tick: {old_date} -> {new_date} ({len(timeline_events)} events)")
+    return events, timeline_events, None
+
+
+def _create_timeline_event_from_agenda(
+    evt: dict,
+    date: GameDate,
+    timeline: Optional[TimelineManager]
+) -> Optional[TimelineEvent]:
+    """Convert an agenda event dict to a TimelineEvent"""
+    if not timeline:
+        return None
+
+    event_type = evt.get("type", "unknown")
+
+    # Map agenda event types to timeline event types
+    type_mapping = {
+        "goal_conflict_incident": EventType.CRISIS,
+        "goal_progress_tension": EventType.POLITICAL,
+        "goal_achieved": EventType.POLITICAL,
+        "chain_reaction_step": EventType.POLITICAL,
+    }
+
+    te_type = type_mapping.get(event_type, EventType.POLITICAL)
+
+    # Generate description
+    description_fr = evt.get("description_fr", "")
+    if not description_fr:
+        if event_type == "goal_conflict_incident":
+            incident = evt.get("incident_type", "incident")
+            c1 = evt.get("country1", "?")
+            c2 = evt.get("country2", "?")
+            flash = evt.get("flash_point", "")
+            description_fr = f"Incident ({incident}) entre {c1} et {c2}"
+            if flash:
+                description_fr += f" concernant {flash}"
+        elif event_type == "goal_progress_tension":
+            description_fr = f"Progression d'objectif strategique - tensions accrues"
+        elif event_type == "goal_achieved":
+            description_fr = f"Objectif atteint: {evt.get('goal_name_fr', '?')}"
+        elif event_type == "chain_reaction_step":
+            step = evt.get("step", 0)
+            total = evt.get("total_steps", 0)
+            description_fr = f"Reaction en chaine (etape {step}/{total})"
+
+    # Importance based on event type
+    importance = 3
+    if event_type == "goal_conflict_incident":
+        tension = evt.get("tension_level", 50)
+        importance = 3 if tension < 50 else (4 if tension < 80 else 5)
+    elif event_type == "goal_achieved":
+        importance = 4
+    elif event_type == "chain_reaction_step":
+        importance = 3
+
+    te = TimelineEvent(
+        id=f"agenda_{event_type}_{date.year}_{date.month}_{date.day}_{random.randint(1000, 9999)}",
+        date=date,
+        actor_country=evt.get("country1", evt.get("country_id", "WORLD")),
+        target_countries=[evt.get("country2")] if evt.get("country2") else [],
+        title=f"Agenda Event: {event_type}",
+        title_fr=description_fr[:50] if description_fr else "Evenement strategique",
+        description=description_fr,
+        description_fr=description_fr,
+        type=te_type,
+        source=EventSource.PROCEDURAL,
+        importance=importance,
+    )
+    return te
+
+
+def _process_conflicts_daily(
+    world: World,
+    current_date: GameDate,
+    timeline: Optional[TimelineManager]
+) -> Tuple[List[Event], List[TimelineEvent]]:
+    """Process daily conflict attrition"""
+    events = []
+    timeline_events = []
+
+    for conflict in world.active_conflicts:
+        # Daily attrition (1/30 of monthly)
+        conflict.duration += 1
+
+        # Small chance of daily events in conflicts
+        if random.random() < 0.05:  # 5% daily = ~1.5 per month
+            # Generate conflict event
+            event = Event(
+                id=f"conflict_{conflict.id}_{current_date.day}",
+                year=world.year,
+                type="conflict_update",
+                title=f"Fighting continues in {conflict.region or 'the war'}",
+                title_fr=f"Combats en cours - {conflict.region or 'conflit'}",
+                description=f"Day {conflict.duration} of the conflict",
+                description_fr=f"Jour {conflict.duration} du conflit",
+                country_id=conflict.attackers[0] if conflict.attackers else "UNKNOWN",
+                effects={"global_tension": 1}
+            )
+            events.append(event)
+
+            if timeline:
+                te = _convert_to_timeline_event(event, current_date, timeline)
+                te.importance = 2
+                timeline_events.append(te)
+
+        # Update nuclear risk in long conflicts
+        if conflict.duration > 30 and conflict.nuclear_risk > 0:
+            conflict.nuclear_risk = min(100, conflict.nuclear_risk + 1)
+
+    return events, timeline_events
+
+
+def _process_economy_weekly(
+    world: World,
+    current_date: GameDate,
+    timeline: Optional[TimelineManager]
+) -> Tuple[List[Event], List[TimelineEvent]]:
+    """Process weekly economic updates (1/4 of monthly effects)"""
+    events = []
+    timeline_events = []
+
+    # Oil price fluctuation (smaller weekly)
+    oil_delta = random.randint(-3, 3)
+    world.oil_price = max(30, min(150, world.oil_price + oil_delta))
+
+    for country in world.countries.values():
+        # Weekly growth (1/4 of monthly)
+        growth = 0.25
+        if country.stability > 60:
+            growth += 0.25
+        if country.technology > 70:
+            growth += 0.25
+        if country.economy < 30:
+            growth -= 0.25
+
+        # Sanctions impact
+        sanctioners = [c for c in world.countries.values() if country.id in c.sanctions_on]
+        if sanctioners:
+            growth -= 0.5 * len(sanctioners)
+
+        country.economy = max(0, min(100, country.economy + growth))
+
+    return events, timeline_events
+
+
+def _process_ai_decisions_weekly(
+    world: World,
+    current_date: GameDate,
+    timeline: Optional[TimelineManager]
+) -> Tuple[List[Event], List[TimelineEvent]]:
+    """Process weekly AI decisions"""
+    events = []
+    timeline_events = []
+
+    # Only ~25% of AI countries act each week (all act monthly)
+    for country in world.countries.values():
+        if country.is_player:
+            continue
+
+        if random.random() < 0.25:
+            decision = _make_ai_decision(country, world)
+            if decision:
+                events.append(decision)
+                if timeline:
+                    te = _convert_to_timeline_event(decision, current_date, timeline)
+                    timeline_events.append(te)
+
+    return events, timeline_events
+
+
+def _update_relations_weekly(world: World) -> None:
+    """Update relations weekly (smaller drift than monthly)"""
+    for country in world.countries.values():
+        for other_id, relation in list(country.relations.items()):
+            # Drift toward 0 (smaller weekly drift)
+            if relation > 0:
+                country.relations[other_id] = max(0, relation - 0.5)
+            elif relation < 0:
+                country.relations[other_id] = min(0, relation + 0.5)
 
 
 def _process_economy(world: World) -> List[Event]:

@@ -1,0 +1,602 @@
+{
+  "_meta": {
+    "version": "1.0",
+    "description": "Strategic agendas for major nations - goals that drive AI behavior and create conflicts"
+  },
+  "agendas": [
+    {
+      "country_id": "USA",
+      "patience": 40,
+      "opportunism": 60,
+      "risk_tolerance": 55,
+      "secrecy": 30,
+      "historical_traumas": ["Vietnam", "9/11", "Iraq"],
+      "historical_glories": ["WWII Victory", "Cold War Victory", "Moon Landing"],
+      "goals": [
+        {
+          "id": "USA_defend_taiwan",
+          "type": "defense",
+          "name": "Defend Taiwan",
+          "name_fr": "Defendre Taiwan",
+          "description_fr": "Empecher la reunification forcee de Taiwan par la Chine",
+          "progress": 50,
+          "priority": 5,
+          "target_countries": ["TWN", "CHN"],
+          "target_regions": ["indo_pacific"],
+          "tension_per_progress": 0.8,
+          "visibility": 80
+        },
+        {
+          "id": "USA_strengthen_nato",
+          "type": "alliance",
+          "name": "Strengthen NATO",
+          "name_fr": "Renforcer l'OTAN",
+          "description_fr": "Maintenir et etendre l'Alliance Atlantique",
+          "progress": 60,
+          "priority": 4,
+          "target_regions": ["europe", "north_atlantic"],
+          "tension_per_progress": 0.5,
+          "visibility": 90
+        },
+        {
+          "id": "USA_global_hegemony",
+          "type": "hegemony",
+          "name": "Maintain Global Hegemony",
+          "name_fr": "Maintenir l'hegemonie mondiale",
+          "description_fr": "Rester la seule superpuissance globale",
+          "progress": 70,
+          "priority": 5,
+          "tension_per_progress": 0.3,
+          "visibility": 70
+        },
+        {
+          "id": "USA_indo_pacific",
+          "type": "hegemony",
+          "name": "Indo-Pacific Strategy",
+          "name_fr": "Strategie Indo-Pacifique",
+          "description_fr": "Contenir l'expansion chinoise via QUAD et alliances",
+          "progress": 40,
+          "priority": 4,
+          "target_countries": ["JPN", "AUS", "IND", "KOR"],
+          "target_regions": ["indo_pacific"],
+          "tension_per_progress": 0.6,
+          "visibility": 75
+        }
+      ]
+    },
+    {
+      "country_id": "CHN",
+      "patience": 70,
+      "opportunism": 65,
+      "risk_tolerance": 45,
+      "secrecy": 60,
+      "historical_traumas": ["Century of Humiliation", "Opium Wars", "Japanese Invasion"],
+      "historical_glories": ["Middle Kingdom", "Economic Rise"],
+      "goals": [
+        {
+          "id": "CHN_reunify_taiwan",
+          "type": "territorial",
+          "name": "Reunify Taiwan",
+          "name_fr": "Reunifier Taiwan",
+          "description_fr": "Integrer Taiwan a la Republique Populaire, par la force si necessaire",
+          "progress": 30,
+          "priority": 5,
+          "target_countries": ["TWN"],
+          "target_regions": ["indo_pacific"],
+          "tension_per_progress": 1.0,
+          "visibility": 85,
+          "deadline_year": 2049
+        },
+        {
+          "id": "CHN_south_china_sea",
+          "type": "territorial",
+          "name": "South China Sea Control",
+          "name_fr": "Controle de la Mer de Chine",
+          "description_fr": "Etablir la souverainete sur la mer de Chine meridionale",
+          "progress": 55,
+          "priority": 4,
+          "target_countries": ["VNM", "PHL", "MYS", "BRN"],
+          "target_regions": ["south_china_sea"],
+          "tension_per_progress": 0.7,
+          "visibility": 80
+        },
+        {
+          "id": "CHN_belt_road",
+          "type": "economic",
+          "name": "Belt and Road Initiative",
+          "name_fr": "Nouvelles Routes de la Soie",
+          "description_fr": "Creer un reseau d'infrastructure mondial sous influence chinoise",
+          "progress": 45,
+          "priority": 4,
+          "target_regions": ["central_asia", "africa", "south_asia", "europe"],
+          "tension_per_progress": 0.3,
+          "visibility": 90
+        },
+        {
+          "id": "CHN_global_power",
+          "type": "hegemony",
+          "name": "Global Power Status",
+          "name_fr": "Statut de puissance mondiale",
+          "description_fr": "Devenir une puissance mondiale egale aux USA d'ici 2049",
+          "progress": 40,
+          "priority": 5,
+          "tension_per_progress": 0.5,
+          "visibility": 60,
+          "deadline_year": 2049
+        }
+      ]
+    },
+    {
+      "country_id": "RUS",
+      "patience": 35,
+      "opportunism": 75,
+      "risk_tolerance": 65,
+      "secrecy": 55,
+      "historical_traumas": ["USSR Collapse", "NATO Expansion", "90s Chaos"],
+      "historical_glories": ["Great Patriotic War", "Space Race", "Russian Empire"],
+      "irredentist_claims": ["UKR", "BLR", "KAZ", "Baltic States"],
+      "goals": [
+        {
+          "id": "RUS_ukraine_sphere",
+          "type": "territorial",
+          "name": "Ukraine in Russian Sphere",
+          "name_fr": "Ukraine dans la sphere russe",
+          "description_fr": "Empecher l'Ukraine de rejoindre l'OTAN/UE, maintenir l'influence",
+          "progress": 25,
+          "priority": 5,
+          "target_countries": ["UKR"],
+          "target_regions": ["eastern_europe"],
+          "tension_per_progress": 1.2,
+          "visibility": 90
+        },
+        {
+          "id": "RUS_destabilize_nato",
+          "type": "ideology",
+          "name": "Destabilize NATO",
+          "name_fr": "Destabiliser l'OTAN",
+          "description_fr": "Affaiblir la cohesion de l'Alliance Atlantique",
+          "progress": 30,
+          "priority": 4,
+          "target_regions": ["europe", "north_america"],
+          "tension_per_progress": 0.6,
+          "visibility": 40
+        },
+        {
+          "id": "RUS_arctic_control",
+          "type": "resource",
+          "name": "Arctic Control",
+          "name_fr": "Controle de l'Arctique",
+          "description_fr": "Dominer les ressources et routes arctiques",
+          "progress": 50,
+          "priority": 3,
+          "target_regions": ["arctic"],
+          "tension_per_progress": 0.4,
+          "visibility": 70
+        },
+        {
+          "id": "RUS_near_abroad",
+          "type": "hegemony",
+          "name": "Near Abroad Hegemony",
+          "name_fr": "Hegemonie sur l'etranger proche",
+          "description_fr": "Maintenir l'influence sur les ex-republiques sovietiques",
+          "progress": 45,
+          "priority": 4,
+          "target_countries": ["BLR", "KAZ", "ARM", "KGZ", "TJK"],
+          "target_regions": ["central_asia", "caucasus"],
+          "tension_per_progress": 0.5,
+          "visibility": 75
+        }
+      ]
+    },
+    {
+      "country_id": "IND",
+      "patience": 55,
+      "opportunism": 50,
+      "risk_tolerance": 40,
+      "secrecy": 45,
+      "historical_traumas": ["Partition 1947", "1962 China War", "Mumbai Attacks"],
+      "historical_glories": ["Independence Movement", "Nuclear Tests", "Space Program"],
+      "irredentist_claims": ["Kashmir"],
+      "goals": [
+        {
+          "id": "IND_kashmir",
+          "type": "territorial",
+          "name": "Kashmir Sovereignty",
+          "name_fr": "Souverainete sur le Cachemire",
+          "description_fr": "Affirmer le controle total sur le Cachemire, neutraliser le Pakistan",
+          "progress": 60,
+          "priority": 5,
+          "target_countries": ["PAK"],
+          "target_regions": ["kashmir", "south_asia"],
+          "tension_per_progress": 1.0,
+          "visibility": 85
+        },
+        {
+          "id": "IND_china_border",
+          "type": "defense",
+          "name": "China Border Resolution",
+          "name_fr": "Resolution frontiere chinoise",
+          "description_fr": "Resoudre le conflit frontalier avec la Chine (LAC)",
+          "progress": 20,
+          "priority": 4,
+          "target_countries": ["CHN"],
+          "target_regions": ["himalayas"],
+          "tension_per_progress": 0.8,
+          "visibility": 70
+        },
+        {
+          "id": "IND_indian_ocean",
+          "type": "hegemony",
+          "name": "Indian Ocean Dominance",
+          "name_fr": "Domination de l'Ocean Indien",
+          "description_fr": "Devenir la puissance navale dominante de l'Ocean Indien",
+          "progress": 35,
+          "priority": 3,
+          "target_regions": ["indian_ocean"],
+          "tension_per_progress": 0.4,
+          "visibility": 65
+        }
+      ]
+    },
+    {
+      "country_id": "PAK",
+      "patience": 30,
+      "opportunism": 70,
+      "risk_tolerance": 60,
+      "secrecy": 50,
+      "historical_traumas": ["1971 Bangladesh", "Partition", "Kargil"],
+      "historical_glories": ["Nuclear Achievement", "Kashmir Resistance"],
+      "irredentist_claims": ["Kashmir"],
+      "goals": [
+        {
+          "id": "PAK_kashmir",
+          "type": "territorial",
+          "name": "Kashmir Liberation",
+          "name_fr": "Liberation du Cachemire",
+          "description_fr": "Obtenir le Cachemire ou au minimum un referendum",
+          "progress": 25,
+          "priority": 5,
+          "target_countries": ["IND"],
+          "target_regions": ["kashmir", "south_asia"],
+          "tension_per_progress": 1.0,
+          "visibility": 85
+        },
+        {
+          "id": "PAK_india_parity",
+          "type": "defense",
+          "name": "Strategic Parity with India",
+          "name_fr": "Parite strategique avec l'Inde",
+          "description_fr": "Maintenir la dissuasion nucleaire et l'equilibre militaire",
+          "progress": 50,
+          "priority": 4,
+          "target_countries": ["IND"],
+          "tension_per_progress": 0.6,
+          "visibility": 70
+        }
+      ]
+    },
+    {
+      "country_id": "IRN",
+      "patience": 45,
+      "opportunism": 65,
+      "risk_tolerance": 55,
+      "secrecy": 70,
+      "historical_traumas": ["1953 Coup", "Iran-Iraq War", "Sanctions"],
+      "historical_glories": ["Persian Empire", "Islamic Revolution"],
+      "goals": [
+        {
+          "id": "IRN_regional_hegemony",
+          "type": "hegemony",
+          "name": "Regional Hegemony",
+          "name_fr": "Hegemonie regionale",
+          "description_fr": "Dominer le Moyen-Orient via le Croissant chiite",
+          "progress": 45,
+          "priority": 5,
+          "target_countries": ["IRQ", "SYR", "LBN", "YEM"],
+          "target_regions": ["middle_east"],
+          "tension_per_progress": 0.8,
+          "visibility": 75
+        },
+        {
+          "id": "IRN_nuclear",
+          "type": "nuclear",
+          "name": "Nuclear Capability",
+          "name_fr": "Capacite nucleaire",
+          "description_fr": "Developper ou approcher la capacite d'arme nucleaire",
+          "progress": 40,
+          "priority": 5,
+          "tension_per_progress": 1.5,
+          "visibility": 50
+        },
+        {
+          "id": "IRN_destroy_israel",
+          "type": "revenge",
+          "name": "Destroy Israel",
+          "name_fr": "Detruire Israel",
+          "description_fr": "Eliminer l'Etat d'Israel (via proxies ou directement)",
+          "progress": 20,
+          "priority": 4,
+          "target_countries": ["ISR"],
+          "target_regions": ["levant"],
+          "tension_per_progress": 1.2,
+          "visibility": 90
+        }
+      ]
+    },
+    {
+      "country_id": "ISR",
+      "patience": 25,
+      "opportunism": 80,
+      "risk_tolerance": 70,
+      "secrecy": 65,
+      "historical_traumas": ["Holocaust", "Arab Wars", "Intifadas"],
+      "historical_glories": ["Independence", "Six Day War", "Tech Success"],
+      "goals": [
+        {
+          "id": "ISR_security",
+          "type": "defense",
+          "name": "Existential Security",
+          "name_fr": "Securite existentielle",
+          "description_fr": "Assurer la survie de l'Etat d'Israel contre toutes menaces",
+          "progress": 60,
+          "priority": 5,
+          "target_countries": ["IRN", "SYR", "LBN"],
+          "target_regions": ["middle_east"],
+          "tension_per_progress": 0.5,
+          "visibility": 85
+        },
+        {
+          "id": "ISR_neutralize_iran",
+          "type": "defense",
+          "name": "Neutralize Iranian Threat",
+          "name_fr": "Neutraliser la menace iranienne",
+          "description_fr": "Empecher l'Iran d'obtenir l'arme nucleaire, affaiblir ses proxies",
+          "progress": 35,
+          "priority": 5,
+          "target_countries": ["IRN"],
+          "tension_per_progress": 1.0,
+          "visibility": 80
+        },
+        {
+          "id": "ISR_arab_normalization",
+          "type": "alliance",
+          "name": "Arab Normalization",
+          "name_fr": "Normalisation arabe",
+          "description_fr": "Etendre les Accords d'Abraham a l'Arabie Saoudite et autres",
+          "progress": 40,
+          "priority": 3,
+          "target_countries": ["SAU", "OMN", "KWT"],
+          "tension_per_progress": 0.2,
+          "visibility": 90
+        }
+      ]
+    },
+    {
+      "country_id": "SAU",
+      "patience": 50,
+      "opportunism": 55,
+      "risk_tolerance": 35,
+      "secrecy": 40,
+      "historical_traumas": ["Arab Spring Threat", "Yemen Quagmire"],
+      "historical_glories": ["Oil Wealth", "Mecca Custodianship"],
+      "goals": [
+        {
+          "id": "SAU_regional_hegemony",
+          "type": "hegemony",
+          "name": "Sunni Leadership",
+          "name_fr": "Leadership sunnite",
+          "description_fr": "Mener le monde sunnite contre l'expansion iranienne",
+          "progress": 50,
+          "priority": 4,
+          "target_countries": ["IRN"],
+          "target_regions": ["middle_east", "gulf"],
+          "tension_per_progress": 0.6,
+          "visibility": 80
+        },
+        {
+          "id": "SAU_vision_2030",
+          "type": "economic",
+          "name": "Vision 2030",
+          "name_fr": "Vision 2030",
+          "description_fr": "Diversifier l'economie hors petrole",
+          "progress": 30,
+          "priority": 5,
+          "tension_per_progress": 0.1,
+          "visibility": 95,
+          "deadline_year": 2030
+        }
+      ]
+    },
+    {
+      "country_id": "TUR",
+      "patience": 35,
+      "opportunism": 70,
+      "risk_tolerance": 60,
+      "secrecy": 35,
+      "historical_traumas": ["Sevres Treaty", "WWI Defeat"],
+      "historical_glories": ["Ottoman Empire", "Ataturk"],
+      "irredentist_claims": ["Northern Cyprus", "Northern Syria"],
+      "goals": [
+        {
+          "id": "TUR_neo_ottoman",
+          "type": "hegemony",
+          "name": "Neo-Ottoman Influence",
+          "name_fr": "Influence neo-ottomane",
+          "description_fr": "Etendre l'influence turque dans l'ancien espace ottoman",
+          "progress": 35,
+          "priority": 4,
+          "target_countries": ["SYR", "LBY", "AZE"],
+          "target_regions": ["levant", "north_africa", "caucasus"],
+          "tension_per_progress": 0.6,
+          "visibility": 75
+        },
+        {
+          "id": "TUR_aegean",
+          "type": "territorial",
+          "name": "Aegean Expansion",
+          "name_fr": "Expansion en Egee",
+          "description_fr": "Contester les frontieres maritimes grecques, ZEE",
+          "progress": 25,
+          "priority": 3,
+          "target_countries": ["GRC", "CYP"],
+          "target_regions": ["aegean", "eastern_mediterranean"],
+          "tension_per_progress": 0.8,
+          "visibility": 70
+        }
+      ]
+    },
+    {
+      "country_id": "JPN",
+      "patience": 65,
+      "opportunism": 40,
+      "risk_tolerance": 30,
+      "secrecy": 50,
+      "historical_traumas": ["WWII Defeat", "Nuclear Bombings", "Lost Decades"],
+      "historical_glories": ["Economic Miracle", "Meiji Restoration"],
+      "goals": [
+        {
+          "id": "JPN_taiwan_security",
+          "type": "defense",
+          "name": "Taiwan Security",
+          "name_fr": "Securite de Taiwan",
+          "description_fr": "Empecher une invasion chinoise de Taiwan (menace directe)",
+          "progress": 45,
+          "priority": 4,
+          "target_countries": ["TWN", "CHN"],
+          "target_regions": ["indo_pacific"],
+          "tension_per_progress": 0.6,
+          "visibility": 70
+        },
+        {
+          "id": "JPN_remilitarization",
+          "type": "defense",
+          "name": "Constitutional Revision",
+          "name_fr": "Revision constitutionnelle",
+          "description_fr": "Modifier l'Article 9 pour permettre une vraie armee",
+          "progress": 30,
+          "priority": 3,
+          "tension_per_progress": 0.4,
+          "visibility": 80
+        }
+      ]
+    },
+    {
+      "country_id": "PRK",
+      "patience": 20,
+      "opportunism": 80,
+      "risk_tolerance": 75,
+      "secrecy": 85,
+      "historical_traumas": ["Korean War", "Famine", "Isolation"],
+      "historical_glories": ["Juche Ideology", "Nuclear Achievement"],
+      "goals": [
+        {
+          "id": "PRK_regime_survival",
+          "type": "stability",
+          "name": "Regime Survival",
+          "name_fr": "Survie du regime",
+          "description_fr": "Maintenir le regime Kim au pouvoir a tout prix",
+          "progress": 70,
+          "priority": 5,
+          "tension_per_progress": 0.3,
+          "visibility": 50
+        },
+        {
+          "id": "PRK_nuclear_deterrent",
+          "type": "nuclear",
+          "name": "Nuclear Deterrent",
+          "name_fr": "Dissuasion nucleaire",
+          "description_fr": "Developper des armes nucleaires pour garantir la survie",
+          "progress": 75,
+          "priority": 5,
+          "target_countries": ["USA", "KOR", "JPN"],
+          "tension_per_progress": 1.2,
+          "visibility": 90
+        },
+        {
+          "id": "PRK_reunification",
+          "type": "territorial",
+          "name": "Korean Reunification (under North)",
+          "name_fr": "Reunification coreenne (sous le Nord)",
+          "description_fr": "Reunifier la peninsule sous direction du Nord",
+          "progress": 10,
+          "priority": 3,
+          "target_countries": ["KOR"],
+          "target_regions": ["korean_peninsula"],
+          "tension_per_progress": 1.0,
+          "visibility": 60
+        }
+      ]
+    },
+    {
+      "country_id": "KOR",
+      "patience": 55,
+      "opportunism": 45,
+      "risk_tolerance": 35,
+      "secrecy": 40,
+      "historical_traumas": ["Korean War", "Japanese Occupation", "Division"],
+      "historical_glories": ["Economic Miracle", "Democratization", "K-Culture"],
+      "goals": [
+        {
+          "id": "KOR_reunification",
+          "type": "territorial",
+          "name": "Peaceful Reunification",
+          "name_fr": "Reunification pacifique",
+          "description_fr": "Reunifier la Coree pacifiquement sous regime democratique",
+          "progress": 15,
+          "priority": 3,
+          "target_countries": ["PRK"],
+          "target_regions": ["korean_peninsula"],
+          "tension_per_progress": 0.5,
+          "visibility": 75
+        },
+        {
+          "id": "KOR_tech_leadership",
+          "type": "economic",
+          "name": "Tech Leadership",
+          "name_fr": "Leadership technologique",
+          "description_fr": "Dominer les semiconducteurs et technologies avancees",
+          "progress": 65,
+          "priority": 4,
+          "tension_per_progress": 0.2,
+          "visibility": 85
+        }
+      ]
+    },
+    {
+      "country_id": "GRC",
+      "patience": 45,
+      "opportunism": 50,
+      "risk_tolerance": 40,
+      "secrecy": 30,
+      "historical_traumas": ["Asia Minor Catastrophe", "Cyprus Division", "Debt Crisis"],
+      "historical_glories": ["Ancient Greece", "Independence", "EU Membership"],
+      "goals": [
+        {
+          "id": "GRC_aegean_sovereignty",
+          "type": "defense",
+          "name": "Aegean Sovereignty",
+          "name_fr": "Souverainete en Egee",
+          "description_fr": "Defendre les iles et ZEE grecques contre les revendications turques",
+          "progress": 55,
+          "priority": 4,
+          "target_countries": ["TUR"],
+          "target_regions": ["aegean", "eastern_mediterranean"],
+          "tension_per_progress": 0.7,
+          "visibility": 80
+        },
+        {
+          "id": "GRC_cyprus_resolution",
+          "type": "territorial",
+          "name": "Cyprus Resolution",
+          "name_fr": "Resolution de Chypre",
+          "description_fr": "Reunification de Chypre ou garantie de souverainete",
+          "progress": 30,
+          "priority": 3,
+          "target_countries": ["TUR", "CYP"],
+          "tension_per_progress": 0.5,
+          "visibility": 70
+        }
+      ]
+    }
+  ]
+}
