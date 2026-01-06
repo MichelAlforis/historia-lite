@@ -441,3 +441,491 @@ def _create_event(
         country_id=country.id,
         target_id=target_id,
     )
+
+
+# ============================================================================
+# AUTONOMOUS AI INITIATIVE SYSTEM
+# Nations pursue their strategic agendas proactively
+# ============================================================================
+
+# Active strategic plans per nation
+_strategic_plans: Dict[str, Dict] = defaultdict(lambda: {
+    "active_goal_id": None,
+    "current_step": 0,
+    "steps_completed": [],
+    "started_day": 0,
+    "last_action_day": 0,
+})
+
+
+def process_nation_initiative(country: Country, world: World) -> List[Event]:
+    """
+    AI proactive initiative - acts on strategic agenda BEFORE reacting to player.
+    Called weekly by the tick system.
+    Returns list of events from autonomous actions.
+    """
+    if country.is_player:
+        return []
+
+    events = []
+    plan = _strategic_plans[country.id]
+
+    # Try to import agenda manager (may not be initialized yet)
+    try:
+        from ai.nation_agenda import agenda_manager
+    except ImportError:
+        return []
+
+    # Get country's agenda
+    agenda = agenda_manager.get_agenda(country.id)
+    if not agenda:
+        return []
+
+    # Sort goals by priority (highest first)
+    active_goals = [g for g in agenda.goals if g.progress < 100]
+    if not active_goals:
+        return []
+
+    active_goals.sort(key=lambda g: g.priority, reverse=True)
+
+    # Check if we have an active plan
+    if plan["active_goal_id"]:
+        goal = next((g for g in active_goals if g.id == plan["active_goal_id"]), None)
+        if goal:
+            # Continue existing plan
+            event = _execute_plan_step(country, world, goal, plan)
+            if event:
+                events.append(event)
+        else:
+            # Goal completed or invalid, reset
+            plan["active_goal_id"] = None
+            plan["current_step"] = 0
+
+    # If no active plan, maybe start one
+    if not plan["active_goal_id"]:
+        # Chance to start pursuing a goal based on patience/opportunism
+        if random.random() < (agenda.opportunism / 100) * 0.3:  # Max 30% chance weekly
+            top_goal = active_goals[0]
+            plan["active_goal_id"] = top_goal.id
+            plan["current_step"] = 0
+            plan["started_day"] = world.day_of_year
+
+            # Log the initiative
+            logger.info(f"{country.id} starts pursuing goal: {top_goal.id}")
+
+    return events
+
+
+def _execute_plan_step(country: Country, world: World, goal, plan: Dict) -> Optional[Event]:
+    """Execute the next step in a strategic plan towards a goal"""
+    from ai.nation_agenda import GoalType
+
+    # Different actions based on goal type
+    goal_type = goal.type
+    target_ids = goal.target_countries
+
+    # Limit action frequency (at least 3 days between actions)
+    current_day = world.day_of_year + world.year * 365
+    if current_day - plan.get("last_action_day", 0) < 3:
+        return None
+
+    plan["last_action_day"] = current_day
+    event = None
+
+    if goal_type == GoalType.TERRITORIAL:
+        event = _pursue_territorial_goal(country, world, goal, target_ids)
+    elif goal_type == GoalType.HEGEMONY:
+        event = _pursue_hegemony_goal(country, world, goal, target_ids)
+    elif goal_type == GoalType.NUCLEAR:
+        event = _pursue_nuclear_goal(country, world, goal)
+    elif goal_type == GoalType.ECONOMIC:
+        event = _pursue_economic_goal(country, world, goal, target_ids)
+    elif goal_type == GoalType.ALLIANCE:
+        event = _pursue_alliance_goal(country, world, goal, target_ids)
+    elif goal_type == GoalType.REVENGE:
+        event = _pursue_revenge_goal(country, world, goal, target_ids)
+    elif goal_type == GoalType.DEFENSE:
+        event = _pursue_defense_goal(country, world, goal)
+    elif goal_type == GoalType.RESOURCE:
+        event = _pursue_resource_goal(country, world, goal, target_ids)
+
+    # Progress the goal if action was taken
+    if event:
+        goal.progress = min(100, goal.progress + random.randint(2, 5))
+        plan["current_step"] += 1
+
+    return event
+
+
+def _pursue_territorial_goal(country: Country, world: World, goal, targets: List[str]) -> Optional[Event]:
+    """Pursue territorial expansion/reunification"""
+    if not targets:
+        return None
+
+    target_id = targets[0]
+    target = world.get_country(target_id)
+    if not target:
+        return None
+
+    mood = _get_country_mood(country)
+    relation = country.get_relation(target_id)
+
+    # Step progression based on current progress
+    if goal.progress < 20:
+        # Stage 1: Diplomatic pressure
+        country.modify_relation(target_id, -5)
+        return _create_event(
+            world, country, "diplomacy",
+            f"Territorial Claims",
+            f"Revendications territoriales",
+            f"{country.name} reasserts territorial claims over {target.name}",
+            f"{country.name_fr} reaffirme ses revendications territoriales sur {target.name_fr}",
+            target_id=target_id
+        )
+    elif goal.progress < 40:
+        # Stage 2: Military posturing
+        country.military = min(100, country.military + 1)
+        return _create_event(
+            world, country, "military",
+            "Military Exercises Near Border",
+            "Exercices militaires pres de la frontiere",
+            f"{country.name} conducts military exercises near {target.name}",
+            f"{country.name_fr} mene des exercices militaires pres de {target.name_fr}",
+            target_id=target_id
+        )
+    elif goal.progress < 60:
+        # Stage 3: Economic pressure
+        if target_id not in country.sanctions_on:
+            country.sanctions_on.append(target_id)
+            country.modify_relation(target_id, -10)
+            target.modify_relation(country.id, -15)
+            return _create_event(
+                world, country, "sanctions",
+                "Trade Restrictions",
+                "Restrictions commerciales",
+                f"{country.name} imposes trade restrictions on {target.name}",
+                f"{country.name_fr} impose des restrictions commerciales a {target.name_fr}",
+                target_id=target_id
+            )
+    elif goal.progress < 80 and mood < 40:
+        # Stage 4: Proxy actions / incidents (if aggressive)
+        _record_grudge(target_id, country.id, 25)
+        target.stability = max(0, target.stability - 3)
+        return _create_event(
+            world, country, "incident",
+            "Border Incident",
+            "Incident frontalier",
+            f"Border incident between {country.name} and {target.name}",
+            f"Incident frontalier entre {country.name_fr} et {target.name_fr}",
+            target_id=target_id
+        )
+
+    return None
+
+
+def _pursue_hegemony_goal(country: Country, world: World, goal, targets: List[str]) -> Optional[Event]:
+    """Pursue regional hegemony/dominance"""
+    # Increase soft power and influence in region
+    if goal.progress < 30:
+        country.soft_power = min(100, country.soft_power + 2)
+        return _create_event(
+            world, country, "diplomacy",
+            "Regional Initiative",
+            "Initiative regionale",
+            f"{country.name} launches regional cooperation initiative",
+            f"{country.name_fr} lance une initiative de cooperation regionale"
+        )
+    elif goal.progress < 60:
+        # Try to influence a target country
+        if targets:
+            target_id = random.choice(targets)
+            target = world.get_country(target_id)
+            if target:
+                country.modify_relation(target_id, 5)
+                return _create_event(
+                    world, country, "diplomacy",
+                    "Economic Aid Package",
+                    "Aide economique",
+                    f"{country.name} offers economic aid to {target.name}",
+                    f"{country.name_fr} offre une aide economique a {target.name_fr}",
+                    target_id=target_id
+                )
+    else:
+        # Assert dominance
+        country.soft_power = min(100, country.soft_power + 1)
+        return _create_event(
+            world, country, "diplomacy",
+            "Regional Leadership Assertion",
+            "Affirmation de leadership regional",
+            f"{country.name} asserts regional leadership role",
+            f"{country.name_fr} affirme son role de leader regional"
+        )
+    return None
+
+
+def _pursue_nuclear_goal(country: Country, world: World, goal) -> Optional[Event]:
+    """Pursue nuclear capability"""
+    if country.nuclear >= 50:
+        goal.progress = 100  # Goal achieved
+        return None
+
+    # Progress nuclear program
+    country.nuclear = min(100, country.nuclear + 3)
+    country.technology = min(100, country.technology + 1)
+
+    # World reaction
+    for power in world.get_superpowers():
+        if power.id != country.id:
+            power.modify_relation(country.id, -5)
+
+    stage = "initial" if goal.progress < 30 else ("intermediate" if goal.progress < 70 else "advanced")
+
+    return _create_event(
+        world, country, "military",
+        "Nuclear Program Progress",
+        "Progres du programme nucleaire",
+        f"{country.name}'s nuclear program reaches {stage} stage",
+        f"Le programme nucleaire de {country.name_fr} atteint le stade {stage}"
+    )
+
+
+def _pursue_economic_goal(country: Country, world: World, goal, targets: List[str]) -> Optional[Event]:
+    """Pursue economic dominance"""
+    if goal.progress < 40:
+        country.economy = min(100, country.economy + 2)
+        return _create_event(
+            world, country, "economic",
+            "Economic Reform",
+            "Reforme economique",
+            f"{country.name} implements major economic reforms",
+            f"{country.name_fr} met en oeuvre des reformes economiques majeures"
+        )
+    elif targets:
+        # Trade war with competitor
+        target_id = random.choice(targets)
+        target = world.get_country(target_id)
+        if target:
+            country.modify_relation(target_id, -5)
+            target.economy = max(0, target.economy - 1)
+            return _create_event(
+                world, country, "sanctions",
+                "Trade War Escalation",
+                "Escalade de guerre commerciale",
+                f"{country.name} escalates trade measures against {target.name}",
+                f"{country.name_fr} intensifie les mesures commerciales contre {target.name_fr}",
+                target_id=target_id
+            )
+    return None
+
+
+def _pursue_alliance_goal(country: Country, world: World, goal, targets: List[str]) -> Optional[Event]:
+    """Pursue alliance building"""
+    potential_allies = [t for t in targets if t not in country.allies and world.get_country(t)]
+    if not potential_allies:
+        goal.progress = 100
+        return None
+
+    target_id = random.choice(potential_allies)
+    target = world.get_country(target_id)
+    if not target:
+        return None
+
+    # Improve relations
+    country.modify_relation(target_id, 10)
+    target.modify_relation(country.id, 5)
+
+    # If relations good enough, form alliance
+    if country.get_relation(target_id) > 40:
+        if target_id not in country.allies:
+            country.allies.append(target_id)
+            target.allies.append(country.id)
+            return _create_event(
+                world, country, "diplomacy",
+                "New Strategic Partnership",
+                "Nouveau partenariat strategique",
+                f"{country.name} and {target.name} form strategic partnership",
+                f"{country.name_fr} et {target.name_fr} forment un partenariat strategique",
+                target_id=target_id
+            )
+    else:
+        return _create_event(
+            world, country, "diplomacy",
+            "Diplomatic Outreach",
+            "Ouverture diplomatique",
+            f"{country.name} seeks closer ties with {target.name}",
+            f"{country.name_fr} cherche a renforcer ses liens avec {target.name_fr}",
+            target_id=target_id
+        )
+    return None
+
+
+def _pursue_revenge_goal(country: Country, world: World, goal, targets: List[str]) -> Optional[Event]:
+    """Pursue revenge/humiliation goal"""
+    if not targets:
+        return None
+
+    target_id = targets[0]
+    target = world.get_country(target_id)
+    if not target:
+        return None
+
+    mood = _get_country_mood(country)
+
+    if goal.progress < 30:
+        # Stage 1: Rhetoric
+        country.modify_relation(target_id, -8)
+        return _create_event(
+            world, country, "diplomacy",
+            "Hostile Rhetoric",
+            "Rhetorique hostile",
+            f"{country.name} condemns {target.name} in harsh terms",
+            f"{country.name_fr} condamne {target.name_fr} en termes durs",
+            target_id=target_id
+        )
+    elif goal.progress < 60:
+        # Stage 2: Actions
+        if target_id not in country.sanctions_on:
+            country.sanctions_on.append(target_id)
+        _record_grudge(target_id, country.id, 20)
+        return _create_event(
+            world, country, "sanctions",
+            "Punitive Measures",
+            "Mesures punitives",
+            f"{country.name} implements punitive measures against {target.name}",
+            f"{country.name_fr} met en place des mesures punitives contre {target.name_fr}",
+            target_id=target_id
+        )
+    elif mood < 35:
+        # Stage 3: Escalation (if aggressive enough)
+        target.stability = max(0, target.stability - 5)
+        _record_grudge(target_id, country.id, 30)
+        return _create_event(
+            world, country, "incident",
+            "Hostile Action",
+            "Action hostile",
+            f"{country.name} takes hostile action against {target.name}",
+            f"{country.name_fr} mene une action hostile contre {target.name_fr}",
+            target_id=target_id
+        )
+    return None
+
+
+def _pursue_defense_goal(country: Country, world: World, goal) -> Optional[Event]:
+    """Pursue defense strengthening"""
+    if goal.progress < 50:
+        country.military = min(100, country.military + 2)
+        return _create_event(
+            world, country, "military",
+            "Defense Modernization",
+            "Modernisation de la defense",
+            f"{country.name} announces defense modernization program",
+            f"{country.name_fr} annonce un programme de modernisation de la defense"
+        )
+    else:
+        country.military = min(100, country.military + 1)
+        country.technology = min(100, country.technology + 1)
+        return _create_event(
+            world, country, "military",
+            "Advanced Weapons Development",
+            "Developpement d'armes avancees",
+            f"{country.name} develops advanced military technology",
+            f"{country.name_fr} developpe des technologies militaires avancees"
+        )
+
+
+def _pursue_resource_goal(country: Country, world: World, goal, targets: List[str]) -> Optional[Event]:
+    """Pursue resource control"""
+    if not targets:
+        country.resources = min(100, country.resources + 2)
+        return _create_event(
+            world, country, "economic",
+            "Resource Development",
+            "Developpement des ressources",
+            f"{country.name} expands domestic resource extraction",
+            f"{country.name_fr} augmente l'extraction de ressources nationales"
+        )
+
+    target_id = random.choice(targets)
+    target = world.get_country(target_id)
+    if target:
+        # Try to secure resources from target
+        if country.get_relation(target_id) > 0:
+            country.resources = min(100, country.resources + 1)
+            return _create_event(
+                world, country, "diplomacy",
+                "Resource Agreement",
+                "Accord sur les ressources",
+                f"{country.name} secures resource agreement with {target.name}",
+                f"{country.name_fr} obtient un accord sur les ressources avec {target.name_fr}",
+                target_id=target_id
+            )
+        else:
+            # Pressure for resources
+            country.modify_relation(target_id, -5)
+            return _create_event(
+                world, country, "diplomacy",
+                "Resource Pressure",
+                "Pression sur les ressources",
+                f"{country.name} pressures {target.name} over resource access",
+                f"{country.name_fr} fait pression sur {target.name_fr} pour l'acces aux ressources",
+                target_id=target_id
+            )
+    return None
+
+
+def get_all_nation_initiatives(world: World) -> List[Event]:
+    """Process initiatives for all AI nations. Called weekly."""
+    all_events = []
+
+    for country in world.countries.values():
+        if not country.is_player and country.tier <= 2:  # Only major powers have initiatives
+            events = process_nation_initiative(country, world)
+            all_events.extend(events)
+
+    return all_events
+
+
+def check_opportunistic_action(country: Country, world: World, opportunity: str) -> Optional[Event]:
+    """
+    Check if a nation will take opportunistic action.
+    Called when a weakness is detected (war, instability, isolation).
+    """
+    if country.is_player:
+        return None
+
+    try:
+        from ai.nation_agenda import agenda_manager
+        agenda = agenda_manager.get_agenda(country.id)
+        if not agenda:
+            return None
+
+        # Check opportunism threshold
+        if random.random() > (agenda.opportunism / 100):
+            return None
+
+        # Parse opportunity
+        if opportunity.startswith("weakness_"):
+            target_id = opportunity.replace("weakness_", "")
+            target = world.get_country(target_id)
+            if not target:
+                return None
+
+            # Check if target is in any of our goals
+            for goal in agenda.goals:
+                if target_id in goal.target_countries:
+                    # Opportunistic strike!
+                    logger.info(f"{country.id} exploits weakness of {target_id}")
+                    country.modify_relation(target_id, -10)
+                    _record_grudge(target_id, country.id, 20)
+                    return _create_event(
+                        world, country, "incident",
+                        "Opportunistic Move",
+                        "Coup opportuniste",
+                        f"{country.name} exploits {target.name}'s weakness",
+                        f"{country.name_fr} exploite la faiblesse de {target.name_fr}",
+                        target_id=target_id
+                    )
+    except ImportError:
+        pass
+
+    return None

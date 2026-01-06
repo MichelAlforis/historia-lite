@@ -28,6 +28,7 @@ from ai.ai_event_generator import ai_event_generator
 from ai.decision_tier5 import process_tier5_countries
 from ai.decision_tier6 import process_tier6_countries
 from ai.nation_agenda import agenda_manager, chain_manager, process_agenda_tick, initialize_agendas
+from ai.decision import get_all_nation_initiatives, check_opportunistic_action
 
 logger = logging.getLogger(__name__)
 
@@ -812,11 +813,34 @@ def _process_ai_decisions_weekly(
     current_date: GameDate,
     timeline: Optional[TimelineManager]
 ) -> Tuple[List[Event], List[TimelineEvent]]:
-    """Process weekly AI decisions"""
+    """Process weekly AI decisions including autonomous initiatives"""
     events = []
     timeline_events = []
 
-    # Only ~25% of AI countries act each week (all act monthly)
+    # Phase 1: Autonomous AI initiatives (major powers pursuing their agendas)
+    initiative_events = get_all_nation_initiatives(world)
+    for event in initiative_events:
+        events.append(event)
+        if timeline:
+            te = _convert_to_timeline_event(event, current_date, timeline)
+            timeline_events.append(te)
+
+    # Phase 2: Check for opportunistic actions (weakness exploitation)
+    for country in world.countries.values():
+        if country.is_player or country.tier > 2:
+            continue
+        # Check if any rival is weak
+        for rival_id in country.rivals:
+            rival = world.get_country(rival_id)
+            if rival and (rival.stability < 30 or rival.at_war):
+                opp_event = check_opportunistic_action(country, world, f"weakness_{rival_id}")
+                if opp_event:
+                    events.append(opp_event)
+                    if timeline:
+                        te = _convert_to_timeline_event(opp_event, current_date, timeline)
+                        timeline_events.append(te)
+
+    # Phase 3: Standard AI decisions (~25% of AI countries act each week)
     for country in world.countries.values():
         if country.is_player:
             continue

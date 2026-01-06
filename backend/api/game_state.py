@@ -17,6 +17,7 @@ from engine.timeline import TimelineManager
 from engine.crisis import CrisisManager
 from engine.world import WorldMood
 from ai.ollama_ai import OllamaAI
+from ai.nation_agenda import initialize_agendas
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +60,10 @@ def _initialize_systems(world: World) -> None:
     # Initialize world mood (Phase 2)
     _world_mood = WorldMood()
 
-    logger.info("Game systems initialized (espionage, resources, leaders, timeline, crisis, mood)")
+    # Initialize nation agendas (autonomous AI system)
+    initialize_agendas(_data_dir)
+
+    logger.info("Game systems initialized (espionage, resources, leaders, timeline, crisis, mood, agendas)")
 
 
 def get_world() -> Union[World, UnifiedWorld]:

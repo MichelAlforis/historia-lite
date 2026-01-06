@@ -45,16 +45,27 @@ class MemoryScore(BaseModel):
     negative: float = 0.0       # Negative events (sanctions, attacks, betrayals)
     conflicts: float = 0.0      # Conflicts suffered/initiated
     diplomatic: float = 0.0     # Diplomatic interactions (positive or negative)
-    last_updated_month: int = 0  # For decay calculation
+    last_updated_day: int = 0   # For decay calculation (day of year * year)
 
     def get_net_sentiment(self) -> float:
         """Get net sentiment towards this country (-100 to +100 scale)"""
         raw = (self.positive - self.negative + self.diplomatic - self.conflicts * 2)
         return max(-100.0, min(100.0, raw))
 
-    def decay(self, months_passed: int = 1) -> None:
-        """Apply natural memory decay over time"""
-        decay_rate = 0.95 ** months_passed  # 5% decay per month
+    def decay(self, days_passed: int = 1) -> None:
+        """
+        Apply natural memory decay over time.
+        Daily decay rate: 0.9983^1 per day ≈ 0.95 per month (5% monthly decay)
+        """
+        decay_rate = 0.9983 ** days_passed
+        self.positive *= decay_rate
+        self.negative *= decay_rate
+        self.conflicts *= decay_rate
+        self.diplomatic *= decay_rate
+
+    def decay_monthly(self, months_passed: int = 1) -> None:
+        """Legacy: Apply monthly memory decay (for backward compatibility)"""
+        decay_rate = 0.95 ** months_passed
         self.positive *= decay_rate
         self.negative *= decay_rate
         self.conflicts *= decay_rate
@@ -186,10 +197,15 @@ class Country(BaseModel):
             return 0.0
         return self.memory_scores[country_id].get_net_sentiment()
 
-    def decay_all_memories(self, months_passed: int = 1) -> None:
-        """Apply natural decay to all memories"""
+    def decay_all_memories(self, days_passed: int = 1) -> None:
+        """Apply natural decay to all memories (daily basis)"""
         for memory in self.memory_scores.values():
-            memory.decay(months_passed)
+            memory.decay(days_passed)
+
+    def decay_all_memories_monthly(self, months_passed: int = 1) -> None:
+        """Legacy: Apply monthly decay to all memories"""
+        for memory in self.memory_scores.values():
+            memory.decay_monthly(months_passed)
 
     def get_combined_relation(self, country_id: str) -> float:
         """
