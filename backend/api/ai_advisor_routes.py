@@ -46,6 +46,21 @@ class MediaCommentResponse(BaseModel):
     error: Optional[str] = None
 
 
+class MultipleMediaCommentsResponse(BaseModel):
+    success: bool
+    comments: List[MediaComment] = []
+    error: Optional[str] = None
+
+
+class MediaSourceInfo(BaseModel):
+    id: str
+    name: str
+    country: str
+    region: str
+    bias: str
+    credibility: str
+
+
 class OpportunityEventResponse(BaseModel):
     success: bool
     event: Optional[dict] = None
@@ -192,11 +207,17 @@ async def get_annual_briefing(country_id: str):
 
 
 @router.get("/media/{country_id}", response_model=MediaCommentResponse)
-async def get_media_comment(country_id: str):
+async def get_media_comment(
+    country_id: str,
+    source_id: Optional[str] = None,
+    bias: Optional[str] = None
+):
     """Get AI-generated press/media commentary
 
     Args:
         country_id: Player country code
+        source_id: Optional specific media source ID (e.g., 'reuters', 'xinhua', 'al_jazeera')
+        bias: Optional bias filter (pro_west, pro_east, neutral, liberal, conservative, economic)
 
     Returns:
         Media comment with source, headline, and excerpt
@@ -210,7 +231,11 @@ async def get_media_comment(country_id: str):
         raise HTTPException(status_code=404, detail=f"Country {country_id} not found")
 
     try:
-        comment = await ai_advisor.generate_media_comment(world, player)
+        comment = await ai_advisor.generate_media_comment(
+            world, player,
+            source_id=source_id,
+            force_bias=bias
+        )
         if comment:
             return MediaCommentResponse(success=True, comment=comment)
         return MediaCommentResponse(
@@ -220,6 +245,82 @@ async def get_media_comment(country_id: str):
     except Exception as e:
         logger.error(f"Media comment error: {e}")
         return MediaCommentResponse(success=False, error=str(e))
+
+
+@router.get("/media/{country_id}/multiple", response_model=MultipleMediaCommentsResponse)
+async def get_multiple_media_comments(country_id: str, count: int = 3):
+    """Get multiple AI-generated media comments from contrasting sources
+
+    Provides different perspectives on the same situation from sources
+    with different editorial biases (e.g., Western vs Eastern, liberal vs conservative).
+
+    Args:
+        country_id: Player country code
+        count: Number of comments to generate (1-5, default 3)
+
+    Returns:
+        List of media comments from different sources
+    """
+    world = get_world()
+    if not world:
+        raise HTTPException(status_code=404, detail="No active game")
+
+    player = world.get_country(country_id)
+    if not player:
+        raise HTTPException(status_code=404, detail=f"Country {country_id} not found")
+
+    # Limit count
+    count = max(1, min(5, count))
+
+    try:
+        comments = await ai_advisor.generate_multiple_media_comments(
+            world, player, count=count
+        )
+        if comments:
+            return MultipleMediaCommentsResponse(success=True, comments=comments)
+        return MultipleMediaCommentsResponse(
+            success=False,
+            error="Could not generate media comments - AI unavailable"
+        )
+    except Exception as e:
+        logger.error(f"Multiple media comments error: {e}")
+        return MultipleMediaCommentsResponse(success=False, error=str(e))
+
+
+@router.get("/media/sources/list")
+async def list_media_sources():
+    """List all available media sources
+
+    Returns categorized list of media sources with their biases and credibility.
+    """
+    from ai.media_sources import get_all_sources_summary, MEDIA_SOURCES, MediaBias, MediaRegion
+
+    sources = get_all_sources_summary()
+
+    # Group by region
+    by_region = {}
+    for source in sources:
+        region = source.get("region", "global")
+        if region not in by_region:
+            by_region[region] = []
+        by_region[region].append(source)
+
+    # Group by bias
+    by_bias = {}
+    for source in sources:
+        bias = source.get("bias", "neutral")
+        if bias not in by_bias:
+            by_bias[bias] = []
+        by_bias[bias].append(source)
+
+    return {
+        "total": len(sources),
+        "sources": sources,
+        "by_region": by_region,
+        "by_bias": by_bias,
+        "available_biases": [b.value for b in MediaBias],
+        "available_regions": [r.value for r in MediaRegion],
+    }
 
 
 @router.get("/opportunity/{country_id}", response_model=OpportunityEventResponse)

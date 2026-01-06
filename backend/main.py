@@ -32,6 +32,7 @@ from api.timeline_routes import router as timeline_router  # NEW: Timeline API
 from api.leaders_routes import router as leaders_router  # Leaders & Traits
 from api.stats_routes import router as stats_router      # Historical Stats
 from api.achievements_routes import router as achievements_router  # Achievements
+from api.narrative_routes import router as narrative_router  # Historia Narrative mode
 
 # Configure logging
 logging.basicConfig(
@@ -77,6 +78,7 @@ app.include_router(timeline_router)  # NEW: Timeline API
 app.include_router(leaders_router)   # Leaders & Traits
 app.include_router(stats_router)     # Historical Stats
 app.include_router(achievements_router)  # Achievements
+app.include_router(narrative_router)     # Historia Narrative mode
 
 
 @app.get("/")
@@ -99,6 +101,7 @@ async def root():
             "influence": "/api/influence/*",
             "saves": "/api/saves/*",
             "scenarios": "/api/scenarios/*",
+            "narrative": "/api/narrative/* (Historia Narrative mode)",
         },
     }
 

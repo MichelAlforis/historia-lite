@@ -166,6 +166,92 @@
       },
       "objectives": {},
       "customizable": true
+    },
+    {
+      "id": "tutorial_first_crisis",
+      "name": "Tutorial - First Crisis",
+      "name_fr": "Tutoriel - Premiere Crise",
+      "description": "Apprenez les bases en gerant votre premiere crise diplomatique. Scenario guide pas a pas.",
+      "start_year": 2025,
+      "difficulty": "tutorial",
+      "duration": 10,
+      "icon": "📚",
+      "tags": ["tutoriel", "debutant", "guide"],
+      "recommended_countries": ["FRA"],
+      "initial_state": {
+        "global_tension": 45,
+        "oil_price": 70
+      },
+      "modified_countries": {
+        "FRA": {"stability": 75, "economy": 70, "military": 65, "soft_power": 80},
+        "DEU": {"stability": 80, "economy": 85, "relation_FRA": 60},
+        "RUS": {"stability": 60, "relation_FRA": -20},
+        "USA": {"relation_FRA": 50}
+      },
+      "objectives": {
+        "FRA": ["tutorial_maintain_stability", "tutorial_make_ally", "tutorial_no_war"]
+      },
+      "tutorial_config": {
+        "enabled": true,
+        "steps": [
+          {
+            "id": "welcome",
+            "title_fr": "Bienvenue dans Historia Lite",
+            "content_fr": "Vous etes a la tete de la France. Votre mission : maintenir la stabilite et tisser des alliances strategiques.",
+            "highlight": null,
+            "action_required": null
+          },
+          {
+            "id": "understand_stats",
+            "title_fr": "Comprendre vos statistiques",
+            "content_fr": "Observez les indicateurs de votre pays : Economie, Militaire, Stabilite, Soft Power. Cliquez sur la France pour voir les details.",
+            "highlight": "country_card",
+            "action_required": "select_country_FRA"
+          },
+          {
+            "id": "check_relations",
+            "title_fr": "Analyser vos relations",
+            "content_fr": "Vos relations avec l'Allemagne sont bonnes (+60), mais tendues avec la Russie (-20). Les alliances sont cruciales.",
+            "highlight": "relations_panel",
+            "action_required": null
+          },
+          {
+            "id": "advance_time",
+            "title_fr": "Faire avancer le temps",
+            "content_fr": "Chaque 'tick' represente un mois. Cliquez sur '⏭️ Mois Suivant' pour voir le monde evoluer.",
+            "highlight": "tick_button",
+            "action_required": "advance_tick"
+          },
+          {
+            "id": "first_event",
+            "title_fr": "Reagir aux evenements",
+            "content_fr": "Des evenements se produisent. Observez le journal d'evenements a droite. Certains peuvent affecter votre stabilite.",
+            "highlight": "event_log",
+            "action_required": null
+          },
+          {
+            "id": "diplomatic_action",
+            "title_fr": "Actions diplomatiques",
+            "content_fr": "Pour ameliorer une relation, cliquez sur un pays puis utilisez les actions diplomatiques. Essayez de vous rapprocher de l'Allemagne.",
+            "highlight": "diplomatic_actions",
+            "action_required": "improve_relation"
+          },
+          {
+            "id": "monitor_tension",
+            "title_fr": "Surveiller la tension mondiale",
+            "content_fr": "La tension mondiale indique le risque de conflit. Au-dessus de 70%, les evenements negatifs sont plus frequents.",
+            "highlight": "global_tension",
+            "action_required": null
+          },
+          {
+            "id": "complete",
+            "title_fr": "Tutoriel termine !",
+            "content_fr": "Vous maitrisez les bases. Continuez a jouer pour decouvrir les mecaniques avancees : influence, espionnage, conseiller IA...",
+            "highlight": null,
+            "action_required": null
+          }
+        ]
+      }
     }
   ],
   "objectives_catalog": {
@@ -312,6 +398,30 @@
       "difficulty": "medium",
       "points": 200,
       "check": {"regional_dominance": true}
+    },
+    "tutorial_maintain_stability": {
+      "name": "Maintenir la Stabilite",
+      "description": "Garder votre stabilite nationale au-dessus de 60% pendant 5 ans",
+      "type": "tutorial",
+      "difficulty": "easy",
+      "points": 50,
+      "check": {"min_stability": 60, "duration_years": 5}
+    },
+    "tutorial_make_ally": {
+      "name": "Forger une Alliance",
+      "description": "Etablir une relation d'au moins +70 avec un autre pays majeur",
+      "type": "tutorial",
+      "difficulty": "easy",
+      "points": 50,
+      "check": {"relation_threshold": 70, "target_tier": [1, 2]}
+    },
+    "tutorial_no_war": {
+      "name": "Maintenir la Paix",
+      "description": "Eviter tout conflit arme direct pendant le scenario",
+      "type": "tutorial",
+      "difficulty": "easy",
+      "points": 100,
+      "check": {"no_direct_war": true}
     }
   },
   "difficulty_modifiers": {

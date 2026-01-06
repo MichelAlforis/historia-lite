@@ -13,7 +13,12 @@ import ZoneDetailModal from '@/components/ZoneDetailModal';
 import WorldMap from '@/components/WorldMap';
 import SaveLoadPanel from '@/components/SaveLoadPanel';
 import DefconBanner from '@/components/DefconBanner';
+import MediaFeed from '@/components/MediaFeed';
+import TutorialOverlay from '@/components/TutorialOverlay';
+import ScenarioSelector from '@/components/ScenarioSelector';
 import { useHistoriaShortcuts, SHORTCUTS_HELP } from '@/hooks/useKeyboardShortcuts';
+import { useTutorial } from '@/hooks/useTutorial';
+import { TutorialConfig } from '@/lib/types';
 import { InfluenceZone } from '@/lib/types';
 import { getInfluenceZonesAdvanced } from '@/lib/api';
 
@@ -44,7 +49,14 @@ export default function GameApp() {
   const [selectedZone, setSelectedZone] = useState<InfluenceZone | null>(null);
   const [zones, setZones] = useState<InfluenceZone[]>([]);
   const [showSaveLoad, setShowSaveLoad] = useState(false);
+  const [showMediaFeed, setShowMediaFeed] = useState(false);
+  const [showScenarioSelector, setShowScenarioSelector] = useState(false);
+  const [tutorialConfig, setTutorialConfig] = useState<TutorialConfig | null>(null);
+  const [tickCount, setTickCount] = useState(0);
   const prevYearRef = useRef<number | null>(null);
+
+  // Tutorial hook
+  const tutorial = useTutorial(tutorialConfig);
 
   // Critical events state
   const [showDefconBanner, setShowDefconBanner] = useState(false);
@@ -142,6 +154,48 @@ export default function GameApp() {
     setAiMode(newMode);
   }, [settings?.ai_mode, setAiMode]);
 
+  // Track ticks for tutorial
+  const handleTick = useCallback(() => {
+    advanceTick();
+    setTickCount(prev => prev + 1);
+  }, [advanceTick]);
+
+  // Handle scenario selection
+  const handleScenarioSelect = useCallback(async (scenarioId: string, countryId?: string) => {
+    try {
+      // Start the scenario
+      const response = await fetch('/api/scenarios/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scenario_id: scenarioId,
+          player_country: countryId,
+        }),
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        // Refresh world state
+        fetchWorldState();
+        loadZones();
+
+        // Load tutorial config if present
+        const scenarioResponse = await fetch(`/api/scenarios/${scenarioId}`);
+        const scenarioData = await scenarioResponse.json();
+
+        if (scenarioData.tutorial_config?.enabled) {
+          setTutorialConfig(scenarioData.tutorial_config);
+          // Auto-start tutorial
+          setTimeout(() => {
+            tutorial.startTutorial();
+          }, 1000);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to start scenario:', error);
+    }
+  }, [fetchWorldState, loadZones, tutorial]);
+
   // Fermer les modals
   const handleCloseModals = useCallback(() => {
     if (showSaveLoad) setShowSaveLoad(false);
@@ -235,6 +289,24 @@ export default function GameApp() {
               </span>
             </div>
 
+            {/* Scenarios */}
+            <button
+              onClick={() => setShowScenarioSelector(true)}
+              className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700"
+              title="Choisir un Scenario"
+            >
+              {'📚'}
+            </button>
+
+            {/* Revue de Presse */}
+            <button
+              onClick={() => setShowMediaFeed(true)}
+              className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700"
+              title="Revue de Presse Internationale"
+            >
+              {'📰'}
+            </button>
+
             {/* Sauvegarde */}
             <button
               onClick={() => setShowSaveLoad(true)}
@@ -267,7 +339,7 @@ export default function GameApp() {
               isLoading={isLoading}
               autoPlay={autoPlay}
               settings={settings}
-              onTick={advanceTick}
+              onTick={handleTick}
               onMultiTick={advanceMultipleTicks}
               onReset={resetWorld}
               onAutoPlayToggle={handleAutoPlayToggle}
@@ -379,6 +451,35 @@ export default function GameApp() {
         onClose={() => setShowSaveLoad(false)}
         onGameLoaded={() => { fetchWorldState(); loadZones(); }}
       />
+
+      {/* Revue de Presse */}
+      <MediaFeed
+        countryId={selectedCountry?.id || 'FRA'}
+        isOpen={showMediaFeed}
+        onClose={() => setShowMediaFeed(false)}
+      />
+
+      {/* Selecteur de Scenario */}
+      <ScenarioSelector
+        isOpen={showScenarioSelector}
+        onClose={() => setShowScenarioSelector(false)}
+        onSelectScenario={handleScenarioSelect}
+      />
+
+      {/* Tutoriel Overlay */}
+      {tutorial.active && tutorialConfig && (
+        <TutorialOverlay
+          config={tutorialConfig}
+          currentStep={tutorial.currentStep}
+          onStepComplete={tutorial.completeStep}
+          onNext={tutorial.nextStep}
+          onPrevious={tutorial.previousStep}
+          onSkip={tutorial.skipTutorial}
+          onComplete={tutorial.completeTutorial}
+          selectedCountry={selectedCountry?.id || null}
+          tickCount={tickCount}
+        />
+      )}
     </div>
   );
 }

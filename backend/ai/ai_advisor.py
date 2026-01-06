@@ -17,6 +17,14 @@ from ai.personalities import (
     apply_personality_to_prompt,
     get_all_personalities,
 )
+from ai.media_sources import (
+    get_random_source,
+    get_contrasting_sources,
+    select_source_for_event,
+    get_source_prompt_enhancement,
+    get_all_sources_summary,
+    MEDIA_SOURCES,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +70,9 @@ class AnnualBriefing(BaseModel):
 class MediaComment(BaseModel):
     """AI-generated press/media commentary"""
     source: str  # Le Monde, The Times, etc.
+    source_id: Optional[str] = None  # Internal source ID
+    source_country: Optional[str] = None  # Source country code
+    source_bias: Optional[str] = None  # Editorial bias
     headline_fr: str
     excerpt_fr: str
     sentiment: str  # positive, negative, neutral
@@ -336,59 +347,106 @@ Reponds UNIQUEMENT avec ce JSON:
     # =========================================================================
 
     async def generate_media_comment(
-        self, world: Any, player: Any, event: Any = None
+        self,
+        world: Any,
+        player: Any,
+        event: Any = None,
+        source_id: str = None,
+        force_bias: str = None
     ) -> Optional[MediaComment]:
-        """Generate a press/media commentary about recent events"""
+        """Generate a press/media commentary about recent events
 
-        # Determine what to comment on
+        Args:
+            world: Game world state
+            player: Player country
+            event: Optional event to comment on
+            source_id: Force a specific media source
+            force_bias: Force a specific bias (pro_west, pro_east, neutral, etc.)
+        """
+
+        # Determine what to comment on and initial sentiment
+        event_type = None
+        initial_sentiment = "neutral"
+
         if event:
-            subject = f"Evenement recent: {event.title_fr}"
+            subject = f"Evenement recent: {getattr(event, 'title_fr', str(event))}"
+            event_type = getattr(event, 'type', None)
+            # Try to guess sentiment from event
+            if hasattr(event, 'effects'):
+                positive_effects = sum(1 for e in event.effects if e.get('delta', 0) > 0)
+                negative_effects = sum(1 for e in event.effects if e.get('delta', 0) < 0)
+                if positive_effects > negative_effects:
+                    initial_sentiment = "positive"
+                elif negative_effects > positive_effects:
+                    initial_sentiment = "negative"
         else:
             # Pick a random aspect to comment on
             aspects = []
             if player.economy > 70:
-                aspects.append("la croissance economique")
+                aspects.append(("la croissance economique", "economy", "positive"))
+            if player.economy < 30:
+                aspects.append(("la recession economique", "economy", "negative"))
             if player.military > 70:
-                aspects.append("la puissance militaire")
+                aspects.append(("la puissance militaire", "military", "positive"))
             if player.stability < 40:
-                aspects.append("l'instabilite politique")
+                aspects.append(("l'instabilite politique", "stability", "negative"))
+            if player.stability > 80:
+                aspects.append(("la stabilite remarquable", "stability", "positive"))
             if player.at_war:
-                aspects.append("le conflit en cours")
+                aspects.append(("le conflit en cours", "war", "negative"))
+            if player.soft_power > 70:
+                aspects.append(("le rayonnement culturel", "diplomacy", "positive"))
+            if getattr(world, 'global_tension', 50) > 70:
+                aspects.append(("les tensions mondiales", "diplomacy", "negative"))
             if not aspects:
-                aspects.append("la politique etrangere")
-            subject = f"Commentaire sur {random.choice(aspects)} de {player.name_fr}"
+                aspects.append(("la politique etrangere", "diplomacy", "neutral"))
 
-        # Random international newspaper
-        newspapers = [
-            ("Le Monde", "France"),
-            ("The Times", "Royaume-Uni"),
-            ("The New York Times", "Etats-Unis"),
-            ("Der Spiegel", "Allemagne"),
-            ("El Pais", "Espagne"),
-            ("La Repubblica", "Italie"),
-            ("The Guardian", "Royaume-Uni"),
-            ("Foreign Affairs", "Etats-Unis"),
-        ]
-        source, origin = random.choice(newspapers)
+            aspect, event_type, initial_sentiment = random.choice(aspects)
+            subject = f"Commentaire sur {aspect} de {player.name_fr}"
 
-        prompt = f"""Tu es un journaliste de {source} ({origin}).
-Ecris un court commentaire sur {player.name_fr}.
+        # Select media source
+        if source_id and source_id in MEDIA_SOURCES:
+            source = {"id": source_id, **MEDIA_SOURCES[source_id]}
+        elif force_bias:
+            from ai.media_sources import get_sources_by_bias
+            sources = get_sources_by_bias(force_bias)
+            source = random.choice(sources) if sources else get_random_source(exclude_tabloids=True)
+        else:
+            # Intelligently select source based on context
+            source = select_source_for_event(
+                player_country=player.id,
+                event_sentiment=initial_sentiment,
+                event_type=event_type
+            )
 
-CONTEXTE:
+        # Build prompt with source-specific enhancement
+        source_prompt = get_source_prompt_enhancement(source)
+
+        # Add bias-specific context to influence the AI's writing
+        bias_context = self._get_bias_context(source.get("bias"), player.id, initial_sentiment)
+
+        prompt = f"""{source_prompt}
+
+EVENEMENT A COUVRIR:
 - Annee: {world.year}
-- {subject}
-- Economie {player.name_fr}: {player.economy}/100
+- Sujet: {subject}
+- Pays concerne: {player.name_fr}
+- Economie: {player.economy}/100
 - Stabilite: {player.stability}/100
+- Militaire: {player.military}/100
 - Tension mondiale: {world.global_tension}/100
 
+{bias_context}
+
+Ecris un article court avec le style et le biais editorial de ta publication.
 Reponds UNIQUEMENT avec ce JSON:
 {{
-  "headline_fr": "Titre accrocheur style presse (max 10 mots)",
-  "excerpt_fr": "Extrait d'article de 2-3 phrases, style journalistique professionnel",
+  "headline_fr": "Titre accrocheur style presse (max 12 mots)",
+  "excerpt_fr": "Extrait d'article de 2-4 phrases avec ton et biais de la source",
   "sentiment": "positive|negative|neutral"
 }}"""
 
-        response = await self._call_ollama(prompt, 300)
+        response = await self._call_ollama(prompt, 350)
         if not response:
             return None
 
@@ -398,13 +456,84 @@ Reponds UNIQUEMENT avec ce JSON:
 
         try:
             return MediaComment(
-                source=source,
+                source=source.get("name", "Unknown"),
+                source_id=source.get("id"),
+                source_country=source.get("country"),
+                source_bias=source.get("bias"),
                 headline_fr=data.get("headline_fr", "Actualite internationale"),
                 excerpt_fr=data.get("excerpt_fr", ""),
                 sentiment=data.get("sentiment", "neutral")
             )
         except Exception:
             return None
+
+    def _get_bias_context(self, bias: str, player_id: str, sentiment: str) -> str:
+        """Generate context hint based on source bias"""
+        western_countries = {"USA", "GBR", "FRA", "DEU", "CAN", "ITA", "ESP", "JPN", "KOR", "AUS"}
+        eastern_countries = {"RUS", "CHN", "BLR", "IRN", "PRK", "SYR", "VEN", "CUB"}
+
+        is_western = player_id in western_countries
+        is_eastern = player_id in eastern_countries
+
+        hints = {
+            "pro_west": (
+                "ANGLE EDITORIAL: Favorable aux democraties occidentales. "
+                f"{'Souligne les aspects positifs.' if is_western else 'Critique les manquements democratiques.'}"
+            ),
+            "pro_east": (
+                "ANGLE EDITORIAL: Critique de l'hegemonisme occidental. "
+                f"{'Denonce l influence americaine.' if is_western else 'Presente une alternative au modele occidental.'}"
+            ),
+            "pro_authoritarian": (
+                "ANGLE EDITORIAL: Defense de la souverainete nationale. "
+                "Critique de l'ingerence etrangere. Ton officiel et diplomatique."
+            ),
+            "neutral": (
+                "ANGLE EDITORIAL: Equilibre et factuel. "
+                "Presente les faits sans jugement excessif."
+            ),
+            "liberal": (
+                "ANGLE EDITORIAL: Progressiste. "
+                "Attention aux droits de l'homme et aux valeurs democratiques."
+            ),
+            "conservative": (
+                "ANGLE EDITORIAL: Conservateur. "
+                "Focus sur la securite nationale et les interets economiques."
+            ),
+            "economic": (
+                "ANGLE EDITORIAL: Analyse economique. "
+                "Focus sur l'impact sur les marches et les investissements."
+            ),
+            "sensationalist": (
+                "ANGLE EDITORIAL: Sensationnel et accrocheur. "
+                "Titre choc, angle emotionnel, simplification."
+            ),
+        }
+
+        return hints.get(bias, "ANGLE EDITORIAL: Objectif et professionnel.")
+
+    async def generate_multiple_media_comments(
+        self,
+        world: Any,
+        player: Any,
+        event: Any = None,
+        count: int = 3
+    ) -> List[MediaComment]:
+        """Generate multiple media comments from contrasting sources
+
+        Provides different perspectives on the same event.
+        """
+        contrasting = get_contrasting_sources()
+
+        comments = []
+        for source in contrasting[:count]:
+            comment = await self.generate_media_comment(
+                world, player, event, source_id=source.get("id")
+            )
+            if comment:
+                comments.append(comment)
+
+        return comments
 
     # =========================================================================
     # POSITIVE OPPORTUNITIES

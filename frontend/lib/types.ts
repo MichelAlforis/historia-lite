@@ -1967,6 +1967,42 @@ export function formatMonthYear(year: number, month: number, lang: 'fr' | 'en' =
   return `${months[month - 1]} ${year}`;
 }
 
+// Tutorial Types
+export interface TutorialStep {
+  id: string;
+  title_fr: string;
+  content_fr: string;
+  highlight: string | null;
+  action_required: string | null;
+}
+
+export interface TutorialConfig {
+  enabled: boolean;
+  steps: TutorialStep[];
+}
+
+export interface ScenarioSummary {
+  id: string;
+  name: string;
+  name_fr: string;
+  description: string;
+  start_year: number;
+  difficulty: string;
+  duration: number | null;
+  icon: string;
+  tags: string[];
+}
+
+export interface ScenarioDetail extends ScenarioSummary {
+  initial_state: Record<string, any>;
+  objectives: Record<string, string[]>;
+  active_conflicts: Array<Record<string, any>>;
+  modified_countries: Record<string, any>;
+  recommended_countries: string[];
+  customizable: boolean;
+  tutorial_config?: TutorialConfig;
+}
+
 /**
  * Get importance badge color
  */
