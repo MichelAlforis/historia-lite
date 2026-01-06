@@ -13,6 +13,7 @@ import {
   selectDefconStatus,
   selectCanConfirm,
   selectTotalActionCost,
+  StopMoment,
 } from "@/stores/narrativeStore";
 import CommandInput from "./CommandInput";
 import IntentReview from "./IntentReview";
@@ -26,6 +27,8 @@ import { JumpForwardButton } from "./JumpForwardModal";
 import { EventPlayback } from "./EventPlayback";
 import { LeaderPanel } from "./LeaderPanel";
 import { DramaticWrapper, DefconOverlay, TensionVignette } from "./DramaticEffects";
+import CouncilSuggestions from "./CouncilSuggestions";
+import GameOverDebrief from "./GameOverDebrief";
 
 export default function NarrativeGame() {
   const {
@@ -49,6 +52,7 @@ export default function NarrativeGame() {
     gamePhase,
     actionQueue,
     queueSummary,
+    lastStopMoment,  // "Moment de Verite" - trace du dernier arret
   } = useNarrativeStore();
 
   const canConfirm = useNarrativeStore(selectCanConfirm);
@@ -70,10 +74,10 @@ export default function NarrativeGame() {
     return <ErrorScreen error={error} onRetry={loadState} />;
   }
 
-  // Game Over
+  // Game Over - Affiche le debrief narratif
   if (gameOver) {
     return (
-      <GameOverScreen
+      <GameOverDebrief
         victory={victory}
         endReason={endReason}
         onNewGame={newGame}
@@ -141,8 +145,14 @@ export default function NarrativeGame() {
                     zones={zones}
                     defcon={defcon}
                     worldTension={world_tension}
+                    lastStopMoment={lastStopMoment}
                   />
                 )}
+
+                {/* Conseil des urgences - suggestions AVANT le jump */}
+                <div className="overflow-auto max-h-64">
+                  <CouncilSuggestions />
+                </div>
 
                 <CommandInput />
                 <div className="flex-1 overflow-auto">
@@ -442,9 +452,10 @@ interface SituationBriefProps {
   zones: Record<string, { name_fr: string; influence_us: number; influence_ussr: number; stability: number; dominant: string }>;
   defcon: number;
   worldTension: number;
+  lastStopMoment?: StopMoment | null;
 }
 
-function SituationBrief({ zones, defcon, worldTension }: SituationBriefProps) {
+function SituationBrief({ zones, defcon, worldTension, lastStopMoment }: SituationBriefProps) {
   // Genere des observations narratives basees sur l'etat du monde
   const observations: string[] = [];
 
@@ -501,8 +512,42 @@ function SituationBrief({ zones, defcon, worldTension }: SituationBriefProps) {
   // Limiter a 3 observations max
   const displayedObs = observations.slice(0, 3);
 
+  // Determiner les couleurs selon le tone du dernier moment de verite
+  const getToneStyles = (tone?: string) => {
+    switch (tone) {
+      case "dread": return { border: "border-red-800/40", text: "text-red-400/80", bg: "bg-red-950/20" };
+      case "shock": return { border: "border-orange-700/40", text: "text-orange-400/80", bg: "bg-orange-950/20" };
+      case "gravity": return { border: "border-slate-600/40", text: "text-slate-300/80", bg: "bg-slate-900/40" };
+      case "revelation": return { border: "border-cyan-700/40", text: "text-cyan-400/80", bg: "bg-cyan-950/20" };
+      case "turning_point": return { border: "border-amber-700/40", text: "text-amber-400/80", bg: "bg-amber-950/20" };
+      default: return { border: "border-slate-700/40", text: "text-slate-400/80", bg: "bg-slate-900/20" };
+    }
+  };
+
+  const momentStyles = getToneStyles(lastStopMoment?.tone);
+
   return (
     <div className="bg-slate-900/50 border border-slate-700/50 rounded-lg p-4 mb-4">
+      {/* Trace du "Moment de Verite" precedent */}
+      {lastStopMoment && (
+        <div className={`${momentStyles.bg} ${momentStyles.border} border rounded-md p-3 mb-4`}>
+          <div className="flex items-center gap-2 mb-2">
+            <div className={`w-1.5 h-1.5 rounded-full ${
+              lastStopMoment.tone === "dread" ? "bg-red-500" :
+              lastStopMoment.tone === "shock" ? "bg-orange-500" :
+              lastStopMoment.tone === "revelation" ? "bg-cyan-500" :
+              "bg-slate-500"
+            }`} />
+            <span className="text-[9px] font-mono text-slate-600 uppercase tracking-wider">
+              Dernier evenement majeur
+            </span>
+          </div>
+          <p className={`text-sm font-medium ${momentStyles.text} italic`}>
+            "{lastStopMoment.title}"
+          </p>
+        </div>
+      )}
+
       <div className="flex items-center gap-2 mb-3">
         <div className="w-1.5 h-1.5 rounded-full bg-cyan-500" />
         <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider">
