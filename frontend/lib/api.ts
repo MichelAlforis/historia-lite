@@ -1112,6 +1112,9 @@ import {
   TimelineEvent,
   TimelineSummary,
   MonthlyTickResponse,
+  DailyTickResponse,
+  AutoAdvanceConfig,
+  AutoAdvanceResponse,
 } from './types';
 
 // Get current game date
@@ -1235,6 +1238,67 @@ export async function advanceMonth(): Promise<MonthlyTickResponse> {
 // Advance one full year (12 monthly ticks)
 export async function advanceYear(): Promise<TickResponse> {
   const response = await api.post<TickResponse>('/tick/year');
+  return response.data;
+}
+
+// ============================================================================
+// DAILY TICK & AUTO-ADVANCE SYSTEM
+// ============================================================================
+
+// Advance one day
+export async function advanceDay(): Promise<DailyTickResponse> {
+  const response = await api.post<DailyTickResponse>('/timeline/advance-day');
+  return response.data;
+}
+
+// Advance one week (7 days)
+export async function advanceWeek(): Promise<AutoAdvanceResponse> {
+  const response = await api.post<AutoAdvanceResponse>('/timeline/advance-week');
+  return response.data;
+}
+
+// Advance one month (30 days)
+export async function advanceMonthDays(): Promise<AutoAdvanceResponse> {
+  const response = await api.post<AutoAdvanceResponse>('/timeline/advance-month');
+  return response.data;
+}
+
+// Advance until next important event
+export async function advanceToEvent(): Promise<AutoAdvanceResponse> {
+  const response = await api.post<AutoAdvanceResponse>('/timeline/advance-to-event');
+  return response.data;
+}
+
+// Auto-advance with custom configuration
+export async function autoAdvance(config: AutoAdvanceConfig): Promise<AutoAdvanceResponse> {
+  const response = await api.post<AutoAdvanceResponse>('/timeline/auto-advance', config);
+  return response.data;
+}
+
+// Get current watch configuration
+export async function getWatchConfig(): Promise<AutoAdvanceConfig> {
+  const response = await api.get<AutoAdvanceConfig>('/timeline/watch-config');
+  return response.data;
+}
+
+// Update watch configuration
+export async function updateWatchConfig(config: Partial<AutoAdvanceConfig>): Promise<AutoAdvanceConfig> {
+  const response = await api.post<AutoAdvanceConfig>('/timeline/watch-config', config);
+  return response.data;
+}
+
+// Get full date display
+export async function getFullDate(): Promise<{
+  year: number;
+  month: number;
+  day: number;
+  display_full: string;
+  display_full_fr: string;
+  display_short: string;
+  day_of_week: string;
+  day_of_week_fr: string;
+}> {
+  const response = await api.get('/timeline/date-full');
   return response.data;
 }
 

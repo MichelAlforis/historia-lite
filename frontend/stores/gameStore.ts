@@ -20,6 +20,10 @@ import {
   TimelineEvent,
   GameDate,
   MonthlyTickResponse,
+  DailyTickResponse,
+  AutoAdvanceConfig,
+  AutoAdvanceResponse,
+  PauseReason,
 } from '@/lib/types';
 import * as api from '@/lib/api';
 
@@ -32,17 +36,25 @@ interface GameStore {
   autoPlay: boolean;
   speed: number; // 1 = normal, 2 = fast, 3 = ultra
 
-  // Timeline State (NEW)
+  // Timeline State (NEW - Daily progression)
   year: number;
   month: number;
   day: number;
-  dateDisplay: string;
-  dateDisplayFr: string;
+  dateDisplay: string;         // "January 2025" (month only for compatibility)
+  dateDisplayFr: string;       // "Janvier 2025"
+  dateDisplayFull: string;     // "January 15, 2025" (full date)
+  dateDisplayFullFr: string;   // "15 Janvier 2025"
   timeline: TimelineEvent[];
   timelineLoading: boolean;
   viewingDate: GameDate | null;  // Date being viewed in timeline modal (null = current)
   unreadEventCount: number;
   timelineModalOpen: boolean;
+
+  // Auto-advance State
+  autoAdvanceConfig: AutoAdvanceConfig;
+  isAutoAdvancing: boolean;
+  lastPauseReason: PauseReason | null;
+  lastPauseMessage: string | null;
 
   // Tier 4/5/6 Countries
   tier4Countries: Tier4Country[];
@@ -85,8 +97,14 @@ interface GameStore {
   setSpeed: (speed: number) => void;
   clearError: () => void;
 
-  // Timeline Actions (NEW)
+  // Timeline Actions (NEW - Daily progression)
+  advanceDay: () => Promise<DailyTickResponse | null>;
+  advanceWeek: () => Promise<AutoAdvanceResponse | null>;
   advanceMonth: () => Promise<MonthlyTickResponse | null>;
+  advanceMonthDays: () => Promise<AutoAdvanceResponse | null>;
+  advanceToNextImportantEvent: () => Promise<AutoAdvanceResponse | null>;
+  autoAdvance: (config?: Partial<AutoAdvanceConfig>) => Promise<AutoAdvanceResponse | null>;
+  setAutoAdvanceConfig: (config: Partial<AutoAdvanceConfig>) => void;
   fetchTimeline: (params?: { year?: number; month?: number }) => Promise<void>;
   fetchTimelineForMonth: (year: number, month: number) => Promise<TimelineEvent[]>;
   setViewingDate: (date: GameDate | null) => void;
@@ -145,17 +163,36 @@ export const useGameStore = create<GameStore>((set, get) => ({
   autoPlay: false,
   speed: 1,
 
-  // Timeline State (NEW)
+  // Timeline State (NEW - Daily progression)
   year: 2025,
   month: 1,
   day: 1,
   dateDisplay: 'January 2025',
   dateDisplayFr: 'Janvier 2025',
+  dateDisplayFull: 'January 1, 2025',
+  dateDisplayFullFr: '1 Janvier 2025',
   timeline: [],
   timelineLoading: false,
   viewingDate: null,
   unreadEventCount: 0,
   timelineModalOpen: false,
+
+  // Auto-advance State
+  autoAdvanceConfig: {
+    pause_on_war: true,
+    pause_on_crisis: true,
+    pause_on_defcon_change: true,
+    pause_on_nuclear: true,
+    pause_on_player_attacked: true,
+    pause_on_player_mentioned: true,
+    min_event_importance: 4,
+    watch_countries: [],
+    days_per_batch: 7,
+    max_days: 180,
+  },
+  isAutoAdvancing: false,
+  lastPauseReason: null,
+  lastPauseMessage: null,
 
   // Tier 4/5/6 Countries
   tier4Countries: [],
@@ -303,10 +340,339 @@ export const useGameStore = create<GameStore>((set, get) => ({
   clearError: () => set({ error: null }),
 
   // =========================================================================
-  // TIMELINE ACTIONS (NEW)
+  // TIMELINE ACTIONS (NEW - Daily Progression)
   // =========================================================================
 
-  // Advance simulation by one month
+  // Helper to format full date
+  _formatFullDate: (year: number, month: number, day: number, lang: 'en' | 'fr' = 'fr') => {
+    const monthNamesEn = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    const monthNamesFr = [
+      'Janvier', 'Fevrier', 'Mars', 'Avril', 'Mai', 'Juin',
+      'Juillet', 'Aout', 'Septembre', 'Octobre', 'Novembre', 'Decembre'
+    ];
+    if (lang === 'en') {
+      return `${monthNamesEn[month - 1]} ${day}, ${year}`;
+    }
+    return `${day} ${monthNamesFr[month - 1]} ${year}`;
+  },
+
+  // Advance simulation by one day
+  advanceDay: async () => {
+    const { timeline, eventHistory, triggerBreakingNews } = get();
+    set({ isLoading: true, error: null });
+    try {
+      const result = await api.advanceDay();
+
+      // Check for breaking news worthy events
+      const breakingNewsTypes = [
+        'war', 'conflict', 'attack', 'nuclear', 'coup',
+        'political_crisis', 'ally_under_attack', 'diplomatic_crisis',
+        'defcon_change', 'bloc_change', 'major_sanctions', 'revolution'
+      ];
+
+      const criticalEvents = (result.events || []).filter((e: GameEvent) => {
+        const typeLower = e.type.toLowerCase();
+        return breakingNewsTypes.some(t => typeLower.includes(t));
+      });
+
+      if (criticalEvents.length > 0) {
+        const priorityEvent = criticalEvents.find((e: GameEvent) =>
+          e.type.toLowerCase().includes('war') ||
+          e.type.toLowerCase().includes('nuclear') ||
+          e.type.toLowerCase().includes('attack')
+        ) || criticalEvents[0];
+        triggerBreakingNews(priorityEvent);
+      }
+
+      // Update state with daily result
+      const monthNamesEn = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      const monthNamesFr = [
+        'Janvier', 'Fevrier', 'Mars', 'Avril', 'Mai', 'Juin',
+        'Juillet', 'Aout', 'Septembre', 'Octobre', 'Novembre', 'Decembre'
+      ];
+
+      set({
+        year: result.year,
+        month: result.month,
+        day: result.day,
+        dateDisplay: `${monthNamesEn[result.month - 1]} ${result.year}`,
+        dateDisplayFr: `${monthNamesFr[result.month - 1]} ${result.year}`,
+        dateDisplayFull: result.date_display_full || `${monthNamesEn[result.month - 1]} ${result.day}, ${result.year}`,
+        dateDisplayFullFr: result.date_display_full_fr || `${result.day} ${monthNamesFr[result.month - 1]} ${result.year}`,
+        recentTickEvents: result.events || [],
+        showEventToast: (result.events || []).length > 0,
+        eventHistory: [...(result.events || []), ...eventHistory].slice(0, 100),
+        isLoading: false,
+      });
+
+      await get().fetchWorldState();
+      return result;
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : 'Erreur lors de la simulation',
+        isLoading: false
+      });
+      return null;
+    }
+  },
+
+  // Advance simulation by one week (7 days)
+  advanceWeek: async () => {
+    const { timeline, eventHistory, triggerBreakingNews, autoAdvanceConfig } = get();
+    set({ isLoading: true, isAutoAdvancing: true, error: null });
+    try {
+      const result = await api.advanceWeek();
+
+      // Handle pause reason if any
+      if (result.paused && result.pause_reason) {
+        set({
+          lastPauseReason: result.pause_reason as PauseReason,
+          lastPauseMessage: result.pause_message_fr || result.pause_message || null,
+        });
+
+        // Trigger breaking news for pause events
+        if (result.events && result.events.length > 0) {
+          const lastEvent = result.events[result.events.length - 1];
+          if (lastEvent) {
+            triggerBreakingNews(lastEvent as GameEvent);
+          }
+        }
+      }
+
+      // Parse final date
+      const [year, month, day] = (result.final_date || '2025-01-01').split('-').map(Number);
+      const monthNamesEn = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      const monthNamesFr = [
+        'Janvier', 'Fevrier', 'Mars', 'Avril', 'Mai', 'Juin',
+        'Juillet', 'Aout', 'Septembre', 'Octobre', 'Novembre', 'Decembre'
+      ];
+
+      set({
+        year: year || 2025,
+        month: month || 1,
+        day: day || 1,
+        dateDisplay: `${monthNamesEn[(month || 1) - 1]} ${year || 2025}`,
+        dateDisplayFr: `${monthNamesFr[(month || 1) - 1]} ${year || 2025}`,
+        dateDisplayFull: result.final_date_fr || `${(day || 1)} ${monthNamesFr[(month || 1) - 1]} ${year || 2025}`,
+        dateDisplayFullFr: result.final_date_fr || `${(day || 1)} ${monthNamesFr[(month || 1) - 1]} ${year || 2025}`,
+        recentTickEvents: (result.events || []) as GameEvent[],
+        showEventToast: (result.events || []).length > 0,
+        eventHistory: [...((result.events || []) as GameEvent[]), ...eventHistory].slice(0, 100),
+        isLoading: false,
+        isAutoAdvancing: false,
+      });
+
+      await get().fetchWorldState();
+      return result;
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : 'Erreur lors de la simulation',
+        isLoading: false,
+        isAutoAdvancing: false,
+      });
+      return null;
+    }
+  },
+
+  // Advance simulation by approximately one month (30 days) using daily system
+  advanceMonthDays: async () => {
+    const { eventHistory, triggerBreakingNews } = get();
+    set({ isLoading: true, isAutoAdvancing: true, error: null });
+    try {
+      const result = await api.advanceMonthDays();
+
+      // Handle pause
+      if (result.paused && result.pause_reason) {
+        set({
+          lastPauseReason: result.pause_reason as PauseReason,
+          lastPauseMessage: result.pause_message_fr || result.pause_message || null,
+        });
+
+        if (result.events && result.events.length > 0) {
+          const lastEvent = result.events[result.events.length - 1];
+          if (lastEvent) {
+            triggerBreakingNews(lastEvent as GameEvent);
+          }
+        }
+      }
+
+      // Parse final date
+      const [year, month, day] = (result.final_date || '2025-01-01').split('-').map(Number);
+      const monthNamesEn = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      const monthNamesFr = [
+        'Janvier', 'Fevrier', 'Mars', 'Avril', 'Mai', 'Juin',
+        'Juillet', 'Aout', 'Septembre', 'Octobre', 'Novembre', 'Decembre'
+      ];
+
+      set({
+        year: year || 2025,
+        month: month || 1,
+        day: day || 1,
+        dateDisplay: `${monthNamesEn[(month || 1) - 1]} ${year || 2025}`,
+        dateDisplayFr: `${monthNamesFr[(month || 1) - 1]} ${year || 2025}`,
+        dateDisplayFull: result.final_date_fr || `${(day || 1)} ${monthNamesFr[(month || 1) - 1]} ${year || 2025}`,
+        dateDisplayFullFr: result.final_date_fr || `${(day || 1)} ${monthNamesFr[(month || 1) - 1]} ${year || 2025}`,
+        recentTickEvents: (result.events || []) as GameEvent[],
+        showEventToast: (result.events || []).length > 0,
+        eventHistory: [...((result.events || []) as GameEvent[]), ...eventHistory].slice(0, 100),
+        isLoading: false,
+        isAutoAdvancing: false,
+      });
+
+      await get().fetchWorldState();
+      return result;
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : 'Erreur lors de la simulation',
+        isLoading: false,
+        isAutoAdvancing: false,
+      });
+      return null;
+    }
+  },
+
+  // Advance until next important event
+  advanceToNextImportantEvent: async () => {
+    const { eventHistory, triggerBreakingNews } = get();
+    set({ isLoading: true, isAutoAdvancing: true, error: null });
+    try {
+      const result = await api.advanceToEvent();
+
+      // Always handle pause for this mode
+      if (result.pause_reason) {
+        set({
+          lastPauseReason: result.pause_reason as PauseReason,
+          lastPauseMessage: result.pause_message_fr || result.pause_message || null,
+        });
+      }
+
+      // Trigger breaking news
+      if (result.events && result.events.length > 0) {
+        const lastEvent = result.events[result.events.length - 1];
+        if (lastEvent) {
+          triggerBreakingNews(lastEvent as GameEvent);
+        }
+      }
+
+      // Parse final date
+      const [year, month, day] = (result.final_date || '2025-01-01').split('-').map(Number);
+      const monthNamesEn = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      const monthNamesFr = [
+        'Janvier', 'Fevrier', 'Mars', 'Avril', 'Mai', 'Juin',
+        'Juillet', 'Aout', 'Septembre', 'Octobre', 'Novembre', 'Decembre'
+      ];
+
+      set({
+        year: year || 2025,
+        month: month || 1,
+        day: day || 1,
+        dateDisplay: `${monthNamesEn[(month || 1) - 1]} ${year || 2025}`,
+        dateDisplayFr: `${monthNamesFr[(month || 1) - 1]} ${year || 2025}`,
+        dateDisplayFull: result.final_date_fr || `${(day || 1)} ${monthNamesFr[(month || 1) - 1]} ${year || 2025}`,
+        dateDisplayFullFr: result.final_date_fr || `${(day || 1)} ${monthNamesFr[(month || 1) - 1]} ${year || 2025}`,
+        recentTickEvents: (result.events || []) as GameEvent[],
+        showEventToast: (result.events || []).length > 0,
+        eventHistory: [...((result.events || []) as GameEvent[]), ...eventHistory].slice(0, 100),
+        isLoading: false,
+        isAutoAdvancing: false,
+      });
+
+      await get().fetchWorldState();
+      return result;
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : 'Erreur lors de la simulation',
+        isLoading: false,
+        isAutoAdvancing: false,
+      });
+      return null;
+    }
+  },
+
+  // Auto-advance with custom configuration
+  autoAdvance: async (config?: Partial<AutoAdvanceConfig>) => {
+    const { autoAdvanceConfig, eventHistory, triggerBreakingNews } = get();
+    const finalConfig = { ...autoAdvanceConfig, ...config };
+    set({ isLoading: true, isAutoAdvancing: true, error: null });
+    try {
+      const result = await api.autoAdvance(finalConfig);
+
+      // Handle pause
+      if (result.pause_reason) {
+        set({
+          lastPauseReason: result.pause_reason as PauseReason,
+          lastPauseMessage: result.pause_message_fr || result.pause_message || null,
+        });
+      }
+
+      // Trigger breaking news
+      if (result.events && result.events.length > 0) {
+        const lastEvent = result.events[result.events.length - 1];
+        if (lastEvent) {
+          triggerBreakingNews(lastEvent as GameEvent);
+        }
+      }
+
+      // Parse final date
+      const [year, month, day] = (result.final_date || '2025-01-01').split('-').map(Number);
+      const monthNamesEn = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      const monthNamesFr = [
+        'Janvier', 'Fevrier', 'Mars', 'Avril', 'Mai', 'Juin',
+        'Juillet', 'Aout', 'Septembre', 'Octobre', 'Novembre', 'Decembre'
+      ];
+
+      set({
+        year: year || 2025,
+        month: month || 1,
+        day: day || 1,
+        dateDisplay: `${monthNamesEn[(month || 1) - 1]} ${year || 2025}`,
+        dateDisplayFr: `${monthNamesFr[(month || 1) - 1]} ${year || 2025}`,
+        dateDisplayFull: result.final_date_fr || `${(day || 1)} ${monthNamesFr[(month || 1) - 1]} ${year || 2025}`,
+        dateDisplayFullFr: result.final_date_fr || `${(day || 1)} ${monthNamesFr[(month || 1) - 1]} ${year || 2025}`,
+        recentTickEvents: (result.events || []) as GameEvent[],
+        showEventToast: (result.events || []).length > 0,
+        eventHistory: [...((result.events || []) as GameEvent[]), ...eventHistory].slice(0, 100),
+        isLoading: false,
+        isAutoAdvancing: false,
+      });
+
+      await get().fetchWorldState();
+      return result;
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : 'Erreur lors de la simulation',
+        isLoading: false,
+        isAutoAdvancing: false,
+      });
+      return null;
+    }
+  },
+
+  // Update auto-advance configuration
+  setAutoAdvanceConfig: (config: Partial<AutoAdvanceConfig>) => {
+    const { autoAdvanceConfig } = get();
+    set({ autoAdvanceConfig: { ...autoAdvanceConfig, ...config } });
+  },
+
+  // Advance simulation by one month (legacy - uses monthly tick)
   advanceMonth: async () => {
     const { timeline, eventHistory, triggerBreakingNews } = get();
     set({ isLoading: true, error: null });
