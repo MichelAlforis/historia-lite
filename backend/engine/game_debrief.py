@@ -75,6 +75,25 @@ class DebriefCause:
 
 
 @dataclass
+class AIStrategicError:
+    """Une erreur strategique de l'IA adversaire (pour le debrief)"""
+    turn: int
+    error_type: str                     # overestimation, underestimation, misread
+    belief_fr: str                      # Ce que l'IA croyait (en francais)
+    reality_fr: str                     # La realite
+    consequence_fr: str                 # Consequence narrative
+
+    def to_dict(self) -> Dict:
+        return {
+            "turn": self.turn,
+            "error_type": self.error_type,
+            "belief_fr": self.belief_fr,
+            "reality_fr": self.reality_fr,
+            "consequence_fr": self.consequence_fr,
+        }
+
+
+@dataclass
 class GameDebrief:
     """Debrief complet de fin de partie"""
     end_reason: str                     # apocalypse, coup_etat, defeat_honorable
@@ -85,6 +104,7 @@ class GameDebrief:
     leader_dialogue: Optional[LeaderDialogue] = None
     press_headlines: List[PressHeadline] = field(default_factory=list)
     final_state_summary: Dict[str, str] = field(default_factory=dict)
+    ai_errors: List[AIStrategicError] = field(default_factory=list)  # Erreurs de l'IA
 
     def to_dict(self) -> Dict:
         result = {
@@ -99,6 +119,8 @@ class GameDebrief:
             result["leader_dialogue"] = self.leader_dialogue.to_dict()
         if self.press_headlines:
             result["press_headlines"] = [p.to_dict() for p in self.press_headlines]
+        if self.ai_errors:
+            result["ai_errors"] = [e.to_dict() for e in self.ai_errors]
         return result
 
 
@@ -527,6 +549,7 @@ def compose_debrief(
     world_state: Any,
     silence_state: Any = None,
     turn_history: List[Dict] = None,
+    ai_errors: List[AIStrategicError] = None,
 ) -> GameDebrief:
     """
     Compose le debrief narratif complet.
@@ -537,6 +560,7 @@ def compose_debrief(
         world_state: Etat final du monde
         silence_state: Etat du silence
         turn_history: Historique des tours
+        ai_errors: Erreurs strategiques de l'IA adversaire
 
     Returns:
         GameDebrief pret a afficher
@@ -585,9 +609,10 @@ def compose_debrief(
         leader_dialogue=leader_dialogue,
         press_headlines=press_headlines,
         final_state_summary=final_summary,
+        ai_errors=ai_errors or [],
     )
 
-    logger.info(f"Debrief composed: {end_reason}, {len(causes)} causes")
+    logger.info(f"Debrief composed: {end_reason}, {len(causes)} causes, {len(ai_errors or [])} AI errors")
     return debrief
 
 
@@ -657,6 +682,362 @@ def _compose_final_summary(
 
 
 # =============================================================================
+# AI ERROR EXTRACTION
+# =============================================================================
+
+def extract_ai_errors_for_debrief(
+    adversary_ai: Any,
+    current_turn: int,
+) -> List[AIStrategicError]:
+    """
+    Extrait les erreurs strategiques de l'IA adversaire pour le debrief.
+
+    Transforme les erreurs internes en erreurs narratives lisibles.
+
+    Args:
+        adversary_ai: Instance de AdversaryAI avec perception engine
+        current_turn: Tour actuel (pour contexte)
+
+    Returns:
+        Liste d'erreurs strategiques narrativisees
+    """
+    errors: List[AIStrategicError] = []
+
+    if not adversary_ai:
+        return errors
+
+    # Recuperer les erreurs du perception engine
+    raw_errors = []
+    if hasattr(adversary_ai, 'get_ai_errors'):
+        raw_errors = adversary_ai.get_ai_errors()
+    elif hasattr(adversary_ai, 'perception_engine'):
+        pe = adversary_ai.perception_engine
+        if hasattr(pe, 'get_errors'):
+            raw_errors = pe.get_errors()
+        elif hasattr(pe, 'errors'):
+            raw_errors = pe.errors
+
+    # Convertir en AIStrategicError avec narratif + score dramatique
+    for raw in raw_errors:
+        # Supporter dict et dataclass
+        raw_dict = _error_to_dict(raw)
+
+        error_type = raw_dict.get('error_type') or raw_dict.get('type', 'misread')
+        turn = raw_dict.get('turn', current_turn)
+
+        # Generer les textes narratifs selon le type d'erreur
+        belief_fr, reality_fr, consequence_fr = _narrativize_ai_error(raw_dict)
+
+        # Calculer le score dramatique
+        drama_score = _calculate_drama_score(raw_dict, turn, current_turn)
+
+        # Extraire la zone pour la diversite
+        zone = _get_error_zone(raw_dict)
+
+        errors.append({
+            'error': AIStrategicError(
+                turn=turn,
+                error_type=error_type,
+                belief_fr=belief_fr,
+                reality_fr=reality_fr,
+                consequence_fr=consequence_fr,
+            ),
+            'score': drama_score,
+            'zone': zone,  # Pour la diversite geographique
+        })
+
+    # Trier par score dramatique (les plus dramatiques en premier)
+    errors.sort(key=lambda e: e['score'], reverse=True)
+
+    # Selectionner les 2 plus dramatiques avec DIVERSITE
+    # Regle: eviter 2 erreurs du meme type si possible
+    selected = _select_diverse_errors(errors, max_count=2)
+
+    return selected
+
+
+def _get_error_zone(raw_error: Dict) -> Optional[str]:
+    """Extrait la zone d'une erreur (dict ou erreur deja construite)."""
+    # Essayer d'abord sur l'erreur brute
+    zone = raw_error.get('zone')
+    if zone:
+        return zone
+    # Essayer sur le sujet (peut contenir une zone)
+    subject = raw_error.get('subject', '')
+    if subject and subject in ZONE_NAMES_FR:
+        return subject
+    return None
+
+
+def _select_diverse_errors(
+    scored_errors: List[Dict],
+    max_count: int = 2,
+) -> List[AIStrategicError]:
+    """
+    Selectionne les erreurs les plus dramatiques avec diversite.
+
+    Diversite sur deux axes:
+    1. Type d'erreur (misread_player, underestimation, etc.)
+    2. Zone/front (Cuba, Berlin, Europe, etc.)
+
+    Regle: si le top2 sont du meme type OU de la meme zone,
+    remplace le second par le meilleur candidat divers (si score >= 50%).
+
+    Args:
+        scored_errors: Liste de {'error': AIStrategicError, 'score': float, 'raw': dict}
+        max_count: Nombre max d'erreurs a retourner
+
+    Returns:
+        Liste d'AIStrategicError diversifiees
+    """
+    if len(scored_errors) == 0:
+        return []
+
+    if len(scored_errors) == 1:
+        return [scored_errors[0]['error']]
+
+    # Premier: toujours le plus dramatique
+    first = scored_errors[0]
+    first_type = first['error'].error_type
+    first_zone = first.get('zone')  # Zone extraite lors du scoring
+
+    # Chercher le second
+    second = scored_errors[1]
+    second_type = second['error'].error_type
+    second_zone = second.get('zone')
+
+    # Verifier si on a besoin de diversifier (meme type OU meme zone)
+    needs_diversity = (first_type == second_type) or (
+        first_zone and second_zone and first_zone == second_zone
+    )
+
+    if needs_diversity:
+        # Chercher le meilleur candidat qui differe sur au moins un axe
+        for candidate in scored_errors[2:]:
+            cand_type = candidate['error'].error_type
+            cand_zone = candidate.get('zone')
+
+            # Le candidat doit differer sur au moins un axe
+            type_differs = (cand_type != first_type)
+            zone_differs = (not first_zone) or (not cand_zone) or (cand_zone != first_zone)
+
+            if type_differs or zone_differs:
+                # Verifier que le score n'est pas trop loin
+                score_ratio = candidate['score'] / first['score'] if first['score'] > 0 else 0
+                if score_ratio >= 0.5:  # Au moins 50% du score du premier
+                    second = candidate
+                    break
+
+    result = [first['error']]
+    if max_count >= 2:
+        result.append(second['error'])
+
+    return result
+
+
+def _error_to_dict(raw: Any) -> Dict:
+    """Convertit une erreur (dict ou dataclass) en dict."""
+    if isinstance(raw, dict):
+        return raw
+    # Dataclass - utiliser asdict ou extraire manuellement
+    if hasattr(raw, '__dataclass_fields__'):
+        return {
+            'turn': getattr(raw, 'turn', 0),
+            'error_type': getattr(raw, 'error_type', 'misread'),
+            'subject': getattr(raw, 'subject', ''),
+            'zone': getattr(raw, 'zone', None),
+            'belief': getattr(raw, 'belief', ''),
+            'reality': getattr(raw, 'reality', ''),
+            'consequence': getattr(raw, 'consequence', ''),
+            'consequence_fr': getattr(raw, 'consequence_fr', ''),
+            'action_taken': getattr(raw, 'action_taken', None),
+            'result': getattr(raw, 'result', None),
+            'escalation_delta': getattr(raw, 'escalation_delta', 0),
+            'factions': getattr(raw, 'factions', None),
+        }
+    # Objet generique
+    return {k: getattr(raw, k, None) for k in dir(raw) if not k.startswith('_')}
+
+
+def _calculate_drama_score(raw_error: Dict, turn: int, current_turn: int) -> float:
+    """
+    Calcule un score dramatique pour prioriser les erreurs les plus impactantes.
+
+    Criteres:
+    - Type d'erreur (misread_player > faction_conflict > autres)
+    - Impact (a mene a escalade, crise, perte?)
+    - Recence (bonus leger pour fin de partie)
+    """
+    score = 0.0
+    error_type = raw_error.get('error_type') or raw_error.get('type', 'misread')
+
+    # 1. Poids par type d'erreur (0-40 points)
+    type_weights = {
+        'misread_player': 40,      # Le plus dramatique: ils vous ont mal lu
+        'faction_conflict': 35,    # Politique interne = tres narratif
+        'underestimation': 30,     # Ils vous ont sous-estime
+        'overestimation': 25,      # Ils ont surestime leurs chances
+        'stale_intel': 20,         # Renseignements obsoletes
+    }
+    score += type_weights.get(error_type, 15)
+
+    # 2. Impact (0-30 points) - base sur les consequences enregistrees
+    consequence = raw_error.get('consequence', '')
+    if 'escalade' in consequence.lower() or 'escalation' in consequence.lower():
+        score += 30
+    elif 'crise' in consequence.lower() or 'crisis' in consequence.lower():
+        score += 25
+    elif 'aggressive' in consequence.lower() or 'agressif' in consequence.lower():
+        score += 20
+    elif 'tension' in consequence.lower():
+        score += 15
+
+    # 3. Recence (0-20 points) - bonus leger pour les erreurs recentes
+    if current_turn > 0:
+        recency_ratio = turn / current_turn
+        score += recency_ratio * 20
+
+    # 4. Bonus si l'erreur a un sujet specifique (zone ou joueur)
+    if raw_error.get('subject') or raw_error.get('zone'):
+        score += 10
+
+    return score
+
+
+def _narrativize_ai_error(raw_error: Dict) -> tuple:
+    """
+    Transforme une erreur brute en textes narratifs avec ancrage factuel.
+
+    Gere deux formats d'erreur:
+    1. Format perception engine: {type, zone, belief: dict, reality: dict}
+    2. Format adversary_ai: {error_type, subject, belief, reality, consequence_fr}
+
+    ANCRAGE FACTUEL: Les consequences doivent etre basees sur des faits
+    enregistres dans l'erreur (action_taken, result, escalation_delta, etc.)
+
+    Returns:
+        (belief_fr, reality_fr, consequence_fr)
+    """
+    # Detecter le format et normaliser
+    error_type = raw_error.get('error_type') or raw_error.get('type', 'misread')
+    zone = raw_error.get('zone') or raw_error.get('subject')
+    turn = raw_error.get('turn', 0)
+
+    # Donnees factuelles pour ancrage (si disponibles)
+    action_taken = raw_error.get('action_taken', '')
+    escalation_delta = raw_error.get('escalation_delta', 0)
+    result = raw_error.get('result', '')
+
+    # Si consequence_fr est deja fourni avec ancrage, l'utiliser directement
+    if raw_error.get('consequence_fr') and raw_error.get('factual_anchor'):
+        belief_text = raw_error.get('belief', '')
+        consequence_text = raw_error.get('consequence_fr', '')
+
+        zone_fr = ZONE_NAMES_FR.get(zone, zone) if zone else None
+
+        if belief_text and isinstance(belief_text, str):
+            belief_fr = belief_text
+        elif zone_fr:
+            belief_fr = f"Le Kremlin avait une lecture erronee de {zone_fr}."
+        else:
+            belief_fr = "Moscou a fait une erreur d'appreciation."
+
+        return belief_fr, "", consequence_text
+
+    # Format legacy - generer le narratif avec ancrage factuel
+    belief = raw_error.get('belief', {})
+    reality = raw_error.get('reality', {})
+    zone_fr = ZONE_NAMES_FR.get(zone, zone) if zone else None
+
+    # Templates selon le type d'erreur (ton "Historien" / documentaire)
+    # NOTE: Chaque erreur doit avoir une CONTREPARTIE ancree dans les faits
+    # Format: "Le Kremlin croyait..." plutot que "Moscou a cru..."
+
+    if error_type == 'overestimation':
+        if zone_fr:
+            belief_fr = f"Le Kremlin croyait {zone_fr} prete a basculer. Elle s'est montree plus solide que prevu."
+            # Ancrage factuel: consequence basee sur l'action prise
+            if action_taken:
+                consequence_fr = f"Leur {_action_to_fr(action_taken)} a echoue, les rendant plus agressifs."
+            elif escalation_delta > 0:
+                consequence_fr = "Leur echec a provoque une escalade compensatoire."
+            else:
+                consequence_fr = "Leur echec les a rendus plus agressifs ailleurs."
+        else:
+            belief_fr = "Le Kremlin surestimait ses chances. Le terrain lui a resiste."
+            consequence_fr = "Cette humiliation a pousse les factions dures a prendre le dessus."
+
+    elif error_type == 'underestimation':
+        if zone_fr:
+            belief_fr = f"Le KGB considerait {zone_fr} comme acquise. Elle ne l'etait pas."
+            if turn > 0:
+                consequence_fr = f"Tour {turn}: leur reaction tardive a fait monter les encheres."
+            else:
+                consequence_fr = "Leur reaction tardive a fait monter les encheres."
+        else:
+            belief_fr = "Khrouchtchev sous-estimait votre determination."
+            if action_taken:
+                consequence_fr = f"Sa {_action_to_fr(action_taken)} ratee l'a pousse a escalader."
+            else:
+                consequence_fr = "Sa provocation ratee l'a pousse a escalader."
+
+    elif error_type == 'misread_player':
+        resolve = belief.get('resolve', 'unknown') if isinstance(belief, dict) else 'unknown'
+        if resolve == 'weak':
+            belief_fr = "Le Kremlin vous croyait paralyse. Vous ne l'etiez pas."
+            if result == 'failed':
+                consequence_fr = "Leur offensive a ete repoussee, declenchant une crise plus grave."
+            else:
+                consequence_fr = "Leur offensive frontale a declenche une crise plus grave."
+        elif resolve == 'aggressive':
+            belief_fr = "Le Kremlin s'attendait a une frappe imminente. Vous cherchiez la paix."
+            consequence_fr = "Leur posture defensive a verrouille toute negociation."
+        else:
+            belief_fr = "Votre strategie restait illisible pour le Politburo."
+            if escalation_delta > 0:
+                consequence_fr = f"Dans le doute, ils ont choisi l'escalade (tension +{escalation_delta})."
+            else:
+                consequence_fr = "Dans le doute, ils ont opte pour l'escalade."
+
+    elif error_type == 'faction_conflict':
+        # Ancrage: les factions ont des noms specifiques
+        factions = raw_error.get('factions', ['KGB', 'Armee Rouge'])
+        if isinstance(factions, list) and len(factions) >= 2:
+            belief_fr = f"{factions[0]} et {factions[1]} se neutralisaient mutuellement."
+        else:
+            belief_fr = "Le KGB et l'Armee Rouge se neutralisaient mutuellement."
+        consequence_fr = "Leur compromis bancal a rendu l'action sovietique incoherente - mais imprevisible."
+
+    elif error_type == 'stale_intel':
+        if turn > 0:
+            belief_fr = f"Les renseignements du KGB dataient du tour {turn - 1}. Le monde avait change."
+        else:
+            belief_fr = "Les renseignements du KGB etaient obsoletes."
+        consequence_fr = "Leur decision, basee sur un monde revolu, a precipite les evenements."
+
+    else:
+        # Erreur generique
+        belief_fr = "Le Kremlin lisait mal la situation."
+        consequence_fr = "Cette erreur a eu des consequences imprevues des deux cotes."
+
+    return belief_fr, "", consequence_fr
+
+
+def _action_to_fr(action: str) -> str:
+    """Convertit un type d'action en francais narratif."""
+    action_translations = {
+        'destabilize': 'tentative de destabilisation',
+        'military_demo': 'demonstration militaire',
+        'propaganda': 'campagne de propagande',
+        'diplomatic_pressure': 'pression diplomatique',
+        'covert_op': 'operation secrete',
+        'expand_influence': 'tentative d\'expansion',
+        'support_faction': 'soutien factionnel',
+    }
+    return action_translations.get(action, 'initiative')
+
+
+# =============================================================================
 # CONVENIENCE FUNCTION
 # =============================================================================
 
@@ -664,14 +1045,27 @@ async def generate_game_debrief(
     world_state: Any,
     silence_state: Any = None,
     turn_history: List[Dict] = None,
+    adversary_ai: Any = None,
 ) -> Dict[str, Any]:
     """
     Fonction de commodite pour generer un debrief.
 
     Retourne un dict pret a etre envoye au frontend.
+
+    Args:
+        world_state: Etat final du monde
+        silence_state: Etat du silence
+        turn_history: Historique des tours
+        adversary_ai: Instance de l'IA adversaire (optionnel)
     """
     end_reason = getattr(world_state, 'end_reason', 'unknown')
     victory = getattr(world_state, 'victory', False)
+    current_turn = getattr(world_state, 'turn', 1)
+
+    # Extraire les erreurs de l'IA si disponible
+    ai_errors = []
+    if adversary_ai:
+        ai_errors = extract_ai_errors_for_debrief(adversary_ai, current_turn)
 
     debrief = compose_debrief(
         end_reason=end_reason,
@@ -679,6 +1073,7 @@ async def generate_game_debrief(
         world_state=world_state,
         silence_state=silence_state,
         turn_history=turn_history,
+        ai_errors=ai_errors,
     )
 
     return debrief.to_dict()

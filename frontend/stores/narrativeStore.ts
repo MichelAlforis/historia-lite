@@ -146,6 +146,46 @@ export interface PlaybackState {
   saved_at: number | null;
 }
 
+// "Moment de Verite" - signature narrative pour l'arret automatique
+export interface StopMoment {
+  id: string;
+  title: string;       // "Les silos s'ouvrent."
+  subtitle: string;    // "L'alerte monte. Les etats-majors basculent..."
+  tone: string;        // dread, shock, gravity, resignation, revelation, turning_point
+  angle: string;       // irreversibility, loss_of_control, revelation, moral_shift
+  tag: string;         // "moment_of_truth"
+}
+
+// "Conseil des urgences" - suggestions AVANT le jump
+export type DossierType = "crisis" | "opportunity" | "pressure" | "summit" | "threat";
+export type DossierUrgency = "critical" | "high" | "moderate" | "low";
+
+export interface SuggestedAction {
+  id: string;
+  label: string;              // Ex: "Negocier"
+  description_fr: string;     // Ex: "Ouvrir des canaux diplomatiques..."
+  intention_type: string;     // Ex: "DIPLO_NEGOTIATE"
+  intention_id: string;
+  target_zone: string | null;
+  target_actor: string | null;
+  political_cost: number;
+  risk_level: string;
+  predicted_effects: Record<string, number>;
+}
+
+export interface UrgentDossier {
+  id: string;
+  type: DossierType;
+  urgency: DossierUrgency;
+  title_fr: string;           // Ex: "Crise a Cuba"
+  summary_fr: string;         // Ex: "Les missiles sovietiques..."
+  zone_id: string | null;
+  actor_id: string | null;
+  suggestions: SuggestedAction[];
+  days_active: number;
+  last_escalation: string | null;
+}
+
 export interface Zone {
   id: string;
   name_fr: string;
@@ -282,6 +322,15 @@ export interface NarrativeState {
   jumpEvents: JumpEvent[];
   currentEventIndex: number;
 
+  // "Moment de Verite" - derniere raison d'arret memorable
+  lastStopMoment: StopMoment | null;
+  lastStopReason: string | null;
+
+  // "Conseil des urgences" - dossiers urgents AVANT le jump
+  councilDossiers: UrgentDossier[];
+  councilLoading: boolean;
+  hasCouncilCritical: boolean;
+
   // Turn results
   lastTurnResult: TurnResult | null;
   turnHistory: TurnResult[];
@@ -321,6 +370,10 @@ export interface NarrativeState {
   nextEvent: () => Promise<JumpEvent | null>;
   saveHere: () => Promise<void>;
   intervene: () => Promise<void>;
+
+  // Council suggestions actions
+  loadCouncilSuggestions: () => Promise<void>;
+  queueSuggestion: (suggestion: SuggestedAction) => Promise<boolean>;
 }
 
 // =============================================================================
@@ -405,6 +458,15 @@ const initialState = {
   playbackState: null as PlaybackState | null,
   jumpEvents: [] as JumpEvent[],
   currentEventIndex: 0,
+
+  // "Moment de Verite"
+  lastStopMoment: null as StopMoment | null,
+  lastStopReason: null as string | null,
+
+  // "Conseil des urgences"
+  councilDossiers: [] as UrgentDossier[],
+  councilLoading: false,
+  hasCouncilCritical: false,
 
   lastTurnResult: null,
   turnHistory: [],
@@ -791,12 +853,18 @@ export const useNarrativeStore = create<NarrativeState>()(
               events_count: number;
               first_event: JumpEvent | null;
               game_phase: string;
+              // "Moment de Verite" - pourquoi le monde s'arrete
+              stop_reason: string | null;
+              stop_moment: StopMoment | null;
             }>("/jump-forward", "POST", { duration });
 
             if (response.success) {
               set({
                 gamePhase: response.game_phase as GamePhase,
                 isLoading: false,
+                // Stocker le "Moment de Verite" pour l'ecran de respiration
+                lastStopReason: response.stop_reason,
+                lastStopMoment: response.stop_moment,
               });
 
               // Load full state including events
@@ -890,6 +958,51 @@ export const useNarrativeStore = create<NarrativeState>()(
               error: error instanceof Error ? error.message : "Intervene failed",
             });
           }
+        },
+
+        // ---------------------------------------------------------------------
+        // COUNCIL SUGGESTIONS
+        // ---------------------------------------------------------------------
+
+        loadCouncilSuggestions: async () => {
+          set({ councilLoading: true });
+
+          try {
+            const response = await apiCall<{
+              dossiers: UrgentDossier[];
+              count: number;
+              has_critical: boolean;
+              game_phase: string;
+            }>("/council-suggestions");
+
+            set({
+              councilDossiers: response.dossiers,
+              hasCouncilCritical: response.has_critical,
+              councilLoading: false,
+            });
+          } catch (error) {
+            set({
+              councilLoading: false,
+              error: error instanceof Error ? error.message : "Load council failed",
+            });
+          }
+        },
+
+        queueSuggestion: async (suggestion: SuggestedAction): Promise<boolean> => {
+          // Convertir la suggestion en action et l'ajouter a la queue
+          const action: Partial<QueuedAction> = {
+            intention_type: suggestion.intention_type,
+            intention_id: suggestion.intention_id,
+            description_fr: suggestion.description_fr,
+            target_zone: suggestion.target_zone,
+            target_actor: suggestion.target_actor,
+            political_cost: suggestion.political_cost,
+            risk_level: suggestion.risk_level,
+            predicted_effects: suggestion.predicted_effects,
+            source_text: `[Conseil] ${suggestion.label}`,
+          };
+
+          return get().queueAction(action);
         },
       }),
       {

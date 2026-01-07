@@ -1218,6 +1218,7 @@ class GameOverDebriefResponse(BaseModel):
     leader_dialogue: Optional[dict] = None
     press_headlines: List[dict]
     final_state_summary: dict
+    ai_errors: List[dict] = []  # Erreurs strategiques de l'IA adversaire
 
 
 @router.get("/game-over-debrief", response_model=GameOverDebriefResponse)
@@ -1245,6 +1246,7 @@ async def get_game_over_debrief():
     - leader_dialogue: Optional dialogue from a leader
     - press_headlines: World press reactions
     - final_state_summary: Narrativized state summary (no numbers!)
+    - ai_errors: Strategic errors made by the adversary AI
     """
     state = get_narrative_state()
 
@@ -1260,11 +1262,15 @@ async def get_game_over_debrief():
     # Get silence state for cause analysis
     silence_state = state.get_silence_state()
 
-    # Generate debrief
+    # Get adversary AI for error extraction
+    adversary_ai = get_adversary_ai()
+
+    # Generate debrief (includes AI errors extraction)
     debrief = await generate_game_debrief(
         world_state=state,
         silence_state=silence_state,
         turn_history=state.turn_history,
+        adversary_ai=adversary_ai,
     )
 
     return GameOverDebriefResponse(
@@ -1276,4 +1282,103 @@ async def get_game_over_debrief():
         leader_dialogue=debrief.get("leader_dialogue"),
         press_headlines=debrief.get("press_headlines", []),
         final_state_summary=debrief.get("final_state_summary", {}),
+        ai_errors=debrief.get("ai_errors", []),
+    )
+
+
+# =============================================================================
+# FRONTS VIVANTS ENDPOINT (v2 - base sur les ACTIONS)
+# =============================================================================
+
+class FrontBeatResponse(BaseModel):
+    """Beat response (dernier signe marquant)"""
+    kind: str
+    actor: str
+    payload: str
+    freshness: int
+
+
+class FrontStateResponse(BaseModel):
+    """Front state for a single zone"""
+    zone_id: str
+    zone_name_fr: str
+    dominant_mode: str      # "soft", "hard", "covert", "standoff"
+    tension_band: str       # "low", "medium", "high", "critical"
+    spotlight: bool
+    has_crisis: bool
+    beat: Optional[FrontBeatResponse] = None
+    surface_phrase: str
+    omen: Optional[str] = None
+    badge: Optional[str] = None
+
+
+class FrontsResponse(BaseModel):
+    """Response with all fronts for the FrontWall"""
+    fronts: List[FrontStateResponse]
+    count: int
+    turn: int
+    game_phase: str
+
+
+@router.get("/fronts", response_model=FrontsResponse)
+async def get_fronts(max_display: int = 6):
+    """
+    Get fronts for the FrontWall display.
+
+    Fronts Vivants v2 - base sur les ACTIONS, pas les metriques.
+
+    Chaque front affiche:
+    - Beat: le dernier signe marquant (action loggee)
+    - Mode dominant: soft/hard/covert/standoff (deduit des actions recentes)
+    - Omen: signal faible avant la crise
+    - Badge: etiquette visuelle (CRISE, OPERATION, SOMMET, RUMEUR)
+
+    Selection dynamique:
+    1. Toujours: fronts en crise
+    2. Fronts avec spotlight (action recente joueur/IA)
+    3. Completer avec zones strategiques
+
+    Appele par le frontend pour rafraichir le FrontWall:
+    - A chaque tour
+    - Apres chaque beat du playback
+    - Apres un TEST choice
+    """
+    state = get_narrative_state()
+
+    # Import front_state functions
+    from engine.front_state import get_display_fronts
+
+    # Get fronts to display
+    display_fronts = get_display_fronts(state, max_display)
+
+    # Convert to response format
+    fronts_response = []
+    for f in display_fronts:
+        beat_response = None
+        if f.beat:
+            beat_response = FrontBeatResponse(
+                kind=f.beat.kind,
+                actor=f.beat.actor,
+                payload=f.beat.payload,
+                freshness=f.beat.freshness,
+            )
+
+        fronts_response.append(FrontStateResponse(
+            zone_id=f.zone_id,
+            zone_name_fr=f.zone_name_fr,
+            dominant_mode=f.dominant_mode,
+            tension_band=f.tension_band.value,
+            spotlight=f.spotlight,
+            has_crisis=f.has_crisis,
+            beat=beat_response,
+            surface_phrase=f.surface_phrase,
+            omen=f.omen,
+            badge=f.badge,
+        ))
+
+    return FrontsResponse(
+        fronts=fronts_response,
+        count=len(fronts_response),
+        turn=state.turn,
+        game_phase=state.game_phase.value,
     )

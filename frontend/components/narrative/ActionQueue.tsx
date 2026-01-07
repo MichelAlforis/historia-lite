@@ -8,6 +8,7 @@
 
 import React from "react";
 import { useNarrativeStore, QueuedAction, QueueSummary } from "@/stores/narrativeStore";
+import { getRiskStyle, getCategoryStyle } from "@/lib/styleUtils";
 
 // =============================================================================
 // ACTION ITEM
@@ -20,25 +21,9 @@ interface ActionItemProps {
 }
 
 function ActionItem({ action, onRemove, index }: ActionItemProps) {
-  const riskConfig: Record<string, { color: string; label: string; bgColor: string }> = {
-    low: { color: "text-green-400", label: "FAIBLE", bgColor: "bg-green-500/10" },
-    medium: { color: "text-yellow-400", label: "MOYEN", bgColor: "bg-yellow-500/10" },
-    high: { color: "text-orange-400", label: "ELEVE", bgColor: "bg-orange-500/10" },
-    extreme: { color: "text-red-400", label: "EXTREME", bgColor: "bg-red-500/10" },
-  };
-
-  const categoryConfig: Record<string, { icon: string; color: string }> = {
-    DIPLO: { icon: "🤝", color: "text-blue-400" },
-    MIL: { icon: "⚔️", color: "text-red-400" },
-    COV: { icon: "🕵️", color: "text-purple-400" },
-    INTEL: { icon: "🔍", color: "text-cyan-400" },
-    ECO: { icon: "💰", color: "text-green-400" },
-    DOM: { icon: "🏛️", color: "text-amber-400" },
-  };
-
   const category = action.intention_type?.split("_")[0] || "GEN";
-  const risk = riskConfig[action.risk_level] || riskConfig.low;
-  const catConfig = categoryConfig[category] || { icon: "📋", color: "text-slate-400" };
+  const risk = getRiskStyle(action.risk_level);
+  const catConfig = getCategoryStyle(category);
 
   // Determine if this is a high-cost action (contextually expensive)
   const isExpensive = action.political_cost >= 30;

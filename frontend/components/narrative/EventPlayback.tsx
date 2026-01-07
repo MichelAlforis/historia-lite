@@ -16,8 +16,10 @@ import React, { useState, useEffect, useCallback } from "react";
 import {
   useNarrativeStore,
   JumpEvent,
+  StopMoment,
 } from "@/stores/narrativeStore";
 import NarrativeScene, { NarrativeSceneData } from "./NarrativeScene";
+import { useFrontsRefresh } from "./FrontsWall";
 
 // =============================================================================
 // PHRASES DE RESPIRATION (transition JUMPING -> PLAYBACK)
@@ -126,20 +128,169 @@ function TypewriterText({ text, speed = 25, onComplete }: TypewriterTextProps) {
 }
 
 // =============================================================================
-// ECRAN DE RESPIRATION
+// ECRAN DE RESPIRATION / "MOMENT DE VERITE"
 // =============================================================================
 
 interface BreathingScreenProps {
   phrase: string;
+  stopMoment?: StopMoment | null;
   onComplete: () => void;
 }
 
-function BreathingScreen({ phrase, onComplete }: BreathingScreenProps) {
-  useEffect(() => {
-    const timer = setTimeout(onComplete, 2500);
-    return () => clearTimeout(timer);
-  }, [onComplete]);
+/**
+ * BreathingScreen - Ecran de transition avec "Moment de Verite"
+ *
+ * Si un stop_moment existe (evenement majeur), on l'affiche en grand.
+ * Sinon, on affiche une phrase de respiration generique.
+ *
+ * Le "Moment de Verite" est la signature narrative du jeu:
+ * "Les silos s'ouvrent." - pas "DEFCON_CHANGED"
+ */
+function BreathingScreen({ phrase, stopMoment, onComplete }: BreathingScreenProps) {
+  // Duree plus longue si moment de verite (pour impact dramatique)
+  const duration = stopMoment ? 3500 : 2500;
 
+  useEffect(() => {
+    const timer = setTimeout(onComplete, duration);
+    return () => clearTimeout(timer);
+  }, [onComplete, duration]);
+
+  // Couleur selon le tone du moment
+  const getToneStyles = (tone?: string) => {
+    switch (tone) {
+      case "dread":
+        return {
+          bg: "from-red-950/30 via-transparent to-red-950/30",
+          accent: "bg-red-600",
+          text: "text-red-100",
+          subtitle: "text-red-300/80",
+          border: "border-red-800/50",
+        };
+      case "shock":
+        return {
+          bg: "from-orange-950/30 via-transparent to-orange-950/30",
+          accent: "bg-orange-500",
+          text: "text-orange-100",
+          subtitle: "text-orange-300/80",
+          border: "border-orange-700/50",
+        };
+      case "gravity":
+        return {
+          bg: "from-slate-900/50 via-transparent to-slate-900/50",
+          accent: "bg-slate-500",
+          text: "text-slate-100",
+          subtitle: "text-slate-300/80",
+          border: "border-slate-600/50",
+        };
+      case "revelation":
+        return {
+          bg: "from-cyan-950/30 via-transparent to-cyan-950/30",
+          accent: "bg-cyan-500",
+          text: "text-cyan-100",
+          subtitle: "text-cyan-300/80",
+          border: "border-cyan-700/50",
+        };
+      case "turning_point":
+        return {
+          bg: "from-amber-950/30 via-transparent to-amber-950/30",
+          accent: "bg-amber-500",
+          text: "text-amber-100",
+          subtitle: "text-amber-300/80",
+          border: "border-amber-700/50",
+        };
+      case "resignation":
+        return {
+          bg: "from-purple-950/30 via-transparent to-purple-950/30",
+          accent: "bg-purple-600",
+          text: "text-purple-100",
+          subtitle: "text-purple-300/80",
+          border: "border-purple-700/50",
+        };
+      default:
+        return {
+          bg: "from-slate-900/50 via-transparent to-slate-900/50",
+          accent: "bg-slate-600",
+          text: "text-slate-200",
+          subtitle: "text-slate-400",
+          border: "border-slate-700/50",
+        };
+    }
+  };
+
+  const styles = getToneStyles(stopMoment?.tone);
+
+  // =========================================================================
+  // MOMENT DE VERITE - Affichage dramatique
+  // =========================================================================
+  if (stopMoment) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/98">
+        {/* Gradient selon le tone */}
+        <div className={`absolute inset-0 bg-gradient-to-b ${styles.bg}`} />
+
+        {/* Vignette effect */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(0,0,0,0.6)_100%)]" />
+
+        {/* Content */}
+        <div className="relative text-center px-8 max-w-2xl animate-moment-in">
+          {/* Tag "MOMENT DE VERITE" */}
+          <div className="mb-8 flex items-center justify-center gap-3">
+            <div className={`w-12 h-px ${styles.accent}`} />
+            <span className={`text-[10px] font-mono uppercase tracking-[0.3em] ${styles.subtitle}`}>
+              Moment de Verite
+            </span>
+            <div className={`w-12 h-px ${styles.accent}`} />
+          </div>
+
+          {/* TITRE PRINCIPAL - La phrase signature */}
+          <h1 className={`text-3xl md:text-4xl font-bold ${styles.text} leading-tight mb-6`}>
+            {stopMoment.title}
+          </h1>
+
+          {/* Sous-titre */}
+          <p className={`text-base md:text-lg ${styles.subtitle} font-mono italic leading-relaxed max-w-lg mx-auto`}>
+            {stopMoment.subtitle}
+          </p>
+
+          {/* Ligne decorative */}
+          <div className="flex items-center justify-center gap-4 mt-10">
+            <div className={`w-20 h-px bg-gradient-to-r from-transparent to-current ${styles.subtitle}`} />
+            <div className={`w-3 h-3 rounded-full ${styles.accent} animate-pulse`} />
+            <div className={`w-20 h-px bg-gradient-to-l from-transparent to-current ${styles.subtitle}`} />
+          </div>
+
+          {/* Progress bar longue pour le moment dramatique */}
+          <div className="mt-12">
+            <div className="w-48 h-1 bg-slate-800/50 rounded-full mx-auto overflow-hidden">
+              <div className={`h-full ${styles.accent} animate-progress-3s`} />
+            </div>
+          </div>
+        </div>
+
+        {/* CSS pour les animations */}
+        <style jsx>{`
+          @keyframes moment-in {
+            0% { opacity: 0; transform: scale(0.95) translateY(20px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+          }
+          @keyframes progress-3s {
+            from { width: 0%; }
+            to { width: 100%; }
+          }
+          .animate-moment-in {
+            animation: moment-in 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+          }
+          .animate-progress-3s {
+            animation: progress-3s 3.5s ease-out;
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  // =========================================================================
+  // RESPIRATION GENERIQUE - Pas de stop_moment
+  // =========================================================================
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/98">
       {/* Subtle gradient */}
@@ -280,6 +431,18 @@ const EVENT_DRAMA: Record<string, EventDrama> = {
     glowColor: "",
     soundHint: "",
     dramaticLabel: "LE TEMPS PASSE...",
+  },
+  // SILENCE MECHANICS - Quand le joueur n'agit pas
+  silence_consequence: {
+    headerBg: "bg-gradient-to-r from-purple-950 via-slate-900 to-purple-950",
+    headerText: "text-purple-200",
+    icon: "!",
+    borderColor: "border-purple-600/50",
+    glowColor: "shadow-[0_0_35px_rgba(147,51,234,0.4)]",
+    soundHint: "*Vous n'avez rien fait...*",
+    dramaticLabel: "PENDANT VOTRE SILENCE",
+    watermark: "?",
+    watermarkColor: "text-purple-500/10",
   },
 };
 
@@ -563,7 +726,11 @@ export function EventPlayback() {
     saveHere,
     intervene,
     isLoading,
+    lastStopMoment,  // "Moment de Verite"
   } = useNarrativeStore();
+
+  // FRONTS VIVANTS: Hook pour rafraichir le FrontWall apres chaque beat
+  const { refreshFronts } = useFrontsRefresh();
 
   const [currentEvent, setCurrentEvent] = useState<JumpEvent | null>(null);
   const [hasStarted, setHasStarted] = useState(false);
@@ -605,6 +772,10 @@ export function EventPlayback() {
     setCanAdvance(false);
     const event = await nextEvent();
     setCurrentEvent(event);
+
+    // FRONTS VIVANTS: Rafraichir le FrontWall apres chaque beat du playback
+    // Le mur se met a jour pour refleter les nouvelles actions
+    refreshFronts();
   };
 
   const handleRevealComplete = useCallback(() => {
@@ -649,9 +820,15 @@ export function EventPlayback() {
     return null;
   }
 
-  // NOUVEAU: Ecran de respiration
+  // NOUVEAU: Ecran de respiration / "Moment de Verite"
   if (showBreathing) {
-    return <BreathingScreen phrase={breathingPhrase} onComplete={handleBreathingComplete} />;
+    return (
+      <BreathingScreen
+        phrase={breathingPhrase}
+        stopMoment={lastStopMoment}
+        onComplete={handleBreathingComplete}
+      />
+    );
   }
 
   const canContinue = playbackState && playbackState.remaining > 0;

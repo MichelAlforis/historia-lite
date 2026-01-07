@@ -29,6 +29,7 @@ import { LeaderPanel } from "./LeaderPanel";
 import { DramaticWrapper, DefconOverlay, TensionVignette } from "./DramaticEffects";
 import CouncilSuggestions from "./CouncilSuggestions";
 import GameOverDebrief from "./GameOverDebrief";
+import FrontsWall from "./FrontsWall";
 
 export default function NarrativeGame() {
   const {
@@ -206,6 +207,13 @@ export default function NarrativeGame() {
             <IntelPanel
               intelExposure={player.intel_exposure}
               selectedZone={selectedZone ? zones[selectedZone] : null}
+            />
+
+            {/* Fronts Mondiaux - Mur des fronts vivants */}
+            <FrontsWall
+              compact={true}
+              maxDisplay={4}
+              onFrontClick={(front) => setSelectedZone(front.zone_id)}
             />
 
             {/* Queue Summary */}

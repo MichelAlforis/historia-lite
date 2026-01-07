@@ -48,6 +48,14 @@ interface PressHeadline {
   credibility: string;
 }
 
+interface AIStrategicError {
+  turn: number;
+  error_type: string;
+  belief_fr: string;
+  reality_fr: string;
+  consequence_fr: string;
+}
+
 interface GameDebrief {
   end_reason: string;
   victory: boolean;
@@ -57,6 +65,7 @@ interface GameDebrief {
   leader_dialogue: LeaderDialogue | null;
   press_headlines: PressHeadline[];
   final_state_summary: Record<string, string>;
+  ai_errors?: AIStrategicError[];
 }
 
 interface GameOverDebriefProps {
@@ -215,6 +224,98 @@ function StateSummaryCard({ summary }: { summary: Record<string, string> }) {
   );
 }
 
+interface KremlinMisreadsCardProps {
+  errors: AIStrategicError[];
+  endReason?: string;
+}
+
+function KremlinMisreadsCard({ errors, endReason }: KremlinMisreadsCardProps) {
+  if (!errors || errors.length === 0) return null;
+
+  // Limiter a 2 erreurs max pour eviter le "debug screen"
+  const topErrors = errors.slice(0, 2);
+
+  // Tags de contexte selon le type d'erreur (vocabulaire coherent)
+  const contextTags: Record<string, string> = {
+    misread_player: 'Lecture politique',
+    faction_conflict: 'Politique interne',
+    underestimation: 'Renseignement',
+    overestimation: 'Renseignement',
+    stale_intel: 'Renseignement',
+  };
+
+  // Verdicts contextualises selon end_reason
+  const verdictsByReason: Record<string, string[]> = {
+    apocalypse: [
+      'Leurs erreurs n\'ont pas declenche l\'apocalypse. Elles l\'ont rendue inevitable.',
+      'Le Kremlin voyait un monde qui n\'existait plus.',
+      'Quand la realite a rattrape Moscou, il etait trop tard.',
+    ],
+    coup_etat: [
+      'Pendant que vous perdiez le controle, eux aussi.',
+      'Le brouillard a trahi les deux camps.',
+      'Moscou n\'a pas vu votre chute — elle preparait la sienne.',
+    ],
+    defeat_honorable: [
+      'Meme victorieux, le Kremlin a joue avec des cartes incompletes.',
+      'Leur victoire doit autant a vos erreurs qu\'aux leurs.',
+      'Ils ont gagne sans vraiment comprendre pourquoi.',
+    ],
+  };
+  const defaultVerdicts = [
+    'Le brouillard a trahi Moscou.',
+    'Le Kremlin a joue avec des cartes incompletes.',
+    'Meme une superpuissance decide parfois a l\'aveugle.',
+  ];
+  const verdicts = verdictsByReason[endReason || ''] || defaultVerdicts;
+  const verdict = verdicts[Math.floor(Math.random() * verdicts.length)];
+
+  // Phrase de cloture in-universe (evite "partie" trop meta)
+  const closingPhrases: Record<string, string> = {
+    apocalypse: 'Ces erreurs n\'ont pas sauve le monde. Elles ont scelle son destin.',
+    coup_etat: 'Ces erreurs n\'ont pas sauve le monde. Elles ont accelere sa chute.',
+    defeat_honorable: 'Ces erreurs n\'ont pas change l\'issue. Elles ont change le prix.',
+  };
+  const closingPhrase = closingPhrases[endReason || ''] ||
+    'Ces erreurs n\'ont pas sauve le monde. Elles ont change le cours des evenements.';
+
+  return (
+    <div className="p-4 bg-slate-900/40 border border-slate-700/40 rounded">
+      <h3 className="text-xs font-mono text-slate-400 uppercase tracking-wider mb-2">
+        Angles morts du Kremlin
+      </h3>
+      {/* Verdict en tete */}
+      <p className="text-sm text-slate-500 font-mono italic mb-4">
+        {verdict}
+      </p>
+      <div className="space-y-4">
+        {topErrors.map((error, idx) => (
+          <div key={idx} className="border-l-2 border-amber-500/30 pl-3">
+            {/* Tag de contexte */}
+            {contextTags[error.error_type] && (
+              <span className="text-[10px] font-mono text-amber-500/50 uppercase tracking-wide">
+                [{contextTags[error.error_type]}]
+              </span>
+            )}
+            {/* Verdict en une phrase */}
+            <p className="text-sm text-slate-300 font-mono leading-relaxed mt-1">
+              {error.belief_fr}
+            </p>
+            {/* Consequence - le cout de l'erreur */}
+            <p className="text-xs text-amber-400/60 font-mono mt-1 italic">
+              {error.consequence_fr}
+            </p>
+          </div>
+        ))}
+      </div>
+      {/* Phrase de cloture in-universe */}
+      <p className="text-[11px] text-slate-500 font-mono mt-4 pt-3 border-t border-slate-700/30 italic">
+        {closingPhrase}
+      </p>
+    </div>
+  );
+}
+
 // =============================================================================
 // MAIN COMPONENT
 // =============================================================================
@@ -364,6 +465,13 @@ export default function GameOverDebrief({
               <StateSummaryCard summary={debrief.final_state_summary} />
             </div>
           )}
+
+        {/* Kremlin Misreads - chapitre narratif, pas liste de bugs */}
+        {debrief.ai_errors && debrief.ai_errors.length > 0 && (
+          <div className="mb-10">
+            <KremlinMisreadsCard errors={debrief.ai_errors} endReason={debrief.end_reason} />
+          </div>
+        )}
 
         {/* New Game Button */}
         <div className="text-center pt-8 border-t border-slate-800">

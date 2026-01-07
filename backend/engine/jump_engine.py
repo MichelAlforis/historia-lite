@@ -184,7 +184,7 @@ class JumpEngine:
             action_data = result["action"]
             if action_data.get("visible_to_player", True):
                 event = await self._create_adversary_event(
-                    action_data, result["result"], world_context, all_zones
+                    action_data, result["result"], world_context, all_zones, state
                 )
                 events.append(event)
 
@@ -279,6 +279,24 @@ class JumpEngine:
             all_zones=all_zones,
         )
 
+        # Log action pour le systeme de Fronts Vivants
+        if action.target_zone:
+            # Determiner l'intensite depuis le risk_level
+            intensity_map = {"low": "light", "medium": "moderate", "high": "heavy", "extreme": "heavy"}
+            intensity = intensity_map.get(action.risk_level, "moderate")
+
+            # Determiner la visibilite selon le type d'action
+            visibility = "covert" if "COV" in action.intention_type else "public"
+
+            state.log_action(
+                zone_id=action.target_zone,
+                actor="usa",
+                action_type=action.intention_type,
+                intensity=intensity,
+                payload_fr=action.description_fr,
+                visibility=visibility,
+            )
+
         return JumpEvent(
             type=JumpEventType.PLAYER_ACTION,
             category=action.intention_type.split("_")[0],
@@ -298,7 +316,8 @@ class JumpEngine:
         action_data: Dict[str, Any],
         result: Dict[str, Any],
         context: Dict[str, Any],
-        all_zones: Dict
+        all_zones: Dict,
+        state: NarrativeWorldState
     ) -> JumpEvent:
         """Create event from adversary action with narrative scene"""
         action_type = action_data.get("action_type", "unknown")
@@ -323,12 +342,30 @@ class JumpEngine:
             all_zones=all_zones,
         )
 
+        # Log action pour le systeme de Fronts Vivants
+        target_zone = action_data.get("target_zone")
+        if target_zone:
+            # Determiner l'intensite depuis l'importance
+            intensity = "heavy" if importance in ["major", "critical"] else "moderate"
+
+            # Determiner la visibilite selon le type d'action
+            visibility = "covert" if "covert" in action_type.lower() or "intel" in action_type.lower() else "public"
+
+            state.log_action(
+                zone_id=target_zone,
+                actor="ussr",
+                action_type=action_type,
+                intensity=intensity,
+                payload_fr=action_data.get("reason_fr", "Action sovietique"),
+                visibility=visibility,
+            )
+
         return JumpEvent(
             type=JumpEventType.ADVERSARY_ACTION,
             category=category,
             title_fr=action_data.get("reason_fr", "Action sovietique"),
             description_fr=f"L'URSS a agi: {action_data.get('reason_fr', 'Action inconnue')}",
-            target_zone=action_data.get("target_zone"),
+            target_zone=target_zone,
             target_actor=action_data.get("target_country"),
             source="adversary",
             effects=result.get("changes", {}),

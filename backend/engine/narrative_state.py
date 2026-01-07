@@ -22,6 +22,7 @@ from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
     from engine.action_queue import ActionQueue, QueuedAction
+    from engine.silence_mechanics import SilenceState
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +70,35 @@ class ResolutionOutcome(str, Enum):
     COSTLY_SUCCESS = "costly"      # Success but with costs
     FRAGILE_SUCCESS = "fragile"    # Success but creates dilemma
     SABOTAGED_SUCCESS = "sabotaged"  # Success but leak/opposition
+
+
+# =============================================================================
+# ACTION LOG (Fronts Vivants v2 - base sur les ACTIONS, pas les metriques)
+# =============================================================================
+
+class ActionLogEntry(BaseModel):
+    """Une action loggee pour le systeme de Fronts Vivants.
+
+    Chaque front derive de "preuves d'actions" (beats), pas de metriques.
+    Le log capture tout: actions joueur, IA, evenements, TEST choices, aftershocks.
+
+    Visibility:
+    - "public": visible par tous (discours, blocus, mouvements de troupes)
+    - "covert": operation secrete (KGB, CIA, sabotage)
+    - "rumor": source inconnue, fiabilite incertaine
+    """
+    turn: int
+    zone_id: str
+    actor: str        # "usa" | "ussr" | "local" | "unknown"
+    action_type: str  # "BLOCKADE", "SUMMIT", "COVERT_OP", "RUMOR", "TEST_CHOICE", etc.
+    intensity: str    # "light" | "moderate" | "heavy"
+    payload_fr: str   # Micro-phrase brute (la "preuve")
+    visibility: str   # "public" | "covert" | "rumor"
+
+    # Optional metadata
+    source_event_id: Optional[str] = None  # Link to jump_event if applicable
+    is_test_choice: bool = False           # True if this is a player TEST choice
+    is_aftershock: bool = False            # True if this is an aftershock consequence
 
 
 # =============================================================================
@@ -535,6 +565,17 @@ class NarrativeWorldState(BaseModel):
     victory: bool = False
     end_reason: Optional[str] = None
 
+    # =========================================================================
+    # SILENCE MECHANICS (inactivite du joueur)
+    # =========================================================================
+    silence_state_data: Dict[str, Any] = Field(default_factory=dict)
+
+    # =========================================================================
+    # ACTION LOG (Fronts Vivants v2)
+    # =========================================================================
+    # Log de toutes les actions (joueur + IA + events) pour alimenter les Fronts
+    action_log: List[ActionLogEntry] = Field(default_factory=list)
+
     def advance_month(self):
         """Advance calendar by one month"""
         self.month += 1
@@ -874,6 +915,149 @@ class NarrativeWorldState(BaseModel):
             "remaining": len(self.jump_events) - self.current_event_index,
             "saved_at": self.saved_at_event,
         }
+
+    # =========================================================================
+    # SILENCE MECHANICS METHODS
+    # =========================================================================
+
+    def get_silence_state(self) -> "SilenceState":
+        """Get SilenceState object from stored data"""
+        from engine.silence_mechanics import SilenceState
+        if not self.silence_state_data:
+            return SilenceState()
+        return SilenceState(**self.silence_state_data)
+
+    def save_silence_state(self, silence_state: "SilenceState"):
+        """Save SilenceState back to state data"""
+        from dataclasses import asdict
+        self.silence_state_data = asdict(silence_state)
+
+    def check_silence_consequences(self, action_count: int, ignored_dossier_ids: List[str] = None):
+        """Check and apply silence consequences after a jump.
+
+        Returns list of SilenceEvent if any triggers fired.
+        """
+        from engine.silence_mechanics import (
+            check_silence_triggers,
+            update_silence_state,
+            apply_silence_effects,
+        )
+
+        # Get current silence state
+        silence_state = self.get_silence_state()
+
+        # Update silence tracking
+        update_silence_state(
+            silence_state,
+            action_count=action_count,
+            ignored_dossier_ids=ignored_dossier_ids or [],
+            current_turn=self.turn
+        )
+
+        # Check if any triggers fire
+        is_ussr = self.player.country_id == "USSR"
+        events = check_silence_triggers(
+            silence_state=silence_state,
+            world_state=self,
+            is_ussr=is_ussr
+        )
+
+        # Apply effects if any events triggered
+        if events:
+            narratives = apply_silence_effects(self, events)
+            logger.info(f"Silence mechanics: {len(events)} events triggered")
+
+        # Save updated silence state
+        self.save_silence_state(silence_state)
+
+        return events
+
+    # =========================================================================
+    # ACTION LOG METHODS (Fronts Vivants v2)
+    # =========================================================================
+
+    def log_action(
+        self,
+        zone_id: str,
+        actor: str,
+        action_type: str,
+        intensity: str,
+        payload_fr: str,
+        visibility: str = "public",
+        source_event_id: Optional[str] = None,
+        is_test_choice: bool = False,
+        is_aftershock: bool = False,
+    ) -> ActionLogEntry:
+        """Log une action pour le systeme de Fronts Vivants.
+
+        Appelé par:
+        - jump_engine.py lors de la resolution des actions joueur/IA
+        - event generation lors des evenements mondiaux
+        - TEST choices lors des choix du joueur en playback
+        - aftershock generation apres les TEST
+        """
+        entry = ActionLogEntry(
+            turn=self.turn,
+            zone_id=zone_id,
+            actor=actor,
+            action_type=action_type,
+            intensity=intensity,
+            payload_fr=payload_fr,
+            visibility=visibility,
+            source_event_id=source_event_id,
+            is_test_choice=is_test_choice,
+            is_aftershock=is_aftershock,
+        )
+        self.action_log.append(entry)
+        logger.debug(f"Action logged: {action_type} by {actor} in {zone_id}")
+        return entry
+
+    def get_recent_actions(
+        self,
+        zone_id: Optional[str] = None,
+        lookback_turns: int = 3,
+        actor: Optional[str] = None,
+    ) -> List[ActionLogEntry]:
+        """Recupere les actions recentes pour une zone.
+
+        Utilise par front_state.py pour calculer:
+        - dominant_mode (soft/hard/covert/standoff)
+        - last beat
+        - tension cadence
+        """
+        min_turn = max(1, self.turn - lookback_turns + 1)
+        results = []
+        for entry in self.action_log:
+            if entry.turn < min_turn:
+                continue
+            if zone_id and entry.zone_id != zone_id:
+                continue
+            if actor and entry.actor != actor:
+                continue
+            results.append(entry)
+        return results
+
+    def get_last_beat(self, zone_id: str) -> Optional[ActionLogEntry]:
+        """Recupere la derniere action significative pour une zone.
+
+        C'est le 'beat' qui s'affichera dans le FrontWall.
+        """
+        for entry in reversed(self.action_log):
+            if entry.zone_id == zone_id:
+                return entry
+        return None
+
+    def get_zones_with_activity(self, lookback_turns: int = 2) -> List[str]:
+        """Recupere les zones avec activite recente (spotlight).
+
+        Utilise pour selectionner quels fronts afficher dans le FrontWall.
+        """
+        min_turn = max(1, self.turn - lookback_turns + 1)
+        active_zones = set()
+        for entry in self.action_log:
+            if entry.turn >= min_turn:
+                active_zones.add(entry.zone_id)
+        return list(active_zones)
 
 
 def create_initial_state() -> NarrativeWorldState:

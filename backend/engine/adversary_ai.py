@@ -14,6 +14,12 @@ PaxHistoria additions:
 - plan_turn(): Plans actions during player accumulation (hidden)
 - Actions are revealed only at Jump Forward
 - Adversary "plays" simultaneously with player
+
+FOG OF WAR (v2):
+- L'IA ne lit JAMAIS directement NarrativeWorldState
+- Elle utilise AIPerceptionEngine pour obtenir des croyances (beliefs)
+- Raisonnement en tags qualitatifs, pas en chiffres
+- Factions (KGB/Armee/Politburo) proposent, le leader arbitre
 """
 import logging
 import random
@@ -28,6 +34,16 @@ from .narrative_state import (
     AdversaryDoctrine,
     NarrativeZone,
     DiplomacyProfile,
+)
+from .ai_perception import (
+    AIPerceptionEngine,
+    WorldObservations,
+    AIBeliefs,
+    FactionProposal,
+    ConfidenceBand,
+    ResolveLevel,
+    NuclearRisk,
+    OpportunityLevel,
 )
 
 logger = logging.getLogger(__name__)
@@ -109,39 +125,68 @@ class AIMemory(BaseModel):
 # =============================================================================
 
 class AdversaryAI:
-    """AI brain for the USSR adversary"""
+    """AI brain for the USSR adversary
+
+    FOG OF WAR: L'IA ne lit JAMAIS directement l'etat reel.
+    Elle utilise perception_engine pour obtenir des croyances.
+    """
 
     def __init__(self, ollama_client=None):
         self.ollama = ollama_client
         self.memory = AIMemory()
+        self.perception_engine = AIPerceptionEngine()
+        self.current_beliefs: Optional[AIBeliefs] = None
+        self.last_player_actions: List[Dict[str, Any]] = []
 
     async def decide_turn(
         self,
         state: NarrativeWorldState,
         use_ollama: bool = True
     ) -> List[AIAction]:
-        """Decide what actions to take this turn"""
+        """Decide what actions to take this turn
+
+        FOG OF WAR: Utilise le systeme de perception au lieu de lire l'etat reel.
+        """
         adversary = state.adversary
 
-        # Update doctrine based on situation
-        self._update_doctrine(adversary, state)
+        # === FOG OF WAR: Build observations and beliefs ===
+        observations = self.perception_engine.build_observations(
+            real_state=state,
+            last_player_actions=self.last_player_actions,
+        )
 
-        # Decide number of actions based on pressure
-        num_actions = self._decide_action_count(adversary)
+        beliefs = self.perception_engine.update_beliefs(
+            observations=observations,
+            adversary=adversary,
+            previous_beliefs=self.current_beliefs,
+        )
+        self.current_beliefs = beliefs
 
-        actions = []
+        # Debug: log belief vs reality (dev only)
+        self.perception_engine.log_belief_vs_reality(beliefs, state)
 
-        # First: handle critical situations
-        critical_action = self._handle_critical_situations(adversary, state)
-        if critical_action:
-            actions.append(critical_action)
-            num_actions -= 1
+        # === FACTION PROPOSALS: Each faction proposes ===
+        proposals = self.perception_engine.get_faction_proposals(beliefs, adversary)
 
-        # Then: pursue doctrine-based strategy
-        for _ in range(num_actions):
-            action = self._decide_single_action(adversary, state)
-            if action:
-                actions.append(action)
+        # === LEADER ARBITRAGE: Choose based on personality ===
+        chosen_proposal = self.perception_engine.leader_arbitrates(proposals, adversary)
+
+        # Convert proposal to AIAction
+        actions = [self._proposal_to_action(chosen_proposal, adversary)]
+
+        # === LEGACY: Handle critical situations (DEFCON-based) ===
+        # Note: This still uses beliefs, not real state
+        if beliefs.nuclear_risk == NuclearRisk.CRITICAL:
+            critical_action = self._handle_critical_from_beliefs(beliefs, adversary)
+            if critical_action:
+                actions.insert(0, critical_action)
+
+        # === Add more actions if high pressure ===
+        if adversary.get_total_pressure() > 70:
+            # Add a second action based on doctrine
+            additional = self._decide_action_from_beliefs(beliefs, adversary)
+            if additional:
+                actions.append(additional)
 
         # Optionally enhance with LLM
         if use_ollama and self.ollama and len(actions) > 0:
@@ -152,95 +197,55 @@ class AdversaryAI:
 
         return actions
 
-    def _update_doctrine(self, adversary: AdversaryState, state: NarrativeWorldState):
-        """Update doctrine based on current situation"""
-        total_pressure = adversary.get_total_pressure()
+    def _proposal_to_action(
+        self,
+        proposal: FactionProposal,
+        adversary: AdversaryState,
+    ) -> AIAction:
+        """Convert a faction proposal to an AIAction"""
+        # Map proposal action types to AIActionType
+        action_map = {
+            "destabilize": AIActionType.DESTABILIZE,
+            "intel_op": AIActionType.INTEL_OP,
+            "military_demo": AIActionType.MILITARY_DEMO,
+            "arms_buildup": AIActionType.ARMS_BUILDUP,
+            "propose_talks": AIActionType.PROPOSE_TALKS,
+            "consolidate": AIActionType.CONSOLIDATE,
+            "reinforce_zone": AIActionType.REINFORCE_ZONE,
+            "propaganda": AIActionType.PROPAGANDA,
+        }
 
-        # Calculate player's strength
-        us_zones = sum(1 for z in state.zones.values() if z.get_dominant_power() == "US")
-        player_strength = (
-            state.player.political_capital * 0.3 +
-            state.player.international_reputation * 0.3 +
-            us_zones / len(state.zones) * 100 * 0.4
+        action_type = action_map.get(proposal.action_type, AIActionType.CONSOLIDATE)
+
+        # Map intensity to numeric value
+        intensity_map = {"light": 40, "moderate": 60, "heavy": 80}
+        intensity = intensity_map.get(proposal.intensity, 50)
+
+        return AIAction(
+            action_type=action_type,
+            target_zone=proposal.target_zone,
+            target_country=proposal.target_country,
+            intensity=intensity,
+            reason=f"[{proposal.faction.upper()}] {proposal.rationale}",
+            reason_fr=f"[{proposal.faction.upper()}] {proposal.rationale_fr}",
+            visible_to_player=proposal.faction != "kgb",  # KGB actions are covert
+            effects=self._calculate_effects(action_type, proposal.target_zone, intensity),
         )
 
-        # High pressure: need to act
-        if total_pressure > 80:
-            if adversary.risk_tolerance > 60:
-                adversary.doctrine = AdversaryDoctrine.ARMS_RACE
-            else:
-                adversary.doctrine = AdversaryDoctrine.CONSOLIDATION
-            return
-
-        # Crisis situation (DEFCON low)
-        if state.defcon <= 2:
-            if adversary.risk_tolerance > 70:
-                # Maintain pressure
-                adversary.doctrine = AdversaryDoctrine.ARMS_RACE
-            else:
-                # Seek way out
-                adversary.doctrine = AdversaryDoctrine.DETENTE
-            return
-
-        # Player is weak: expand
-        if player_strength < 40:
-            adversary.doctrine = AdversaryDoctrine.EXPANSION
-            return
-
-        # Player is strong: destabilize or build up
-        if player_strength > 70:
-            if random.random() > 0.5:
-                adversary.doctrine = AdversaryDoctrine.DESTABILIZATION
-            else:
-                adversary.doctrine = AdversaryDoctrine.ARMS_RACE
-            return
-
-        # Check memory for patterns
-        recent_provocations = sum(1 for a in self.memory.player_actions[-5:]
-                                   if a["type"] in ["threat", "military_demo", "blockade"])
-        if recent_provocations >= 2:
-            # Player is aggressive
-            adversary.doctrine = AdversaryDoctrine.ARMS_RACE
-            return
-
-        # Default: maintain current or shift to expansion
-        if random.random() > 0.7:
-            adversary.doctrine = AdversaryDoctrine.EXPANSION
-
-    def _decide_action_count(self, adversary: AdversaryState) -> int:
-        """Decide how many actions to take"""
-        base = 2
-
-        # High pressure = more desperate actions
-        if adversary.get_total_pressure() > 70:
-            base += 1
-
-        # Impulsive leader = more actions
-        if adversary.impulsivity > 70:
-            base += 1
-
-        # Consolidation = fewer actions
-        if adversary.doctrine == AdversaryDoctrine.CONSOLIDATION:
-            base -= 1
-
-        return max(1, min(4, base))
-
-    def _handle_critical_situations(
+    def _handle_critical_from_beliefs(
         self,
+        beliefs: AIBeliefs,
         adversary: AdversaryState,
-        state: NarrativeWorldState
     ) -> Optional[AIAction]:
-        """Handle critical situations that require immediate response"""
-
-        # DEFCON 2 or lower: consider de-escalation or brinkmanship
-        if state.defcon <= 2:
+        """Handle critical situations based on beliefs (not real state)"""
+        if beliefs.nuclear_risk == NuclearRisk.CRITICAL:
             if adversary.risk_tolerance < 50:
                 return AIAction(
                     action_type=AIActionType.PROPOSE_TALKS,
                     target_country="USA",
                     intensity=70,
-                    reason="DEFCON critical, seeking negotiated solution",
-                    reason_fr="DEFCON critique, recherche de solution negociee",
+                    reason="Nuclear risk critical, seeking negotiated solution",
+                    reason_fr="Risque nucleaire critique, recherche de solution negociee",
                     effects={"defcon": +1, "world_tension": -15},
                 )
             else:
@@ -252,290 +257,88 @@ class AdversaryAI:
                     reason_fr="Refuse de reculer sous la pression",
                     effects={"fear_usa": +20, "world_tension": +10},
                 )
-
-        # Economic pressure critical
-        if adversary.pressure_economy > 85:
-            return AIAction(
-                action_type=AIActionType.ECONOMIC_AID,
-                target_zone=self._find_priority_zone(adversary, state),
-                intensity=60,
-                reason="Economic pressure critical, securing resources",
-                reason_fr="Pression economique critique, securisation des ressources",
-                effects={"pressure_economy": -10},
-            )
-
-        # Army pressure high
-        if adversary.pressure_army > 80:
-            return AIAction(
-                action_type=AIActionType.MILITARY_DEMO,
-                target_zone=self._find_contested_zone(state),
-                intensity=70,
-                reason="Military needs a show of force",
-                reason_fr="L'armee a besoin d'une demonstration de force",
-                effects={"pressure_army": -15, "world_tension": +10},
-            )
-
         return None
 
-    def _decide_single_action(
+    def _decide_action_from_beliefs(
         self,
+        beliefs: AIBeliefs,
         adversary: AdversaryState,
-        state: NarrativeWorldState
     ) -> Optional[AIAction]:
-        """Decide a single action based on doctrine"""
+        """Decide an additional action based on beliefs"""
+        # Find a zone with opportunity
+        for zone_id, zone_belief in beliefs.zones.items():
+            if zone_belief.opportunity_level == OpportunityLevel.RIPE:
+                return AIAction(
+                    action_type=AIActionType.REINFORCE_ZONE,
+                    target_zone=zone_id,
+                    intensity=60,
+                    reason=f"Opportunity detected in {zone_id}",
+                    reason_fr=f"Opportunite detectee en {zone_id}",
+                    effects=self._calculate_effects(AIActionType.REINFORCE_ZONE, zone_id, 60),
+                )
 
-        doctrine_actions = {
-            AdversaryDoctrine.EXPANSION: self._expansion_action,
-            AdversaryDoctrine.DESTABILIZATION: self._destab_action,
-            AdversaryDoctrine.ARMS_RACE: self._arms_race_action,
-            AdversaryDoctrine.DETENTE: self._detente_action,
-            AdversaryDoctrine.CONSOLIDATION: self._consolidation_action,
+        # Fallback: consolidate
+        return None
+
+    def record_player_action(self, action: Dict[str, Any]):
+        """Record a player action for perception system"""
+        self.last_player_actions.append(action)
+        # Keep only last 10 actions
+        if len(self.last_player_actions) > 10:
+            self.last_player_actions = self.last_player_actions[-10:]
+
+    def get_ai_errors(self) -> List[Dict[str, Any]]:
+        """Get AI perception errors for debrief"""
+        errors = self.perception_engine.get_errors()
+        return [
+            {
+                "turn": e.turn,
+                "error_type": e.error_type,
+                "subject": e.subject,
+                "belief": e.belief,
+                "reality": e.reality,
+                "consequence": e.consequence,
+                "consequence_fr": e.consequence_fr,
+            }
+            for e in errors
+        ]
+
+    def get_current_beliefs(self) -> Optional[Dict[str, Any]]:
+        """Get current beliefs for debugging/narrative"""
+        if not self.current_beliefs:
+            return None
+        return {
+            "player_resolve": self.current_beliefs.player.resolve.value,
+            "player_strategy": self.current_beliefs.player.likely_strategy,
+            "player_tags": self.current_beliefs.player.tags,
+            "nuclear_risk": self.current_beliefs.nuclear_risk.value,
+            "global_tension": self.current_beliefs.global_tension.value,
+            "opportunity_window": self.current_beliefs.opportunity_window,
+            "zones": {
+                zone_id: {
+                    "stability": zb.stability_band.value,
+                    "opportunity": zb.opportunity_level.value,
+                    "threat": zb.threat_level.value,
+                    "tags": zb.tags,
+                }
+                for zone_id, zb in self.current_beliefs.zones.items()
+            },
         }
 
-        action_generator = doctrine_actions.get(adversary.doctrine, self._expansion_action)
-        return action_generator(adversary, state)
-
-    def _expansion_action(
-        self,
-        adversary: AdversaryState,
-        state: NarrativeWorldState
-    ) -> AIAction:
-        """Generate expansion-focused action"""
-        # Find target zone (contested or weak US influence)
-        target_zone = None
-        best_score = -100
-
-        for zone_id, zone in state.zones.items():
-            if zone_id in adversary.priority_zones:
-                score = 50
-            else:
-                score = 0
-
-            # Prefer contested zones
-            if zone.get_dominant_power() == "contested":
-                score += 30
-            # Or zones where USSR is close
-            elif zone.influence_ussr > zone.influence_us - 20:
-                score += 20
-
-            # Avoid very stable zones
-            if zone.stability > 70:
-                score -= 20
-
-            if score > best_score:
-                best_score = score
-                target_zone = zone_id
-
-        action_types = [
-            AIActionType.REINFORCE_ZONE,
-            AIActionType.PROXY_WAR,
-            AIActionType.ECONOMIC_AID,
-            AIActionType.PROPAGANDA,
-        ]
-
-        # Choose based on situation
-        zone = state.zones.get(target_zone)
-        if zone and zone.stability < 40:
-            action_type = AIActionType.PROXY_WAR
-        elif zone and zone.control_ussr < 30:
-            action_type = AIActionType.REINFORCE_ZONE
-        else:
-            action_type = random.choice([AIActionType.PROPAGANDA, AIActionType.ECONOMIC_AID])
-
-        intensity = 50 + adversary.impulsivity // 5
-
-        return AIAction(
-            action_type=action_type,
-            target_zone=target_zone,
-            intensity=intensity,
-            reason=f"Expanding influence in {target_zone}",
-            reason_fr=f"Extension de l'influence en {target_zone}",
-            visible_to_player=action_type != AIActionType.PROXY_WAR,
-            effects=self._calculate_effects(action_type, target_zone, intensity),
-        )
-
-    def _destab_action(
-        self,
-        adversary: AdversaryState,
-        state: NarrativeWorldState
-    ) -> AIAction:
-        """Generate destabilization-focused action"""
-        # Find US-aligned zone to destabilize
-        target_zone = None
-        best_score = -100
-
-        for zone_id, zone in state.zones.items():
-            if zone.get_dominant_power() != "US":
-                continue
-
-            score = zone.influence_us - zone.stability
-            if zone.has_crisis:
-                score += 30
-            if zone_id in adversary.priority_zones:
-                score += 20
-
-            if score > best_score:
-                best_score = score
-                target_zone = zone_id
-
-        if not target_zone:
-            # No good target, switch to propaganda
-            target_zone = self._find_contested_zone(state)
-
-        action_types = [
-            AIActionType.DESTABILIZE,
-            AIActionType.SUPPORT_REBELS,
-            AIActionType.PROPAGANDA,
-            AIActionType.INTEL_OP,
-        ]
-
-        action_type = random.choice(action_types)
-        intensity = 40 + random.randint(0, 30)
-
-        return AIAction(
-            action_type=action_type,
-            target_zone=target_zone,
-            intensity=intensity,
-            reason=f"Destabilizing US influence in {target_zone}",
-            reason_fr=f"Destabilisation de l'influence US en {target_zone}",
-            visible_to_player=random.random() > 0.5,
-            effects=self._calculate_effects(action_type, target_zone, intensity),
-        )
-
-    def _arms_race_action(
-        self,
-        adversary: AdversaryState,
-        state: NarrativeWorldState
-    ) -> AIAction:
-        """Generate arms race-focused action"""
-        action_types = [
-            AIActionType.ARMS_BUILDUP,
-            AIActionType.NUCLEAR_ADVANCE,
-            AIActionType.MILITARY_DEMO,
-            AIActionType.BUILD_BASE,
-        ]
-
-        # Prioritize based on player actions
-        recent_player_military = sum(1 for a in self.memory.player_actions[-5:]
-                                      if "military" in a["type"].lower() or "reinforce" in a["type"].lower())
-
-        if recent_player_military >= 2:
-            # Match player buildup
-            action_type = random.choice([AIActionType.ARMS_BUILDUP, AIActionType.NUCLEAR_ADVANCE])
-        else:
-            action_type = random.choice(action_types)
-
-        target_zone = None
-        if action_type in [AIActionType.MILITARY_DEMO, AIActionType.BUILD_BASE]:
-            target_zone = self._find_priority_zone(adversary, state)
-
-        intensity = 60 + adversary.impulsivity // 4
-
-        return AIAction(
-            action_type=action_type,
-            target_zone=target_zone,
-            intensity=intensity,
-            reason="Military buildup to maintain parity",
-            reason_fr="Renforcement militaire pour maintenir la parite",
-            visible_to_player=True,
-            effects=self._calculate_effects(action_type, target_zone, intensity),
-        )
-
-    def _detente_action(
-        self,
-        adversary: AdversaryState,
-        state: NarrativeWorldState
-    ) -> AIAction:
-        """Generate detente-focused action"""
-        # Check what we can concede (P5: forbidden concessions)
-        can_negotiate_topics = []
-
-        for topic in ["arms_control", "trade", "cultural_exchange", "space"]:
-            if topic not in adversary.forbidden_concessions:
-                can_negotiate_topics.append(topic)
-
-        action_types = [
-            AIActionType.PROPOSE_TALKS,
-            AIActionType.TRADE_DEAL,
-            AIActionType.WITHDRAW_ZONE,
-        ]
-
-        # Cannot concede? Then consolidate instead
-        if not can_negotiate_topics or adversary.get_total_pressure() > 70:
-            return AIAction(
-                action_type=AIActionType.CONSOLIDATE,
-                intensity=50,
-                reason="Internal pressure prevents concessions",
-                reason_fr="La pression interne empeche les concessions",
-                effects={"pressure_party": -5},
-            )
-
-        action_type = random.choice(action_types)
-        intensity = 40 + random.randint(0, 20)
-
-        if action_type == AIActionType.WITHDRAW_ZONE:
-            # Find a zone where we can withdraw (not priority)
-            for zone_id, zone in state.zones.items():
-                if zone_id not in adversary.priority_zones and zone.influence_ussr > 40:
-                    return AIAction(
-                        action_type=action_type,
-                        target_zone=zone_id,
-                        intensity=intensity,
-                        reason=f"Withdrawing from {zone_id} as goodwill gesture",
-                        reason_fr=f"Retrait de {zone_id} en signe de bonne volonte",
-                        effects={"world_tension": -10, "trust_usa": +10},
-                    )
-
-        return AIAction(
-            action_type=action_type,
-            target_country="USA",
-            intensity=intensity,
-            reason="Seeking diplomatic solution",
-            reason_fr="Recherche d'une solution diplomatique",
-            effects={"world_tension": -10},
-        )
-
-    def _consolidation_action(
-        self,
-        adversary: AdversaryState,
-        state: NarrativeWorldState
-    ) -> AIAction:
-        """Generate consolidation-focused action"""
-        # Focus on internal stability and existing gains
-        action_types = [
-            AIActionType.CONSOLIDATE,
-            AIActionType.ECONOMIC_AID,
-            AIActionType.PROPAGANDA,
-        ]
-
-        # Find zones where USSR is dominant but could lose
-        target_zone = None
-        for zone_id, zone in state.zones.items():
-            if zone.get_dominant_power() == "USSR" and zone.stability < 50:
-                target_zone = zone_id
-                break
-
-        if not target_zone:
-            # Just internal consolidation
-            return AIAction(
-                action_type=AIActionType.CONSOLIDATE,
-                intensity=50,
-                reason="Internal consolidation",
-                reason_fr="Consolidation interne",
-                effects={"pressure_party": -10, "pressure_economy": -5},
-            )
-
-        action_type = random.choice([AIActionType.ECONOMIC_AID, AIActionType.PROPAGANDA])
-        intensity = 40 + random.randint(0, 20)
-
-        return AIAction(
-            action_type=action_type,
-            target_zone=target_zone,
-            intensity=intensity,
-            reason=f"Consolidating position in {target_zone}",
-            reason_fr=f"Consolidation de la position en {target_zone}",
-            effects=self._calculate_effects(action_type, target_zone, intensity),
-        )
+    # =========================================================================
+    # LEGACY CODE REMOVED (lignes 328-711)
+    # Les methodes suivantes ont ete supprimees car remplacees par FOG OF WAR:
+    # - _update_doctrine
+    # - _decide_action_count
+    # - _handle_critical_situations
+    # - _decide_single_action
+    # - _expansion_action
+    # - _destab_action
+    # - _arms_race_action
+    # - _detente_action
+    # - _consolidation_action
+    # Le nouveau systeme utilise: perception_engine + faction proposals + beliefs
+    # =========================================================================
 
     def _find_priority_zone(
         self,
@@ -767,35 +570,52 @@ Reponds en JSON avec format:
         Called when player queues their first action.
         Actions are stored hidden and revealed at Jump Forward.
 
+        FOG OF WAR: Uses perception engine instead of reading real state.
+
         Returns list of planned actions as dicts (for JSON storage in state)
         """
         adversary = state.adversary
 
-        # Update doctrine based on current situation
-        self._update_doctrine(adversary, state)
+        # === FOG OF WAR: Build observations and beliefs ===
+        observations = self.perception_engine.build_observations(
+            real_state=state,
+            last_player_actions=self.last_player_actions,
+        )
 
-        # Decide action count (usually 1-3 actions)
-        num_actions = self._decide_action_count(adversary)
+        beliefs = self.perception_engine.update_beliefs(
+            observations=observations,
+            adversary=adversary,
+            previous_beliefs=self.current_beliefs,
+        )
+        self.current_beliefs = beliefs
 
-        planned_actions = []
+        # === FACTION PROPOSALS ===
+        proposals = self.perception_engine.get_faction_proposals(beliefs, adversary)
 
-        # Handle critical situations first
-        critical = self._handle_critical_situations(adversary, state)
-        if critical:
-            planned_actions.append(self._action_to_dict(critical))
-            num_actions -= 1
+        # === LEADER ARBITRAGE ===
+        chosen_proposal = self.perception_engine.leader_arbitrates(proposals, adversary)
 
-        # Plan doctrine-based actions
-        for _ in range(num_actions):
-            action = self._decide_single_action(adversary, state)
-            if action:
-                planned_actions.append(self._action_to_dict(action))
+        # Convert to action
+        main_action = self._proposal_to_action(chosen_proposal, adversary)
+        planned_actions = [self._action_to_dict(main_action)]
+
+        # === Additional action if opportunity window ===
+        if beliefs.opportunity_window:
+            additional = self._decide_action_from_beliefs(beliefs, adversary)
+            if additional:
+                planned_actions.append(self._action_to_dict(additional))
+
+        # === Critical situation handling ===
+        if beliefs.nuclear_risk == NuclearRisk.CRITICAL:
+            critical = self._handle_critical_from_beliefs(beliefs, adversary)
+            if critical:
+                planned_actions.insert(0, self._action_to_dict(critical))
 
         # Store in state (hidden from player)
         state.adversary_action_queue = planned_actions
         state.adversary_planned = True
 
-        logger.info(f"Adversary planned {len(planned_actions)} actions (hidden)")
+        logger.info(f"Adversary planned {len(planned_actions)} actions via FOG OF WAR (hidden)")
         return planned_actions
 
     def _action_to_dict(self, action: AIAction) -> Dict[str, Any]:
