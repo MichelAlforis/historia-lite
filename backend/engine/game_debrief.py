@@ -135,6 +135,7 @@ DEFEAT_TITLES = {
     "domination": "Le monde libre triomphe",
     "survival": "La paix, enfin",
     "adversary_collapse": "L'empire s'effondre",
+    "crisis_resolved": "La crise s'eteint",
 }
 
 DEFEAT_NARRATIVES = {
@@ -190,6 +191,18 @@ DEFEAT_NARRATIVES = {
         "L'empire sovietique s'est effondre de l'interieur. "
         "Pressions economiques, course aux armements, dissidence... "
         "Vous n'avez pas eu a tirer. Ils se sont defaits seuls.",
+    ],
+    "crisis_resolved": [
+        "Les navires ralentissent. Les messages cessent d'etre des ultimatums. "
+        "Ce n'est pas la paix. Mais ce soir, le monde respire.",
+
+        "Khrouchtchev a cede. Les missiles quitteront Cuba. "
+        "En echange, vous avez promis de ne pas envahir l'ile. "
+        "Un compromis. La seule issue qui n'etait pas la mort.",
+
+        "La crise est passee. Treize jours au bord du gouffre. "
+        "Vous avez negocie, menace, recule au bon moment. "
+        "L'Histoire retiendra que vous avez choisi de ne pas appuyer sur le bouton.",
     ],
 }
 

@@ -461,11 +461,14 @@ def apply_silence_effects(
     for event in events:
         effects = event.effects
 
-        # Appliquer les effets
+        # Appliquer les effets avec diminishing returns sur la tension
         if "world_tension" in effects:
             delta = effects["world_tension"]
-            world_state.world_tension = min(100, max(0, world_state.world_tension + delta))
-            messages.append(f"Tension mondiale: {'+' if delta > 0 else ''}{delta}")
+            # Diminishing returns: plus la tension est haute, moins chaque point pousse
+            damping = max(0.25, 1.0 - (world_state.world_tension / 140.0))
+            effective_delta = int(round(delta * damping))
+            world_state.world_tension = min(100, max(0, world_state.world_tension + effective_delta))
+            messages.append(f"Tension mondiale: {'+' if effective_delta > 0 else ''}{effective_delta}")
 
         if "political_capital" in effects:
             delta = effects["political_capital"]

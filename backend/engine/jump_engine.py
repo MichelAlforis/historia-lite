@@ -221,10 +221,27 @@ class JumpEngine:
         # Apply effects based on action type (INTERNAL METRICS - hidden from player)
         effects_applied = {}
 
+        # 1) EFFETS GLOBAUX - toujours appliques (pas conditionnes a une zone)
+        for effect_key, value in action.predicted_effects.items():
+            if effect_key == "world_tension":
+                state.world_tension = max(0, min(100, state.world_tension + value))
+                effects_applied["world_tension"] = value
+                logger.debug(f"Applied world_tension {value:+d} -> {state.world_tension}")
+            elif effect_key == "defcon":
+                state.defcon = max(1, min(5, state.defcon + value))
+                effects_applied["defcon"] = value
+                logger.debug(f"Applied defcon {value:+d} -> {state.defcon}")
+            elif effect_key == "crisis_intensity" and action.target_zone:
+                zone = state.zones.get(action.target_zone)
+                if zone:
+                    zone.crisis_intensity = max(0, min(100, zone.crisis_intensity + value))
+                    effects_applied["crisis_intensity"] = value
+                    logger.debug(f"Applied crisis_intensity {value:+d} to {action.target_zone}")
+
+        # 2) EFFETS DE ZONE - seulement si zone valide
         if action.target_zone and action.target_zone in state.zones:
             zone = state.zones[action.target_zone]
 
-            # Apply predicted effects
             for effect_key, value in action.predicted_effects.items():
                 if effect_key == "influence_us":
                     zone.influence_us = max(0, min(100, zone.influence_us + value))
@@ -235,12 +252,9 @@ class JumpEngine:
                 elif effect_key == "stability":
                     zone.stability = max(0, min(100, zone.stability + value))
                     effects_applied["stability"] = value
-                elif effect_key == "world_tension":
-                    state.world_tension = max(0, min(100, state.world_tension + value))
-                    effects_applied["world_tension"] = value
-                elif effect_key == "defcon":
-                    state.defcon = max(1, min(5, state.defcon + value))
-                    effects_applied["defcon"] = value
+                elif effect_key == "influence_ussr":
+                    zone.influence_ussr = max(0, min(100, zone.influence_ussr + value))
+                    effects_applied["influence_ussr"] = value
 
         # Apply standard effects based on action type
         if "MIL_REINFORCE" in action.intention_type:

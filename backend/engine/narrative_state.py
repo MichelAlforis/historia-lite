@@ -487,6 +487,9 @@ class PendingAction(BaseModel):
 # NARRATIVE WORLD STATE
 # =============================================================================
 
+# Nombre de mois par jump (accelere le temps pour rendre le jeu jouable)
+MONTHS_PER_JUMP = 3  # 1 jump = 1 trimestre
+
 class NarrativeWorldState(BaseModel):
     """Complete state for Historia Narrative mode (PaxHistoria-style)
 
@@ -577,10 +580,10 @@ class NarrativeWorldState(BaseModel):
     action_log: List[ActionLogEntry] = Field(default_factory=list)
 
     def advance_month(self):
-        """Advance calendar by one month"""
-        self.month += 1
-        if self.month > 12:
-            self.month = 1
+        """Advance calendar by MONTHS_PER_JUMP (default: 3 = trimestre)"""
+        self.month += MONTHS_PER_JUMP
+        while self.month > 12:
+            self.month -= 12
             self.year += 1
 
     def next_turn(self):
@@ -621,6 +624,17 @@ class NarrativeWorldState(BaseModel):
             self.victory = False
             self.end_reason = "coup_etat"
             return "coup_etat"
+
+        # VICTOIRE LOCALE: Crise resolue (Cuba)
+        # Condition: crise active desamorcee + tension mondiale sous controle
+        cuba = self.zones.get("central_america")
+        if cuba and cuba.has_crisis and cuba.crisis_type == "missiles_cuba":
+            # Crise resolue si intensite basse ET tension mondiale acceptable
+            if cuba.crisis_intensity <= 25 and self.world_tension <= 50:
+                self.game_over = True
+                self.victory = True
+                self.end_reason = "crisis_resolved"
+                return "crisis_resolved"
 
         # Count US influence globally
         us_influence = sum(z.influence_us for z in self.zones.values()) / len(self.zones) if self.zones else 50

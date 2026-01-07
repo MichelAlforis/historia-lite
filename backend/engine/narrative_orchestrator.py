@@ -269,18 +269,62 @@ NARRATIVE_TEMPLATES = {
         "CRISE EN {zone_fr}! Les nouvelles tombent comme des coups de tonnerre.",
         "Le monde retient son souffle. La situation en {zone_fr} se deteriore rapidement.",
         "Alerte rouge. Les chancelleries s'agitent, les telephones sonnent sans cesse.",
+        "Flash special. Les ambassadeurs sont rappeles, les avions decollent.",
+        "Situation critique en {zone_fr}. Le Conseil de securite se reunit en urgence.",
     ],
     "crisis_escalated": [
         "La crise s'aggrave en {zone_fr}. Les options se reduisent, les risques augmentent.",
         "Escalade en {zone_fr}. Chaque heure rapproche le monde de l'abime.",
         "Point de non-retour approche en {zone_fr}. Les decisions prises maintenant marqueront l'Histoire.",
+        "Les negociations echouent. En {zone_fr}, les armes parlent plus fort que la diplomatie.",
+        "Ultimatum expire. La tension atteint des sommets jamais vus depuis 1945.",
+    ],
+    "crisis_deescalated": [
+        "La tension retombe en {zone_fr}. Un soupir de soulagement traverse les capitales.",
+        "Recul tactique. Quelqu'un a choisi de ne pas appuyer sur le bouton.",
+        "Canal diplomatique retabli. Les mots remplacent a nouveau les menaces.",
+        "Le pire a ete evite. Cette fois.",
+        "Accord de principe en {zone_fr}. La paix reste fragile, mais elle tient.",
     ],
 
-    # Default
+    # Default - ENRICHI pour eviter la repetition
     "default": [
         "Les evenements se precipitent en {zone_fr}. L'histoire s'ecrit sous nos yeux.",
         "En {zone_fr}, la situation evolue. Les consequences restent a determiner.",
-        "Developpements en {zone_fr}. Le monde observe, calcule, attend.",
+        "Nouvelle donne en {zone_fr}. Les equilibres vacillent.",
+        "Mouvement en {zone_fr}. Les chancelleries ajustent leurs calculs.",
+        "Le silence radio est rompu. Des nouvelles arrivent de {zone_fr}.",
+        "Bulletin special. La situation en {zone_fr} requiert votre attention.",
+        "Les pions bougent sur l'echiquier. {zone_fr} entre dans une nouvelle phase.",
+        "Rapport de situation: {zone_fr} reste sous haute surveillance.",
+    ],
+
+    # Adversary actions - NEW
+    "adversary_reinforce": [
+        "L'URSS renforce ses positions en {zone_fr}. Moscou avance ses pions.",
+        "Mouvement sovietique detecte. Des conseillers arrivent en {zone_fr}.",
+        "Les Rouges etendent leur influence en {zone_fr}. Sans bruit, mais inexorablement.",
+        "Cargaison suspecte signalee en route vers {zone_fr}. Contenu: materiel militaire.",
+    ],
+    "adversary_pressure": [
+        "Moscou hausse le ton. La pression s'intensifie sur {zone_fr}.",
+        "Ultimatum voile de l'URSS. {zone_fr} doit choisir son camp.",
+        "Khrouchtchev tape du poing. Le message est clair.",
+        "Les services sovietiques s'activent en {zone_fr}. Nous avons des yeux partout.",
+    ],
+
+    # Player actions - feedback
+    "player_success": [
+        "Votre initiative porte ses fruits en {zone_fr}. L'influence americaine grandit.",
+        "Operation reussie. {zone_fr} penche un peu plus vers l'Ouest.",
+        "La diplomatie americaine marque des points. Moscou fulmine.",
+        "Victoire discrete mais decisive en {zone_fr}.",
+    ],
+    "player_risky": [
+        "Votre decision audacieuse fait trembler {zone_fr}. Le monde retient son souffle.",
+        "Pari risque en {zone_fr}. L'Histoire jugera.",
+        "Les conseillers sont nerveux. Cette manoeuvre en {zone_fr} pourrait mal tourner.",
+        "Coup de poker en {zone_fr}. Les des sont jetes.",
     ],
 }
 

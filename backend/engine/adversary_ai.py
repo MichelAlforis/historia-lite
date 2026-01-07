@@ -724,8 +724,12 @@ Reponds en JSON avec format:
                     result["changes"][f"zone_{action.target_zone}_stability"] = delta
 
             elif "world_tension" in effect_name:
-                state.world_tension = max(0, min(100, state.world_tension + delta))
-                result["changes"]["world_tension"] = delta
+                # Diminishing returns: plus la tension est haute, moins chaque point pousse
+                # A 70 tension, l'effet est reduit de moitie
+                damping = max(0.25, 1.0 - (state.world_tension / 140.0))
+                effective_delta = int(round(delta * damping))
+                state.world_tension = max(0, min(100, state.world_tension + effective_delta))
+                result["changes"]["world_tension"] = effective_delta
 
             elif "defcon" in effect_name:
                 state.defcon = max(1, min(5, state.defcon + delta))
