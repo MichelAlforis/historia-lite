@@ -437,6 +437,7 @@ class AdversaryAI:
             "doctrine": state.adversary.doctrine.value,
             "pressure": state.adversary.get_total_pressure(),
             "player_capital": state.player.political_capital,
+            "scenario_seed": state.scenario_seed.value if hasattr(state, 'scenario_seed') else None,
             "actions": [{"type": a.action_type.value, "target": a.target_zone or a.target_country}
                        for a in actions],
         }

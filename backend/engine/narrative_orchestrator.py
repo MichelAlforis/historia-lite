@@ -330,6 +330,120 @@ NARRATIVE_TEMPLATES = {
 
 
 # =============================================================================
+# SCENARIO SEED TEMPLATES - Flaveur narrative par variante Cuba
+# =============================================================================
+# Ces templates sont AJOUTES aux templates principaux selon le seed.
+# Le joueur ne voit jamais A/B/C - il le sent via les beats.
+
+SEED_TEMPLATES = {
+    # CUBA_NAVAL: Focus naval (sous-marins, blocus, incidents maritimes)
+    "naval": {
+        "crisis_erupted": [
+            "Les destroyers ont detecte des periscopes. La Mer des Caraibes devient un piege mortel.",
+            "Alerte sous-marine! Un U-boat sovietique a ete repere pres de {zone_fr}.",
+            "La flotte se deploie. Les sous-marins nucleaires arment leurs torpilles.",
+            "Contact radar! Un convoi sovietique approche de la ligne de quarantaine.",
+        ],
+        "crisis_escalated": [
+            "Incident en mer. Un destroyer a tire des coups de semonce. Les Soviets n'ont pas recule.",
+            "Le periscope etait la. Maintenant il n'y est plus. Quelqu'un a coule.",
+            "Les B-52 survolent la flotte. En dessous, les sous-marins guettent.",
+            "Le blocus tient. Mais pour combien de temps? Les capitaines sont nerveux.",
+        ],
+        "adversary_pressure": [
+            "Les sous-marins sovietiques se rapprochent. Nous ne sommes plus seuls en mer.",
+            "Un navire-espion rode au large. Ils comptent nos mouvements.",
+            "La marine sovietique sort ses ports. Une demontration de force navale commence.",
+        ],
+        "default": [
+            "La mer est le theatre. Sous les vagues, les armes attendent.",
+            "Les sonars scrutent les abysses. Chaque echo pourrait etre une menace.",
+            "Entre les navires, le silence. Mais les torpilles sont armees.",
+        ],
+    },
+
+    # CUBA_DIPLO: Focus diplomatique (ONU, allies, backchannels, humiliation)
+    "diplo": {
+        "crisis_erupted": [
+            "Seance d'urgence a l'ONU. L'ambassadeur Stevenson brandit des photos satellites.",
+            "Les telephones rouges sonnent dans toutes les chancelleries.",
+            "Ultimatum diplomatique. Moscou a 48 heures pour repondre.",
+            "Les allies europeens s'agitent. Londres et Paris exigent des consultations.",
+        ],
+        "crisis_escalated": [
+            "L'ambassadeur Dobrynin quitte le Departement d'Etat. Les visages sont fermes.",
+            "Les backchannels se ferment un a un. La diplomatie echoue.",
+            "Humiliation publique a l'ONU. Les Soviets perdent la face devant le monde.",
+            "De Gaulle demande des explications. Les allies s'impatientent.",
+        ],
+        "adversary_pressure": [
+            "Khrouchtchev fait une declaration publique. Le ton est menacant.",
+            "Note diplomatique. Moscou exige le retrait des Jupiter de Turquie.",
+            "L'ambassadeur sovietique demande une audience urgente. Le message sera dur.",
+        ],
+        "default": [
+            "Dans les couloirs de l'ONU, les diplomates murmurent. Chaque mot compte.",
+            "Backchannel actif. Des messages passent par des canaux non officiels.",
+            "La diplomatie travaille dans l'ombre. Personne ne veut perdre la face.",
+        ],
+    },
+
+    # CUBA_COVERT: Focus covert (fuites, sabotage, rumeurs KGB/CIA)
+    "covert": {
+        "crisis_erupted": [
+            "Fuite a la Maison Blanche. Le New York Times a les photos. Qui a parle?",
+            "La CIA decouvre un reseau dormant a Washington. Depuis combien de temps?",
+            "Informateur au Kremlin. Nos sources confirment: les missiles sont operationnels.",
+            "Sabotage suspecte a Langley. Les communications sont compromises.",
+        ],
+        "crisis_escalated": [
+            "Un agent double est demasque. Ce qu'il savait... ils le savent aussi.",
+            "Operation avortee. Le KGB etait au courant. Nous avons une taupe.",
+            "Les rumeurs courent: la CIA prepare un assassinat. Castro est nerveux.",
+            "Interceptions. Nos codes sont compromis. Ils lisent nos messages.",
+        ],
+        "adversary_pressure": [
+            "Le KGB active ses reseaux dormants. Washington est infiltre.",
+            "Propagande. Radio Moscou annonce un complot americain. Mensonge ou fuite?",
+            "Un defecteur arrive a Vienne. Ce qu'il raconte glace le sang.",
+        ],
+        "default": [
+            "Dans l'ombre, les espions jouent leur partie. Personne ne voit le plateau.",
+            "Les agents sont en place. Ce qui se passe ensuite... vous ne le saurez jamais.",
+            "Une rumeur circule. Vraie? Fausse? Le doute est une arme.",
+        ],
+    },
+}
+
+
+def get_templates_for_seed(event_type: str, seed_value: str) -> list:
+    """
+    Retourne les templates pour un type d'evenement, enrichis selon le seed.
+
+    Le seed ajoute de la saveur sans changer la mecanique.
+    Si le seed a des templates pour cet event_type, on les melange 50/50.
+
+    Args:
+        event_type: Type d'evenement (crisis_erupted, default, etc.)
+        seed_value: Valeur du seed (naval, diplo, covert)
+
+    Returns:
+        Liste de templates (base + seed-specific)
+    """
+    base_templates = NARRATIVE_TEMPLATES.get(event_type, NARRATIVE_TEMPLATES["default"])
+    seed_templates = SEED_TEMPLATES.get(seed_value, {}).get(event_type, [])
+
+    if not seed_templates:
+        return base_templates
+
+    # Melanger 50/50 pour que le seed ait un impact
+    # mais ne remplace pas completement les templates de base
+    import random
+    combined = base_templates + seed_templates
+    return combined
+
+
+# =============================================================================
 # INTEL TEMPLATES
 # =============================================================================
 
@@ -531,8 +645,16 @@ class NarrativeOrchestrator:
     ) -> str:
         """Genere le recit principal - AI ou templates"""
 
-        # Fallback: templates statiques
-        templates = NARRATIVE_TEMPLATES.get(event_type, NARRATIVE_TEMPLATES["default"])
+        # Utiliser le seed du contexte pour des templates varies
+        seed_value = context.get("scenario_seed", None)
+
+        if seed_value:
+            # Templates enrichis selon le seed (naval/diplo/covert)
+            templates = get_templates_for_seed(event_type, seed_value)
+        else:
+            # Fallback: templates statiques
+            templates = NARRATIVE_TEMPLATES.get(event_type, NARRATIVE_TEMPLATES["default"])
+
         template = random.choice(templates)
 
         actor_name = WORLD_LEADERS.get(actor_country, {}).get("name", actor_country)

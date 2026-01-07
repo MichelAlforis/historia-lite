@@ -532,3 +532,124 @@ def get_silence_narrative(silence_streak: int, world_tension: int) -> str:
         pool = SILENCE_NARRATIVES["empty_jump_mild"]
 
     return random.choice(pool)
+
+
+# =============================================================================
+# INTENTION COOLDOWN - Resistance narrative aux actions repetees
+# =============================================================================
+# Quand le joueur spam la meme intention, les acteurs reagissent:
+# - Conseillers sceptiques
+# - Adversaire percoit une faiblesse ou une obsession
+# - Beats deviennent "ca ne suffit plus"
+#
+# PAS DE MALUS MECANIQUE - juste une resistance qualitative
+
+@dataclass
+class IntentionCooldown:
+    """Tracker de repetition d'intentions"""
+    intention_history: Dict[str, int] = field(default_factory=dict)  # intention_type -> count
+    last_turn_used: Dict[str, int] = field(default_factory=dict)  # intention_type -> turn
+
+    def record_intention(self, intention_type: str, current_turn: int):
+        """Enregistre une intention utilisee"""
+        # Categorie principale (DIPLO, MIL, COV, etc.)
+        category = intention_type.split("_")[0] if "_" in intention_type else intention_type
+
+        self.intention_history[category] = self.intention_history.get(category, 0) + 1
+        self.last_turn_used[category] = current_turn
+
+    def get_repetition_count(self, intention_type: str) -> int:
+        """Nombre de fois que cette categorie a ete utilisee"""
+        category = intention_type.split("_")[0] if "_" in intention_type else intention_type
+        return self.intention_history.get(category, 0)
+
+    def is_spammed(self, intention_type: str, threshold: int = 3) -> bool:
+        """True si l'intention est repetee au-dela du seuil"""
+        return self.get_repetition_count(intention_type) >= threshold
+
+    def to_dict(self) -> Dict:
+        return {
+            "intention_history": self.intention_history,
+            "last_turn_used": self.last_turn_used,
+        }
+
+
+# Narratifs de resistance quand une intention est spammee
+COOLDOWN_NARRATIVES = {
+    # Conseillers sceptiques
+    "advisor_skeptical": [
+        "Vos conseillers echangent des regards. 'Encore?' semble dire leur silence.",
+        "Le Secretaire d'Etat hesite avant de transmettre. Il sait ce que vous allez dire.",
+        "Les officiels executent, mais l'enthousiasme n'y est plus.",
+        "'Monsieur le President, nous avons deja essaye cela trois fois.'",
+    ],
+
+    # Adversaire percoit une obsession
+    "adversary_reads_pattern": [
+        "Moscou a remarque votre preference. Ils s'adaptent.",
+        "Le Kremlin sait maintenant ce que vous allez faire. Ils l'attendent.",
+        "Khrouchtchev sourit en lisant vos actions. Vous etes devenu previsible.",
+        "Les analystes sovietiques ont identifie votre pattern. Le jeu a change.",
+    ],
+
+    # Beats "ca ne suffit plus"
+    "diminishing_narrative": [
+        "L'impact n'est plus le meme. Le monde s'habitue.",
+        "Ce qui impressionnait hier fait hausser les epaules aujourd'hui.",
+        "La repetition affaiblit le message. Ils ont deja entendu ca.",
+        "L'effet de surprise est passe. Maintenant, c'est juste du bruit.",
+    ],
+}
+
+
+def get_cooldown_narrative(intention_type: str, repetition_count: int) -> Optional[str]:
+    """
+    Retourne un narratif de resistance si l'intention est repetee.
+
+    Ne change PAS la mecanique - juste un feedback qualitatif.
+
+    Args:
+        intention_type: Type d'intention (MIL_BLOCKADE, DIPLO_SUMMIT, etc.)
+        repetition_count: Nombre de fois utilisee
+
+    Returns:
+        String narratif ou None si pas de cooldown
+    """
+    if repetition_count < 3:
+        return None  # Pas de cooldown avant 3 utilisations
+
+    if repetition_count == 3:
+        # Premier avertissement - conseiller sceptique
+        return random.choice(COOLDOWN_NARRATIVES["advisor_skeptical"])
+    elif repetition_count == 4:
+        # Adversaire percoit le pattern
+        return random.choice(COOLDOWN_NARRATIVES["adversary_reads_pattern"])
+    else:
+        # 5+ : impact diminue narrativement
+        return random.choice(COOLDOWN_NARRATIVES["diminishing_narrative"])
+
+
+def check_intention_cooldown(
+    intention_type: str,
+    cooldown_state: IntentionCooldown,
+    current_turn: int,
+) -> Tuple[bool, Optional[str]]:
+    """
+    Verifie si une intention est en cooldown et retourne le feedback.
+
+    Args:
+        intention_type: Type d'intention
+        cooldown_state: Etat du cooldown
+        current_turn: Tour actuel
+
+    Returns:
+        (is_cooled_down, narrative_feedback)
+    """
+    repetition_count = cooldown_state.get_repetition_count(intention_type)
+    is_spammed = repetition_count >= 3
+
+    if is_spammed:
+        narrative = get_cooldown_narrative(intention_type, repetition_count)
+        return True, narrative
+
+    return False, None

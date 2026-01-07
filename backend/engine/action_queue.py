@@ -36,6 +36,10 @@ class QueuedAction(BaseModel):
     description_fr: str
     description_en: str = ""
 
+    # Preview hint (pressentiment narratif affiche avant Jump)
+    # Ex: "La mer va devenir une frontiere." pour un blocus
+    preview_hint_fr: Optional[str] = None
+
     # Cost (reserved when queued)
     political_cost: int = 0
     risk_level: str = "low"  # low, medium, high, extreme
@@ -217,6 +221,130 @@ class ActionQueue(BaseModel):
         return queue
 
 
+# =============================================================================
+# PREVIEW HINTS - Pressentiments narratifs (pas de chiffres!)
+# =============================================================================
+# Affiches AVANT le Jump pour que le joueur sente l'impact sans what-if numerique
+
+PREVIEW_HINTS = {
+    # Military actions
+    "MIL_BLOCKADE": [
+        "La mer va devenir une frontiere.",
+        "Les navires attendent votre ordre.",
+        "Le blocus est une declaration sans mots.",
+    ],
+    "MIL_REINFORCE": [
+        "Les troupes se deploient en silence.",
+        "Chaque soldat envoye est un message.",
+        "La presence militaire dit ce que la diplomatie ne peut pas.",
+    ],
+    "MIL_DEMO": [
+        "Le tonnerre des armes parlera pour vous.",
+        "Une demonstration de force. Rien de plus... pour l'instant.",
+        "Ils verront votre puissance. Ils comprendront.",
+    ],
+    "MIL_THREAT": [
+        "Les mots peuvent tuer, parfois.",
+        "Une menace n'est efficace que si l'on croit qu'elle sera executee.",
+        "Le doute que vous semez vaut mille soldats.",
+    ],
+
+    # Diplomatic actions
+    "DIPLO_BACKCHANNEL": [
+        "Une porte reste entrouverte.",
+        "Dans l'ombre, quelqu'un ecoute encore.",
+        "Les vrais messages passent loin des cameras.",
+    ],
+    "DIPLO_SUMMIT": [
+        "Face a face. Les yeux ne mentent pas.",
+        "Un sommet peut tout changer. Ou rien.",
+        "Quand les dirigeants se regardent, le monde retient son souffle.",
+    ],
+    "DIPLO_CONCESSION": [
+        "Ceder pour mieux tenir.",
+        "Un compromis n'est pas une defaite.",
+        "Parfois, plier evite de rompre.",
+    ],
+    "DIPLO_ULTIMATUM": [
+        "Les mots ultimes. Apres, il n'y a que l'acte.",
+        "Un ultimatum ne se retire pas.",
+        "La ligne rouge est tracee. Elle ne bougera plus.",
+    ],
+
+    # Covert actions
+    "COV_INTEL": [
+        "Savoir, c'est pouvoir. Mais pas encore agir.",
+        "Les ombres collectent ce que la lumiere ignore.",
+        "Plus vous savez, plus vos choix seront clairs.",
+    ],
+    "COV_DESTAB": [
+        "Les graines du chaos sont semees.",
+        "Ce qui semble stable peut s'effondrer vite.",
+        "Dans le noir, des mains travaillent.",
+    ],
+    "COV_PROPAGANDA": [
+        "Les mots sont des armes silencieuses.",
+        "Changer les esprits prend du temps. Mais ca dure.",
+        "La verite a plusieurs visages. Choisissez lequel montrer.",
+    ],
+
+    # Economic actions
+    "ECO_AID": [
+        "L'argent achete l'amitie. Parfois.",
+        "Un investissement dans le futur... politique.",
+        "Chaque dollar envoye est un fil invisible.",
+    ],
+    "ECO_SANCTION": [
+        "L'economie peut etrangler sans bruit.",
+        "Les sanctions sont une guerre lente.",
+        "Priver, c'est affaiblir. Mais la haine grandit aussi.",
+    ],
+
+    # Crisis management
+    "CRISIS_DEESCALATE": [
+        "Reculer n'est pas toujours perdre.",
+        "Parfois, le plus brave est celui qui s'arrete.",
+        "La desescalade demande plus de courage que l'attaque.",
+    ],
+    "CRISIS_ESCALATE": [
+        "Monter les encheres. Mais qui suivra?",
+        "L'escalade est un jeu sans gagnant assure.",
+        "Plus haut. Plus fort. Plus dangereux.",
+    ],
+}
+
+
+def get_preview_hint(intention_type: str) -> Optional[str]:
+    """
+    Retourne un pressentiment narratif pour une action.
+
+    Le joueur voit ce hint AVANT le Jump pour comprendre
+    qualitativement l'impact de son action.
+
+    Args:
+        intention_type: Type d'intention (MIL_BLOCKADE, DIPLO_SUMMIT, etc.)
+
+    Returns:
+        String du hint ou None si pas de hint disponible
+    """
+    import random
+
+    hints = PREVIEW_HINTS.get(intention_type, [])
+    if not hints:
+        # Fallback par categorie
+        category = intention_type.split("_")[0] if "_" in intention_type else intention_type
+        category_fallbacks = {
+            "MIL": ["Force projetee. Message envoye."],
+            "DIPLO": ["Les mots sont en mouvement."],
+            "COV": ["Dans l'ombre, les rouages tournent."],
+            "ECO": ["L'argent parle sa propre langue."],
+            "CRISIS": ["Le monde attend votre choix."],
+        }
+        hints = category_fallbacks.get(category, [])
+
+    return random.choice(hints) if hints else None
+
+
 def create_queued_action(
     intention_type: str,
     intention_id: str,
@@ -228,7 +356,7 @@ def create_queued_action(
     predicted_effects: Optional[Dict[str, Any]] = None,
     source_text: str = "",
 ) -> QueuedAction:
-    """Factory function to create a QueuedAction"""
+    """Factory function to create a QueuedAction with auto-generated preview hint"""
     return QueuedAction(
         intention_type=intention_type,
         intention_id=intention_id,
@@ -239,4 +367,5 @@ def create_queued_action(
         target_actor=target_actor,
         predicted_effects=predicted_effects or {},
         source_text=source_text,
+        preview_hint_fr=get_preview_hint(intention_type),
     )

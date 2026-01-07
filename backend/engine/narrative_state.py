@@ -72,6 +72,21 @@ class ResolutionOutcome(str, Enum):
     SABOTAGED_SUCCESS = "sabotaged"  # Success but leak/opposition
 
 
+class ScenarioSeed(str, Enum):
+    """Cuba crisis variant - changes beat flavor without changing mechanics.
+
+    The player never sees A/B/C - they feel it through the narrative beats.
+    Each seed biases which templates and events are generated.
+
+    CUBA_NAVAL: Focus naval (sous-marins, blocus, incidents maritimes)
+    CUBA_DIPLO: Focus diplomatique (ONU, allies, backchannels, humiliation)
+    CUBA_COVERT: Focus covert (fuites, sabotage, rumeurs KGB/CIA)
+    """
+    CUBA_NAVAL = "naval"     # Submarines, blockade, naval incidents
+    CUBA_DIPLO = "diplo"     # UN, allies, backchannels, public humiliation
+    CUBA_COVERT = "covert"   # Leaks, sabotage, KGB/CIA rumors
+
+
 # =============================================================================
 # ACTION LOG (Fronts Vivants v2 - base sur les ACTIONS, pas les metriques)
 # =============================================================================
@@ -505,6 +520,10 @@ class NarrativeWorldState(BaseModel):
     year: int = 1962
     month: int = 10  # October 1962 - Cuban Missile Crisis
     turn: int = 1
+
+    # Scenario seed (hidden - affects narrative flavor, not mechanics)
+    # Randomly chosen at game start, never shown to player
+    scenario_seed: ScenarioSeed = ScenarioSeed.CUBA_NAVAL
 
     # Game phase (PaxHistoria-style)
     game_phase: GamePhase = GamePhase.ACCUMULATING
@@ -1076,7 +1095,11 @@ class NarrativeWorldState(BaseModel):
 
 def create_initial_state() -> NarrativeWorldState:
     """Create initial game state for Cuban Missile Crisis scenario"""
+    import random
     state = NarrativeWorldState()
+
+    # Randomize scenario seed (hidden from player)
+    state.scenario_seed = random.choice(list(ScenarioSeed))
 
     # Initialize 12 zones
     zones_data = [
@@ -1143,5 +1166,5 @@ def create_initial_state() -> NarrativeWorldState:
         "zone_middle_east": 55,
     }
 
-    logger.info("Created initial NarrativeWorldState for October 1962")
+    logger.info(f"Created initial NarrativeWorldState for October 1962 (seed={state.scenario_seed.value})")
     return state

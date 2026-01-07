@@ -107,6 +107,7 @@ class GameDebrief:
     ai_errors: List[AIStrategicError] = field(default_factory=list)  # Erreurs de l'IA
     victory_scar: str = ""              # Prix de la victoire (si victoire)
     defeat_wisdom: str = ""             # Ligne psychologique (si defaite)
+    replay_hook: str = ""               # Derniere ligne qui pousse au replay
 
     def to_dict(self) -> Dict:
         result = {
@@ -127,6 +128,8 @@ class GameDebrief:
             result["victory_scar"] = self.victory_scar
         if self.defeat_wisdom:
             result["defeat_wisdom"] = self.defeat_wisdom
+        if self.replay_hook:
+            result["replay_hook"] = self.replay_hook
         return result
 
 
@@ -250,6 +253,73 @@ DEFEAT_WISDOM = {
         "Une erreur. Une seule. C'est tout ce qu'il fallait.",
     ],
 }
+
+# =============================================================================
+# REPLAY HOOKS - La derniere ligne qui pousse au replay
+# =============================================================================
+
+VICTORY_HOOKS = {
+    "crisis_resolved": [
+        "Vous avez eteint l'incendie.\nLe prochain commencera ailleurs.",
+        "Cuba est calme.\nMais Berlin, Saigon, Prague... le monde ne l'est pas.",
+        "Vous avez gagne du temps.\nL'Histoire n'en a pas fini avec vous.",
+    ],
+    "domination": [
+        "Le monde libre respire.\nMais les ombres n'ont pas disparu.",
+        "Vous avez gagne la Guerre Froide.\nLa paix est une autre bataille.",
+    ],
+    "survival": [
+        "Vous avez survecu.\nC'etait le maximum. C'etait peut-etre assez.",
+    ],
+}
+
+DEFEAT_HOOKS = {
+    "apocalypse": [
+        "Vous n'avez pas perdu sur Cuba.\nVous avez perdu avant.",
+        "Le dernier missile n'etait pas le probleme.\nC'etait tous les autres.",
+        "Quelqu'un devait ceder.\nPersonne n'a voulu etre ce quelqu'un.",
+    ],
+    "coup_etat": [
+        "Le Pentagone n'a pas pris le pouvoir.\nVous l'avez laisse vacant.",
+        "L'inaction n'est pas une strategie.\nC'est une invitation.",
+    ],
+    "defeat_honorable": [
+        "Vous n'avez pas perdu une bataille.\nVous avez perdu une generation.",
+        "Zone apres zone, le monde a choisi.\nIl n'a pas choisi vous.",
+    ],
+}
+
+
+def get_hook_line(end_reason: str, victory: bool, key_causes: list = None) -> str:
+    """
+    Genere la derniere ligne du debrief - le crochet qui pousse au replay.
+
+    Cette ligne ne donne pas de conseil. Elle pose une question implicite
+    qui donne envie de relancer une partie.
+
+    Args:
+        end_reason: Type de fin (apocalypse, crisis_resolved, etc.)
+        victory: True si victoire
+        key_causes: Causes principales (optionnel, pour personnalisation future)
+
+    Returns:
+        String avec la hook line (peut contenir \\n pour 2 lignes)
+    """
+    import random
+
+    if victory:
+        hooks = VICTORY_HOOKS.get(end_reason, VICTORY_HOOKS.get("survival", []))
+    else:
+        hooks = DEFEAT_HOOKS.get(end_reason, DEFEAT_HOOKS.get("apocalypse", []))
+
+    if not hooks:
+        # Fallback generique
+        if victory:
+            return "Ce n'est pas fini.\nCa ne l'est jamais."
+        else:
+            return "Recommencez.\nCette fois, vous savez."
+
+    return random.choice(hooks)
 
 
 # =============================================================================
@@ -674,6 +744,9 @@ def compose_debrief(
         else:
             defeat_wisdom = random.choice(DEFEAT_WISDOM["mid"])
 
+    # 9. Replay hook (derniere ligne qui pousse au replay)
+    replay_hook = get_hook_line(end_reason, victory, causes)
+
     debrief = GameDebrief(
         end_reason=end_reason,
         victory=victory,
@@ -686,9 +759,10 @@ def compose_debrief(
         ai_errors=ai_errors or [],
         victory_scar=victory_scar,
         defeat_wisdom=defeat_wisdom,
+        replay_hook=replay_hook,
     )
 
-    logger.info(f"Debrief composed: {end_reason}, {len(causes)} causes, scar={bool(victory_scar)}, wisdom={bool(defeat_wisdom)}")
+    logger.info(f"Debrief composed: {end_reason}, {len(causes)} causes, hook={bool(replay_hook)}")
     return debrief
 
 

@@ -164,6 +164,7 @@ class JumpEngine:
             "month": state.month,
             "defcon": state.defcon,
             "tension": state.world_tension,
+            "scenario_seed": state.scenario_seed.value if hasattr(state, 'scenario_seed') else None,
         }
         all_zones = state.zones  # Pour effets domino
 
