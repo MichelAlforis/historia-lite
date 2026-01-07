@@ -257,7 +257,7 @@ export default function TutorialOverlay({
               )}
               <button
                 onClick={handleNext}
-                disabled={step.action_required && !actionCompleted}
+                disabled={!!(step.action_required && !actionCompleted)}
                 className={`flex items-center gap-1 px-4 py-1.5 text-sm rounded-lg transition ${
                   step.action_required && !actionCompleted
                     ? 'bg-slate-700 text-slate-500 cursor-not-allowed'

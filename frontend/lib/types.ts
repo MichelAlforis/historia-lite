@@ -1208,7 +1208,21 @@ export const AGREEMENT_TYPE_COLORS: Record<AgreementType, string> = {
 // SCENARIOS & OBJECTIVES SYSTEM
 // =============================================================================
 
-export type ScenarioDifficulty = 'easy' | 'normal' | 'hard' | 'extreme' | 'custom';
+export type ScenarioDifficulty = 'tutorial' | 'easy' | 'normal' | 'hard' | 'extreme' | 'custom';
+
+// Tutorial Types (needed for ScenarioDetail)
+export interface TutorialStep {
+  id: string;
+  title_fr: string;
+  content_fr: string;
+  highlight: string | null;
+  action_required: string | null;
+}
+
+export interface TutorialConfig {
+  enabled: boolean;
+  steps: TutorialStep[];
+}
 
 export interface ScenarioSummary {
   id: string;
@@ -1234,6 +1248,7 @@ export interface ScenarioDetail extends ScenarioSummary {
   modified_countries: Record<string, Record<string, unknown>>;
   recommended_countries: string[];
   customizable: boolean;
+  tutorial_config?: TutorialConfig;
 }
 
 export interface ObjectiveSummary {
@@ -1270,6 +1285,7 @@ export interface ScenarioInitData {
 
 // Scenario difficulty colors
 export const DIFFICULTY_COLORS: Record<ScenarioDifficulty, string> = {
+  tutorial: 'bg-emerald-500',
   easy: 'bg-green-500',
   normal: 'bg-blue-500',
   hard: 'bg-orange-500',
@@ -1279,6 +1295,7 @@ export const DIFFICULTY_COLORS: Record<ScenarioDifficulty, string> = {
 
 // Scenario difficulty names (French)
 export const DIFFICULTY_NAMES: Record<ScenarioDifficulty, string> = {
+  tutorial: 'Tutoriel',
   easy: 'Facile',
   normal: 'Normal',
   hard: 'Difficile',
@@ -1967,42 +1984,6 @@ export function formatMonthYear(year: number, month: number, lang: 'fr' | 'en' =
   return `${months[month - 1]} ${year}`;
 }
 
-// Tutorial Types
-export interface TutorialStep {
-  id: string;
-  title_fr: string;
-  content_fr: string;
-  highlight: string | null;
-  action_required: string | null;
-}
-
-export interface TutorialConfig {
-  enabled: boolean;
-  steps: TutorialStep[];
-}
-
-export interface ScenarioSummary {
-  id: string;
-  name: string;
-  name_fr: string;
-  description: string;
-  start_year: number;
-  difficulty: string;
-  duration: number | null;
-  icon: string;
-  tags: string[];
-}
-
-export interface ScenarioDetail extends ScenarioSummary {
-  initial_state: Record<string, any>;
-  objectives: Record<string, string[]>;
-  active_conflicts: Array<Record<string, any>>;
-  modified_countries: Record<string, any>;
-  recommended_countries: string[];
-  customizable: boolean;
-  tutorial_config?: TutorialConfig;
-}
-
 /**
  * Get importance badge color
  */
@@ -2314,6 +2295,7 @@ export interface AutoAdvanceResponse {
   pause_message: string | null;
   pause_message_fr: string | null;
   events_count: number;
+  events?: GameEvent[];
   final_date: string;
   final_date_fr: string;
   game_ended: boolean;
@@ -2329,6 +2311,8 @@ export interface DailyTickResponse {
   day: number;
   date_display: string;
   date_display_fr: string;
+  date_display_full?: string;
+  date_display_full_fr?: string;
   events: GameEvent[];
   timeline_events: TimelineEventBrief[];
   summary: string;

@@ -19,6 +19,13 @@ V1.7: L'IA genere l'archetype presidentiel dynamiquement
 - L'IA synthetise une identite unique basee sur le style de jeu
 - Fallback sur archetypes si Ollama indisponible
 
+V1.7.1: Parsing durci pour fiabilite
+- ID genere cote code (pas par l'IA) -> 100% valide
+- Validation stricte: regex + limites de longueur
+- One retry repair avant fallback
+- Temperature 0.7 (moins creatif, plus fiable)
+- Prompt durci: JSON only, contraintes explicites
+
 UTILISE:
 - NarrativeWorldState pour l'etat du monde
 - SilenceState pour l'historique du silence
@@ -646,10 +653,10 @@ async def generate_archetype_with_ai(
     """
     Genere un archetype presidentiel unique via LLM.
 
-    L'IA synthetise une identite basee sur:
-    - Le style de jeu (hawk/dove, actif/passif)
-    - Les moments cles de la partie
-    - Le type de fin (victoire/defaite, cause)
+    V1.7.1: Version durcie avec:
+    - ID genere cote code (pas par l'IA)
+    - Validation stricte des champs
+    - One retry repair avant fallback
 
     Args:
         victory: True si victoire
@@ -664,6 +671,9 @@ async def generate_archetype_with_ai(
     """
     # Calculer le style de jeu pour contexte
     playstyle = calculate_playstyle_scores(world_state, turn_history, silence_state)
+
+    # V1.7.1: Generer l'ID cote code (fiable)
+    archetype_id = _generate_archetype_id(playstyle, victory, end_reason)
 
     # Construire le prompt pour l'IA
     prompt = _build_archetype_prompt(
@@ -684,8 +694,8 @@ async def generate_archetype_with_ai(
                     "prompt": prompt,
                     "stream": False,
                     "options": {
-                        "temperature": 0.8,  # Un peu plus creatif
-                        "num_predict": 400,
+                        "temperature": 0.7,  # V1.7.1: Un peu moins creatif pour fiabilite
+                        "num_predict": 350,
                     },
                 },
                 timeout=settings.ollama_timeout,
@@ -696,14 +706,33 @@ async def generate_archetype_with_ai(
                 return get_presidential_archetype(victory, world_state, turn_history, silence_state)
 
             result = response.json()
-            archetype = _parse_archetype_response(result.get("response", ""))
+            raw_response = result.get("response", "")
+
+            # V1.7.1: Parser avec ID genere cote code
+            archetype = _parse_archetype_response(raw_response, archetype_id)
 
             if archetype:
                 logger.info(f"AI generated archetype: {archetype['id']}")
                 return archetype
-            else:
-                logger.warning("Failed to parse AI archetype, using fallback")
-                return get_presidential_archetype(victory, world_state, turn_history, silence_state)
+
+            # V1.7.1: One retry repair avant fallback
+            logger.info("First parse failed, attempting repair...")
+            repaired = await _repair_archetype_response(
+                raw_response,
+                settings.ollama_url,
+                settings.ollama_model,
+                settings.ollama_timeout,
+            )
+
+            if repaired:
+                archetype = _parse_archetype_response(repaired, archetype_id)
+                if archetype:
+                    logger.info(f"AI archetype repaired: {archetype['id']}")
+                    return archetype
+
+            # Fallback final
+            logger.warning("Failed to parse/repair AI archetype, using fallback")
+            return get_presidential_archetype(victory, world_state, turn_history, silence_state)
 
     except httpx.TimeoutException:
         logger.warning("Ollama timeout for archetype generation")
@@ -726,11 +755,10 @@ def _build_archetype_prompt(
     """
     Construit le prompt pour generer un archetype presidentiel unique.
 
-    Le prompt donne a l'IA:
-    - Le style de jeu (scores)
-    - Les moments cles de la partie
-    - Le type de fin
-    - Des exemples de ton voulu
+    V1.7.1: Prompt durci avec contraintes strictes pour parsing fiable.
+    - L'ID est genere cote code (pas par l'IA)
+    - Contraintes de longueur explicites
+    - Format JSON strict sans prose
     """
     hawk_score = playstyle.get("hawk_score", 0)
     action_score = playstyle.get("action_score", 0)
@@ -781,50 +809,172 @@ def _build_archetype_prompt(
     fin_fr = end_reasons_fr.get(end_reason, end_reason)
     victoire_ou_defaite = "VICTOIRE" if victory else "DEFAITE"
 
-    prompt = f"""Tu es un historien analysant la presidence d'un joueur dans un jeu de Guerre Froide.
+    # V1.7.1: Prompt durci - JSON only, contraintes strictes
+    prompt = f"""Tu es un historien. Genere un archetype presidentiel pour ce joueur.
 
-STYLE DE JEU DU JOUEUR:
+CONTEXTE:
 - Posture: {style_hawk}
 - Activite: {style_action}
 - Escalation: {escalation_text}
-- Actions cles: {key_moments_text}
+- Fin: {victoire_ou_defaite} - {fin_fr}
 
-RESULTAT: {victoire_ou_defaite} - {fin_fr}
+CONTRAINTES STRICTES:
+1. title: commence par "Le President de/du/des", max 50 caracteres
+2. phrase: commence par "Vous avez", 60-150 caracteres, au passe
+3. history_line: commence par "Dans les livres d'histoire", 70-180 caracteres
 
-MISSION:
-Genere un archetype presidentiel UNIQUE qui capture l'IDENTITE de ce joueur.
-Ce n'est pas un jugement, c'est une synthese identitaire.
+EXEMPLES (ne pas copier):
+- "Le President du compromis risque" / "Vous avez cru que le temps etait votre allie."
+- "Le President de la dissuasion froide" / "Vous avez montre les crocs sans jamais mordre."
 
-EXEMPLES DE TON (pour t'inspirer, ne pas copier):
-- "Le President du compromis risque" - "Vous avez cru que le temps etait votre allie."
-- "Le President de la dissuasion froide" - "Vous avez montre les crocs sans jamais mordre."
-- "Le President du silence dangereux" - "Vous avez attendu. Le monde n'a pas attendu avec vous."
+IMPORTANT:
+- Reponds UNIQUEMENT avec un objet JSON valide
+- Pas de texte avant ou apres le JSON
+- Pas de guillemets francais, utilise des guillemets droits
+- 3 cles exactement: title, phrase, history_line
 
-REGLES:
-1. L'ID doit etre en snake_case (ex: "iron_dove", "patient_hawk")
-2. Le titre commence par "Le President de/du/des..."
-3. La phrase est au PASSE, adresse au joueur ("Vous avez...")
-4. L'history_line commence par "Dans les livres d'histoire..."
-5. AUCUN chiffre, AUCUNE statistique
-6. Ton: historien, documentaire, pas moralisateur
-
-Reponds UNIQUEMENT avec ce JSON:
-{{"id": "snake_case_id", "title": "Le President de...", "phrase": "Vous avez...", "history_line": "Dans les livres d'histoire..."}}
-
-Ta synthese:"""
+{{"title": "Le President de...", "phrase": "Vous avez...", "history_line": "Dans les livres d'histoire..."}}"""
 
     return prompt
 
 
-def _parse_archetype_response(response: str) -> Optional[Dict[str, str]]:
+def _generate_archetype_id(playstyle: Dict[str, int], victory: bool, end_reason: str) -> str:
+    """
+    Genere un ID d'archetype cote code (pas par l'IA).
+
+    V1.7.1: L'ID est deterministe base sur le style de jeu.
+    Evite les erreurs de parsing et garantit un format valide.
+    """
+    import re
+
+    hawk_score = playstyle.get("hawk_score", 0)
+    action_score = playstyle.get("action_score", 0)
+    escalation_avoided = playstyle.get("escalation_avoided", True)
+
+    # Premier mot: posture
+    if hawk_score > 40:
+        posture = "iron"
+    elif hawk_score > 0:
+        posture = "firm"
+    elif hawk_score > -40:
+        posture = "cautious"
+    else:
+        posture = "peaceful"
+
+    # Deuxieme mot: activite
+    if action_score > 40:
+        activity = "hawk"
+    elif action_score > 0:
+        activity = "player"
+    elif action_score > -40:
+        activity = "watcher"
+    else:
+        activity = "silent"
+
+    # Modificateur selon fin
+    if end_reason == "apocalypse":
+        suffix = "_fallen"
+    elif end_reason == "coup_etat":
+        suffix = "_betrayed"
+    elif victory:
+        suffix = "_victor"
+    else:
+        suffix = ""
+
+    # Ajouter variation si escalade
+    if not escalation_avoided and hawk_score > 0:
+        activity = "escalator"
+
+    archetype_id = f"{posture}_{activity}{suffix}"
+
+    # Sanitize: lowercase, underscores only, 2-4 tokens
+    archetype_id = re.sub(r'[^a-z_]', '', archetype_id.lower())
+    archetype_id = re.sub(r'_+', '_', archetype_id)  # pas de double underscore
+
+    return archetype_id
+
+
+def _soft_repair_json(raw: str) -> str:
+    """
+    Repair local ultra-simple avant retry LLM.
+
+    V1.7.1: Economise des calls LLM en corrigeant les erreurs courantes.
+    """
+    import re
+
+    # 1. Nettoyer guillemets francais (curly quotes -> straight quotes)
+    # U+201C (left double) et U+201D (right double) -> U+0022 (straight double)
+    raw = raw.replace('\u201c', '"').replace('\u201d', '"')
+    # U+2018 (left single) et U+2019 (right single) -> U+0027 (straight single)
+    raw = raw.replace('\u2018', "'").replace('\u2019', "'")
+    # Guillemets chevrons francais
+    raw = raw.replace('\u00ab', '"').replace('\u00bb', '"')
+
+    # 2. Extraire le premier {...} avec regex gourmande
+    match = re.search(r'\{[^{}]*\}', raw, re.DOTALL)
+    if not match:
+        # Essayer version plus permissive (nested possible)
+        match = re.search(r'\{.*\}', raw, re.DOTALL)
+
+    if match:
+        raw = match.group(0)
+
+    # 3. Virer trailing commas avant }
+    raw = re.sub(r',\s*\}', '}', raw)
+
+    # 4. Virer newlines dans les valeurs (cause de parse errors)
+    raw = re.sub(r'"\s*\n\s*', '" ', raw)
+
+    return raw
+
+
+def _smart_truncate(text: str, max_len: int) -> str:
+    """
+    Troncature intelligente sur ponctuation.
+
+    V1.7.1: Coupe au dernier . ! ? ou espace avant la limite.
+    Pas de "..." ajoute (style War Room / archives).
+    """
+    if len(text) <= max_len:
+        return text
+
+    # Chercher la derniere ponctuation forte avant max_len
+    truncated = text[:max_len]
+
+    # Priorite: . ! ? puis espace
+    for sep in ['. ', '! ', '? ', '.', '!', '?']:
+        last_pos = truncated.rfind(sep)
+        if last_pos > max_len * 0.6:  # Au moins 60% du texte garde
+            return truncated[:last_pos + len(sep)].strip()
+
+    # Sinon couper au dernier espace
+    last_space = truncated.rfind(' ')
+    if last_space > max_len * 0.7:
+        return truncated[:last_space].strip()
+
+    # Dernier recours: coupe brute
+    return truncated.strip()
+
+
+def _parse_archetype_response(response: str, archetype_id: str) -> Optional[Dict[str, str]]:
     """
     Parse la reponse de l'IA pour extraire l'archetype.
+
+    V1.7.1: Validation stricte avec regex et limites de longueur.
+    L'ID est fourni par le code, pas par l'IA.
+
+    Args:
+        response: Reponse brute de l'IA
+        archetype_id: ID genere cote code
 
     Returns:
         Dict avec id, title, phrase, history_line ou None si echec
     """
+    import re
+
     try:
-        response = response.strip()
+        # V1.7.1: Soft repair local d'abord
+        response = _soft_repair_json(response)
 
         # Trouver le JSON dans la reponse
         start = response.find("{")
@@ -837,29 +987,66 @@ def _parse_archetype_response(response: str) -> Optional[Dict[str, str]]:
         json_str = response[start:end]
         data = json.loads(json_str)
 
-        # Valider les champs requis
-        required_fields = ["id", "title", "phrase", "history_line"]
-        for field in required_fields:
-            if field not in data or not data[field]:
-                logger.warning(f"Missing field in archetype: {field}")
+        # V1.7.1: Valider uniquement title, phrase, history_line (id genere cote code)
+        required_fields = ["title", "phrase", "history_line"]
+        for fld in required_fields:
+            if fld not in data or not data[fld]:
+                logger.warning(f"Missing field in archetype: {fld}")
                 return None
 
-        # Nettoyer et valider
+        title = str(data["title"]).strip()
+        phrase = str(data["phrase"]).strip()
+        history_line = str(data["history_line"]).strip()
+
+        # === VALIDATION STRICTE ===
+
+        # Title: commence par "Le President", max 60 chars
+        if not re.match(r'^Le Pr[eé]sident', title):
+            if "President" in title or "Président" in title:
+                pass  # Acceptable
+            else:
+                title = f"Le President {title}"
+
+        if len(title) > 60:
+            title = _smart_truncate(title, 57)
+
+        # Phrase: commence par "Vous avez", 40-180 chars
+        if not phrase.startswith("Vous avez"):
+            if phrase.startswith("Vous"):
+                pass  # Acceptable
+            else:
+                logger.warning(f"Phrase doesn't start with 'Vous avez': {phrase[:50]}")
+                return None
+
+        if len(phrase) < 40:
+            logger.warning(f"Phrase too short: {len(phrase)} chars")
+            return None
+        if len(phrase) > 180:
+            phrase = _smart_truncate(phrase, 175)
+
+        # History_line: commence par "Dans les livres", 50-200 chars
+        if not history_line.startswith("Dans les livres"):
+            if "histoire" in history_line.lower():
+                pass  # Acceptable
+            else:
+                logger.warning(f"History_line invalid: {history_line[:50]}")
+                return None
+
+        if len(history_line) < 50:
+            logger.warning(f"History_line too short: {len(history_line)} chars")
+            return None
+        if len(history_line) > 200:
+            history_line = _smart_truncate(history_line, 195)
+
+        # Construire l'archetype valide
         archetype = {
-            "id": data["id"].lower().replace(" ", "_").replace("-", "_"),
-            "title": data["title"],
-            "phrase": data["phrase"],
-            "history_line": data["history_line"],
+            "id": archetype_id,  # ID genere cote code, pas par l'IA
+            "title": title,
+            "phrase": phrase,
+            "history_line": history_line,
         }
 
-        # Validation basique
-        if not archetype["title"].startswith("Le President"):
-            # Corriger si possible
-            if "President" in archetype["title"]:
-                pass  # OK
-            else:
-                archetype["title"] = f"Le President {archetype['title']}"
-
+        logger.info(f"Archetype parsed: {archetype_id}, title={title[:30]}...")
         return archetype
 
     except json.JSONDecodeError as e:
@@ -868,6 +1055,48 @@ def _parse_archetype_response(response: str) -> Optional[Dict[str, str]]:
     except Exception as e:
         logger.warning(f"Error parsing archetype: {e}")
         return None
+
+
+async def _repair_archetype_response(
+    raw_response: str,
+    ollama_url: str,
+    ollama_model: str,
+    timeout: float,
+) -> Optional[str]:
+    """
+    Tente de reparer une reponse JSON invalide via un second appel LLM.
+
+    V1.7.1: One retry repair avant fallback.
+    """
+    repair_prompt = f"""La reponse suivante devrait etre un JSON valide mais ne l'est pas.
+Repare-la en retournant UNIQUEMENT un JSON valide avec les cles: title, phrase, history_line.
+
+Reponse a reparer:
+{raw_response[:500]}
+
+JSON repare:"""
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{ollama_url}/api/generate",
+                json={
+                    "model": ollama_model,
+                    "prompt": repair_prompt,
+                    "stream": False,
+                    "options": {"temperature": 0.3, "num_predict": 300},
+                },
+                timeout=timeout,
+            )
+
+            if response.status_code == 200:
+                result = response.json()
+                return result.get("response", "")
+
+    except Exception as e:
+        logger.warning(f"Repair attempt failed: {e}")
+
+    return None
 
 
 # =============================================================================
