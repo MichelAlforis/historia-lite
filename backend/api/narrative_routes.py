@@ -702,12 +702,12 @@ async def jump_forward(request: JumpForwardRequest):
         silence_events.append({
             "type": "silence_consequence",
             "category": "autonomous_action",
-            "title_fr": se.narrative,
-            "description_fr": se.narrative,
-            "actor": se.actor.value if se.actor else None,
-            "event_type": se.event_type.value,
+            "title_fr": se.title_fr,
+            "description_fr": se.description_fr,
+            "actor": se.actor.value if hasattr(se, 'actor') and se.actor else None,
+            "event_type": se.type.value,
             "effects": se.effects,
-            "importance": "major" if se.event_type.value in ["fait_accompli", "loss_of_control"] else "normal",
+            "importance": "major" if se.type.value in ["fait_accompli", "loss_of_control"] else "normal",
         })
 
     if silence_events:

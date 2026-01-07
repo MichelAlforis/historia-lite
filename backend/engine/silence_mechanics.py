@@ -484,9 +484,12 @@ def apply_silence_effects(
             delta = effects["intel_exposure"]
             world_state.player.intel_exposure = min(100, world_state.player.intel_exposure + delta)
 
+        # action_capacity is computed from political_capital, so reduce capital instead
         if "action_capacity" in effects:
             delta = effects["action_capacity"]
-            world_state.player.action_capacity = max(1, world_state.player.action_capacity + delta)
+            # Each capacity point = ~15 political capital reduction
+            capital_delta = delta * 15
+            world_state.player.political_capital = max(0, min(100, world_state.player.political_capital + capital_delta))
 
         logger.info(f"Applied silence effects: {event.id} -> {effects}")
 
