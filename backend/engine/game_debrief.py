@@ -105,6 +105,8 @@ class GameDebrief:
     press_headlines: List[PressHeadline] = field(default_factory=list)
     final_state_summary: Dict[str, str] = field(default_factory=dict)
     ai_errors: List[AIStrategicError] = field(default_factory=list)  # Erreurs de l'IA
+    victory_scar: str = ""              # Prix de la victoire (si victoire)
+    defeat_wisdom: str = ""             # Ligne psychologique (si defaite)
 
     def to_dict(self) -> Dict:
         result = {
@@ -121,6 +123,10 @@ class GameDebrief:
             result["press_headlines"] = [p.to_dict() for p in self.press_headlines]
         if self.ai_errors:
             result["ai_errors"] = [e.to_dict() for e in self.ai_errors]
+        if self.victory_scar:
+            result["victory_scar"] = self.victory_scar
+        if self.defeat_wisdom:
+            result["defeat_wisdom"] = self.defeat_wisdom
         return result
 
 
@@ -203,6 +209,45 @@ DEFEAT_NARRATIVES = {
         "La crise est passee. Treize jours au bord du gouffre. "
         "Vous avez negocie, menace, recule au bon moment. "
         "L'Histoire retiendra que vous avez choisi de ne pas appuyer sur le bouton.",
+    ],
+}
+
+# =============================================================================
+# VICTORY SCARS - Le prix de la victoire (jamais parfaite)
+# =============================================================================
+
+VICTORY_SCARS = {
+    "crisis_resolved": [
+        "Mais a Paris, on se souviendra de votre silence.",
+        "Le Pentagone, lui, n'a rien oublie.",
+        "Castro est toujours la. Et il n'oubliera pas.",
+        "Les faucons murmurent deja que vous avez ete faible.",
+        "A Moscou, certains pensent que vous bluffiez. Ils tenteront a nouveau.",
+        "Vos allies europeens se demandent si vous les auriez defendus.",
+        "La CIA a perdu des agents. Leurs noms ne seront jamais connus.",
+        "Le compromis a un gout amer. Mais c'est le gout de la survie.",
+    ],
+}
+
+# =============================================================================
+# DEFEAT WISDOM - Ligne psychologique selon timing
+# =============================================================================
+
+DEFEAT_WISDOM = {
+    "early": [  # Turn <= 5
+        "Vous avez perdu vite. Mais vous avez compris tot.",
+        "L'echec rapide enseigne plus que le succes lent.",
+        "Recommencez. Cette fois, vous savez ce qui compte.",
+    ],
+    "late": [  # Turn > 8
+        "Vous avez tenu longtemps. Peut-etre trop.",
+        "Chaque jour gagne etait un miracle. Le dernier ne l'etait pas.",
+        "L'epuisement n'est pas une strategie. Mais vous le saviez.",
+    ],
+    "mid": [  # Turn 6-8
+        "Ni trop tot, ni trop tard. Juste... pas assez.",
+        "Vous avez joue correctement. Le monde ne l'etait pas.",
+        "Une erreur. Une seule. C'est tout ce qu'il fallait.",
     ],
 }
 
@@ -613,6 +658,22 @@ def compose_debrief(
     # 6. Resume de l'etat final (narrativise)
     final_summary = _compose_final_summary(world_state, end_reason, victory)
 
+    # 7. Victory scar (le prix de la victoire - jamais parfaite)
+    victory_scar = ""
+    if victory and end_reason in VICTORY_SCARS:
+        victory_scar = random.choice(VICTORY_SCARS[end_reason])
+
+    # 8. Defeat wisdom (ligne psychologique selon timing)
+    defeat_wisdom = ""
+    if not victory:
+        turn = getattr(world_state, 'turn', 5)
+        if turn <= 5:
+            defeat_wisdom = random.choice(DEFEAT_WISDOM["early"])
+        elif turn > 8:
+            defeat_wisdom = random.choice(DEFEAT_WISDOM["late"])
+        else:
+            defeat_wisdom = random.choice(DEFEAT_WISDOM["mid"])
+
     debrief = GameDebrief(
         end_reason=end_reason,
         victory=victory,
@@ -623,9 +684,11 @@ def compose_debrief(
         press_headlines=press_headlines,
         final_state_summary=final_summary,
         ai_errors=ai_errors or [],
+        victory_scar=victory_scar,
+        defeat_wisdom=defeat_wisdom,
     )
 
-    logger.info(f"Debrief composed: {end_reason}, {len(causes)} causes, {len(ai_errors or [])} AI errors")
+    logger.info(f"Debrief composed: {end_reason}, {len(causes)} causes, scar={bool(victory_scar)}, wisdom={bool(defeat_wisdom)}")
     return debrief
 
 

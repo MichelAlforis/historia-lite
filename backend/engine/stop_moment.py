@@ -48,6 +48,7 @@ class StopMoment:
     tone: StopTone
     angle: DramaticAngle
     tag: str = "moment_of_truth"
+    ritual_phrase: str = "Ce que vous ferez maintenant ne pourra pas etre defait."
 
     def to_dict(self) -> Dict:
         return {
@@ -57,6 +58,7 @@ class StopMoment:
             "tone": self.tone.value,
             "angle": self.angle.value,
             "tag": self.tag,
+            "ritual_phrase": self.ritual_phrase,
         }
 
 
