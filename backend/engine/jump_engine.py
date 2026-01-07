@@ -456,8 +456,8 @@ class JumpEngine:
                 narrative_scene=narrative_scene,
             ))
 
-        # DEFCON changes
-        if state.world_tension > 85 and state.defcon > 2:
+        # DEFCON changes - can go down to 1 (apocalypse threshold)
+        if state.world_tension > 85 and state.defcon > 1:
             state.defcon -= 1
             narrative_scene = await compose_narrative_scene(
                 event_type="defcon_lowered",
