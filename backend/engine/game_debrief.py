@@ -14,15 +14,25 @@ PHILOSOPHIE:
 - Juste une lecture historique narrative
 - Le joueur comprend a posteriori, pas pendant
 
+V1.7: L'IA genere l'archetype presidentiel dynamiquement
+- Plus d'archetypes hardcodes
+- L'IA synthetise une identite unique basee sur le style de jeu
+- Fallback sur archetypes si Ollama indisponible
+
 UTILISE:
 - NarrativeWorldState pour l'etat du monde
 - SilenceState pour l'historique du silence
 - NarrativeOrchestrator pour generer les scenes
+- OllamaAI pour generation d'archetypes (optionnel)
 """
 import logging
+import httpx
+import json
 from dataclasses import dataclass, field, asdict
 from typing import List, Dict, Optional, Any
 from enum import Enum
+
+from config import settings
 
 from engine.narrative_orchestrator import (
     NarrativeScene,
@@ -597,7 +607,7 @@ def get_presidential_archetype(
     silence_state: Any = None,
 ) -> Dict[str, str]:
     """
-    Determine l'archetype presidentiel pour le debrief.
+    Determine l'archetype presidentiel pour le debrief (version synchrone - fallback).
 
     Args:
         victory: True si victoire
@@ -620,6 +630,244 @@ def get_presidential_archetype(
         "phrase": archetype.phrase_fr,
         "history_line": archetype.history_line_fr,
     }
+
+
+# =============================================================================
+# AI-GENERATED ARCHETYPE - "L'IA decide"
+# =============================================================================
+
+async def generate_archetype_with_ai(
+    victory: bool,
+    world_state: Any,
+    turn_history: List[Dict] = None,
+    silence_state: Any = None,
+    end_reason: str = "unknown",
+) -> Dict[str, str]:
+    """
+    Genere un archetype presidentiel unique via LLM.
+
+    L'IA synthetise une identite basee sur:
+    - Le style de jeu (hawk/dove, actif/passif)
+    - Les moments cles de la partie
+    - Le type de fin (victoire/defaite, cause)
+
+    Args:
+        victory: True si victoire
+        world_state: Etat final du monde
+        turn_history: Historique des tours
+        silence_state: Etat du silence
+        end_reason: Type de fin (apocalypse, crisis_resolved, etc.)
+
+    Returns:
+        Dict avec id, title, phrase, history_line
+        Fallback sur archetype hardcode si IA indisponible
+    """
+    # Calculer le style de jeu pour contexte
+    playstyle = calculate_playstyle_scores(world_state, turn_history, silence_state)
+
+    # Construire le prompt pour l'IA
+    prompt = _build_archetype_prompt(
+        victory=victory,
+        playstyle=playstyle,
+        end_reason=end_reason,
+        turn_history=turn_history,
+        world_state=world_state,
+    )
+
+    try:
+        # Appel a Ollama
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{settings.ollama_url}/api/generate",
+                json={
+                    "model": settings.ollama_model,
+                    "prompt": prompt,
+                    "stream": False,
+                    "options": {
+                        "temperature": 0.8,  # Un peu plus creatif
+                        "num_predict": 400,
+                    },
+                },
+                timeout=settings.ollama_timeout,
+            )
+
+            if response.status_code != 200:
+                logger.warning(f"Ollama archetype generation failed: {response.status_code}")
+                return get_presidential_archetype(victory, world_state, turn_history, silence_state)
+
+            result = response.json()
+            archetype = _parse_archetype_response(result.get("response", ""))
+
+            if archetype:
+                logger.info(f"AI generated archetype: {archetype['id']}")
+                return archetype
+            else:
+                logger.warning("Failed to parse AI archetype, using fallback")
+                return get_presidential_archetype(victory, world_state, turn_history, silence_state)
+
+    except httpx.TimeoutException:
+        logger.warning("Ollama timeout for archetype generation")
+        return get_presidential_archetype(victory, world_state, turn_history, silence_state)
+    except httpx.ConnectError:
+        logger.warning("Ollama not available for archetype generation")
+        return get_presidential_archetype(victory, world_state, turn_history, silence_state)
+    except Exception as e:
+        logger.error(f"Archetype generation error: {e}")
+        return get_presidential_archetype(victory, world_state, turn_history, silence_state)
+
+
+def _build_archetype_prompt(
+    victory: bool,
+    playstyle: Dict[str, int],
+    end_reason: str,
+    turn_history: List[Dict] = None,
+    world_state: Any = None,
+) -> str:
+    """
+    Construit le prompt pour generer un archetype presidentiel unique.
+
+    Le prompt donne a l'IA:
+    - Le style de jeu (scores)
+    - Les moments cles de la partie
+    - Le type de fin
+    - Des exemples de ton voulu
+    """
+    hawk_score = playstyle.get("hawk_score", 0)
+    action_score = playstyle.get("action_score", 0)
+    escalation_avoided = playstyle.get("escalation_avoided", True)
+
+    # Decrire le style en francais
+    if hawk_score > 40:
+        style_hawk = "tres ferme (faucon)"
+    elif hawk_score > 0:
+        style_hawk = "moderement ferme"
+    elif hawk_score > -40:
+        style_hawk = "prudent"
+    else:
+        style_hawk = "tres conciliant (colombe)"
+
+    if action_score > 40:
+        style_action = "tres actif, multipliant les initiatives"
+    elif action_score > 0:
+        style_action = "moderement actif"
+    elif action_score > -40:
+        style_action = "reserve, preferant observer"
+    else:
+        style_action = "silencieux, laissant les evenements se derouler"
+
+    escalation_text = "a evite l'escalade" if escalation_avoided else "a accepte l'escalade quand necessaire"
+
+    # Extraire les moments cles de l'historique
+    key_moments = []
+    if turn_history:
+        for turn in turn_history[-5:]:  # 5 derniers tours
+            actions = turn.get("actions", [])
+            for action in actions:
+                action_type = action.get("type", "")
+                if action_type:
+                    key_moments.append(action_type)
+
+    key_moments_text = ", ".join(key_moments[:5]) if key_moments else "peu d'actions majeures"
+
+    # Type de fin en francais
+    end_reasons_fr = {
+        "apocalypse": "guerre nucleaire",
+        "coup_etat": "renversement par le Pentagone",
+        "defeat_honorable": "defaite par influence",
+        "crisis_resolved": "crise resolue diplomatiquement",
+        "domination": "victoire par domination",
+        "survival": "survie jusqu'a 1991",
+    }
+    fin_fr = end_reasons_fr.get(end_reason, end_reason)
+    victoire_ou_defaite = "VICTOIRE" if victory else "DEFAITE"
+
+    prompt = f"""Tu es un historien analysant la presidence d'un joueur dans un jeu de Guerre Froide.
+
+STYLE DE JEU DU JOUEUR:
+- Posture: {style_hawk}
+- Activite: {style_action}
+- Escalation: {escalation_text}
+- Actions cles: {key_moments_text}
+
+RESULTAT: {victoire_ou_defaite} - {fin_fr}
+
+MISSION:
+Genere un archetype presidentiel UNIQUE qui capture l'IDENTITE de ce joueur.
+Ce n'est pas un jugement, c'est une synthese identitaire.
+
+EXEMPLES DE TON (pour t'inspirer, ne pas copier):
+- "Le President du compromis risque" - "Vous avez cru que le temps etait votre allie."
+- "Le President de la dissuasion froide" - "Vous avez montre les crocs sans jamais mordre."
+- "Le President du silence dangereux" - "Vous avez attendu. Le monde n'a pas attendu avec vous."
+
+REGLES:
+1. L'ID doit etre en snake_case (ex: "iron_dove", "patient_hawk")
+2. Le titre commence par "Le President de/du/des..."
+3. La phrase est au PASSE, adresse au joueur ("Vous avez...")
+4. L'history_line commence par "Dans les livres d'histoire..."
+5. AUCUN chiffre, AUCUNE statistique
+6. Ton: historien, documentaire, pas moralisateur
+
+Reponds UNIQUEMENT avec ce JSON:
+{{"id": "snake_case_id", "title": "Le President de...", "phrase": "Vous avez...", "history_line": "Dans les livres d'histoire..."}}
+
+Ta synthese:"""
+
+    return prompt
+
+
+def _parse_archetype_response(response: str) -> Optional[Dict[str, str]]:
+    """
+    Parse la reponse de l'IA pour extraire l'archetype.
+
+    Returns:
+        Dict avec id, title, phrase, history_line ou None si echec
+    """
+    try:
+        response = response.strip()
+
+        # Trouver le JSON dans la reponse
+        start = response.find("{")
+        end = response.rfind("}") + 1
+
+        if start == -1 or end == 0:
+            logger.warning(f"No JSON found in archetype response: {response[:100]}")
+            return None
+
+        json_str = response[start:end]
+        data = json.loads(json_str)
+
+        # Valider les champs requis
+        required_fields = ["id", "title", "phrase", "history_line"]
+        for field in required_fields:
+            if field not in data or not data[field]:
+                logger.warning(f"Missing field in archetype: {field}")
+                return None
+
+        # Nettoyer et valider
+        archetype = {
+            "id": data["id"].lower().replace(" ", "_").replace("-", "_"),
+            "title": data["title"],
+            "phrase": data["phrase"],
+            "history_line": data["history_line"],
+        }
+
+        # Validation basique
+        if not archetype["title"].startswith("Le President"):
+            # Corriger si possible
+            if "President" in archetype["title"]:
+                pass  # OK
+            else:
+                archetype["title"] = f"Le President {archetype['title']}"
+
+        return archetype
+
+    except json.JSONDecodeError as e:
+        logger.warning(f"JSON parse error in archetype: {e}")
+        return None
+    except Exception as e:
+        logger.warning(f"Error parsing archetype: {e}")
+        return None
 
 
 # =============================================================================
@@ -1078,6 +1326,118 @@ def compose_debrief(
     return debrief
 
 
+async def compose_debrief_async(
+    end_reason: str,
+    victory: bool,
+    world_state: Any,
+    silence_state: Any = None,
+    turn_history: List[Dict] = None,
+    ai_errors: List[AIStrategicError] = None,
+) -> GameDebrief:
+    """
+    Version async de compose_debrief - utilise l'IA pour generer l'archetype.
+
+    Cette version appelle Ollama pour generer un archetype presidentiel unique
+    base sur le style de jeu du joueur. Fallback sur archetype hardcode si
+    l'IA est indisponible.
+
+    Args:
+        end_reason: Type de fin (apocalypse, coup_etat, etc.)
+        victory: True si c'est une victoire
+        world_state: Etat final du monde
+        silence_state: Etat du silence
+        turn_history: Historique des tours
+        ai_errors: Erreurs strategiques de l'IA adversaire
+
+    Returns:
+        GameDebrief pret a afficher
+    """
+    import random
+
+    # 1. Titre dramatique
+    title = DEFEAT_TITLES.get(end_reason, "Fin de partie")
+
+    # 2. Recit principal
+    narratives = DEFEAT_NARRATIVES.get(end_reason, ["La partie est terminee."])
+    narrative = random.choice(narratives)
+
+    # 3. Analyser les causes
+    causes = []
+    if not victory and silence_state:
+        causes = analyze_defeat_causes(
+            end_reason=end_reason,
+            world_state=world_state,
+            silence_state=silence_state,
+            turn_history=turn_history,
+        )
+
+    # 4. Dialogue de leader
+    leader_dialogue = None
+    dialogues = DEBRIEF_DIALOGUES.get(end_reason, {})
+    if dialogues:
+        if end_reason == "coup_etat":
+            leader_dialogue = dialogues.get("military")
+        else:
+            leader_dialogue = dialogues.get("USSR") or dialogues.get("USA")
+
+    # 5. Headlines presse
+    press_headlines = DEBRIEF_HEADLINES.get(end_reason, [])
+
+    # 6. Resume de l'etat final (narrativise)
+    final_summary = _compose_final_summary(world_state, end_reason, victory)
+
+    # 7. Victory scar
+    victory_scar = ""
+    if victory and end_reason in VICTORY_SCARS:
+        victory_scar = random.choice(VICTORY_SCARS[end_reason])
+
+    # 8. Defeat wisdom
+    defeat_wisdom = ""
+    if not victory:
+        turn = getattr(world_state, 'turn', 5)
+        if turn <= 5:
+            defeat_wisdom = random.choice(DEFEAT_WISDOM["early"])
+        elif turn > 8:
+            defeat_wisdom = random.choice(DEFEAT_WISDOM["late"])
+        else:
+            defeat_wisdom = random.choice(DEFEAT_WISDOM["mid"])
+
+    # 9. Replay hook
+    replay_hook = get_hook_line(end_reason, victory, causes)
+
+    # 10. Presidential archetype - VERSION IA
+    # Appel async a l'IA pour generer un archetype unique
+    archetype = await generate_archetype_with_ai(
+        victory=victory,
+        world_state=world_state,
+        turn_history=turn_history,
+        silence_state=silence_state,
+        end_reason=end_reason,
+    )
+
+    debrief = GameDebrief(
+        end_reason=end_reason,
+        victory=victory,
+        title_fr=title,
+        narrative_fr=narrative,
+        causes=causes,
+        leader_dialogue=leader_dialogue,
+        press_headlines=press_headlines,
+        final_state_summary=final_summary,
+        ai_errors=ai_errors or [],
+        victory_scar=victory_scar,
+        defeat_wisdom=defeat_wisdom,
+        replay_hook=replay_hook,
+        archetype_id=archetype["id"],
+        archetype_title=archetype["title"],
+        archetype_phrase=archetype["phrase"],
+        archetype_history_line=archetype["history_line"],
+    )
+
+    logger.info(f"Debrief composed (async): {end_reason}, archetype={archetype['id']} (AI-generated)")
+    return debrief
+
+
 def _compose_final_summary(
     world_state: Any,
     end_reason: str,
@@ -1508,17 +1868,23 @@ async def generate_game_debrief(
     silence_state: Any = None,
     turn_history: List[Dict] = None,
     adversary_ai: Any = None,
+    use_ai_archetype: bool = True,
 ) -> Dict[str, Any]:
     """
     Fonction de commodite pour generer un debrief.
 
     Retourne un dict pret a etre envoye au frontend.
 
+    V1.7: Utilise l'IA pour generer un archetype presidentiel unique
+    si use_ai_archetype=True (defaut). Fallback automatique si Ollama
+    est indisponible.
+
     Args:
         world_state: Etat final du monde
         silence_state: Etat du silence
         turn_history: Historique des tours
         adversary_ai: Instance de l'IA adversaire (optionnel)
+        use_ai_archetype: Si True, utilise l'IA pour generer l'archetype
     """
     end_reason = getattr(world_state, 'end_reason', 'unknown')
     victory = getattr(world_state, 'victory', False)
@@ -1529,13 +1895,24 @@ async def generate_game_debrief(
     if adversary_ai:
         ai_errors = extract_ai_errors_for_debrief(adversary_ai, current_turn)
 
-    debrief = compose_debrief(
-        end_reason=end_reason,
-        victory=victory,
-        world_state=world_state,
-        silence_state=silence_state,
-        turn_history=turn_history,
-        ai_errors=ai_errors,
-    )
+    # V1.7: Utiliser la version async avec IA pour l'archetype
+    if use_ai_archetype:
+        debrief = await compose_debrief_async(
+            end_reason=end_reason,
+            victory=victory,
+            world_state=world_state,
+            silence_state=silence_state,
+            turn_history=turn_history,
+            ai_errors=ai_errors,
+        )
+    else:
+        debrief = compose_debrief(
+            end_reason=end_reason,
+            victory=victory,
+            world_state=world_state,
+            silence_state=silence_state,
+            turn_history=turn_history,
+            ai_errors=ai_errors,
+        )
 
     return debrief.to_dict()
