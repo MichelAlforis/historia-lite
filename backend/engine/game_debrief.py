@@ -109,6 +109,12 @@ class GameDebrief:
     defeat_wisdom: str = ""             # Ligne psychologique (si defaite)
     replay_hook: str = ""               # Derniere ligne qui pousse au replay
 
+    # V1.7: Presidential archetype - "Quel President ai-je ete?"
+    archetype_id: str = ""              # ID de l'archetype (compromiser, hawk, etc.)
+    archetype_title: str = ""           # "Le President du compromis risque"
+    archetype_phrase: str = ""          # Phrase de synthese identitaire
+    archetype_history_line: str = ""    # "Dans les livres d'histoire..."
+
     def to_dict(self) -> Dict:
         result = {
             "end_reason": self.end_reason,
@@ -130,6 +136,13 @@ class GameDebrief:
             result["defeat_wisdom"] = self.defeat_wisdom
         if self.replay_hook:
             result["replay_hook"] = self.replay_hook
+        if self.archetype_id:
+            result["archetype"] = {
+                "id": self.archetype_id,
+                "title": self.archetype_title,
+                "phrase": self.archetype_phrase,
+                "history_line": self.archetype_history_line,
+            }
         return result
 
 
@@ -320,6 +333,293 @@ def get_hook_line(end_reason: str, victory: bool, key_causes: list = None) -> st
             return "Recommencez.\nCette fois, vous savez."
 
     return random.choice(hooks)
+
+
+# =============================================================================
+# PRESIDENTIAL ARCHETYPES - "Quel President ai-je ete?"
+# =============================================================================
+# Le joueur veut rejouer pour ETRE quelqu'un d'autre, pas pour gagner mieux.
+# Selection basee sur: soft/hard, silence/action, escalation evitee ou non.
+
+@dataclass
+class PresidentialArchetype:
+    """Archetype presidentiel - synthese identitaire de fin de partie"""
+    id: str
+    title_fr: str                    # "Le President du compromis risque"
+    phrase_fr: str                   # Synthese en une phrase
+    history_line_fr: str             # "Dans les livres d'histoire..."
+    requires_victory: Optional[bool] = None  # None = both, True = victory only
+    # Criteres de selection (scores -100 to +100)
+    min_hawk_score: int = -100       # -100 = dove, +100 = hawk
+    max_hawk_score: int = 100
+    min_action_score: int = -100     # -100 = silent, +100 = active
+    max_action_score: int = 100
+    escalation_avoided: Optional[bool] = None  # True = evitee, False = escalade
+
+
+PRESIDENTIAL_ARCHETYPES = [
+    # === VICTORY ARCHETYPES ===
+
+    PresidentialArchetype(
+        id="compromiser",
+        title_fr="Le President du compromis risque",
+        phrase_fr="Vous avez cru que le temps etait votre allie. Il ne l'etait qu'a moitie.",
+        history_line_fr="Dans les livres d'histoire, on retiendra celui qui a su plier sans rompre.",
+        requires_victory=True,
+        min_hawk_score=-100,
+        max_hawk_score=30,   # Dove to moderate
+        min_action_score=0,  # At least some action
+        max_action_score=100,
+        escalation_avoided=True,
+    ),
+
+    PresidentialArchetype(
+        id="cold_deterrent",
+        title_fr="Le President de la dissuasion froide",
+        phrase_fr="Vous avez montre les crocs sans jamais mordre. Ils ont cru que vous le feriez.",
+        history_line_fr="Dans les livres d'histoire, on parlera de celui qui a gagne en menacant juste assez.",
+        requires_victory=True,
+        min_hawk_score=20,   # Moderate to hawk
+        max_hawk_score=100,
+        min_action_score=20,
+        max_action_score=100,
+        escalation_avoided=True,
+    ),
+
+    PresidentialArchetype(
+        id="controlled_escalator",
+        title_fr="Le President de l'escalade controlee",
+        phrase_fr="Vous avez joue avec le feu. Le monde a vu les flammes. Mais personne n'a brule.",
+        history_line_fr="Dans les livres d'histoire, on debatera longtemps: courage ou folie?",
+        requires_victory=True,
+        min_hawk_score=40,
+        max_hawk_score=100,
+        escalation_avoided=False,  # Il y a eu escalade mais victoire quand meme
+    ),
+
+    PresidentialArchetype(
+        id="shadow_president",
+        title_fr="Le President de l'ombre",
+        phrase_fr="Vos mains sont restees propres. D'autres ont fait le travail.",
+        history_line_fr="Dans les livres d'histoire, on ne trouvera pas votre nom. C'etait le plan.",
+        requires_victory=True,
+        min_hawk_score=-50,
+        max_hawk_score=50,
+        min_action_score=-100,
+        max_action_score=30,  # Low action - worked through others
+    ),
+
+    # === DEFEAT ARCHETYPES ===
+
+    PresidentialArchetype(
+        id="dangerous_silence",
+        title_fr="Le President du silence dangereux",
+        phrase_fr="Vous avez attendu. Le monde n'a pas attendu avec vous.",
+        history_line_fr="Dans les livres d'histoire, on cherchera vos decisions. On ne les trouvera pas.",
+        requires_victory=False,
+        min_action_score=-100,
+        max_action_score=-20,  # Very inactive
+    ),
+
+    PresidentialArchetype(
+        id="tragic_hawk",
+        title_fr="Le President du bras de fer fatal",
+        phrase_fr="Vous avez refuse de ceder. Eux aussi.",
+        history_line_fr="Dans les livres d'histoire, on demandera: qui a pousse le premier?",
+        requires_victory=False,
+        min_hawk_score=50,
+        max_hawk_score=100,
+        escalation_avoided=False,
+    ),
+
+    PresidentialArchetype(
+        id="well_meaning_failure",
+        title_fr="Le President des bonnes intentions",
+        phrase_fr="Vous vouliez la paix. Ils ont vu de la faiblesse.",
+        history_line_fr="Dans les livres d'histoire, on notera que vous avez essaye. Ca ne suffira pas.",
+        requires_victory=False,
+        min_hawk_score=-100,
+        max_hawk_score=-20,  # Very dovish
+        min_action_score=0,
+        max_action_score=100,  # Active but soft
+    ),
+
+    PresidentialArchetype(
+        id="overwhelmed",
+        title_fr="Le President submerge",
+        phrase_fr="Les evenements vous ont depasse. Vous n'etiez pas seul dans ce cas.",
+        history_line_fr="Dans les livres d'histoire, on se demandera si quelqu'un aurait pu faire mieux.",
+        requires_victory=False,
+        # Fallback pour defaite sans pattern clair
+    ),
+]
+
+
+def calculate_playstyle_scores(
+    world_state: Any,
+    turn_history: List[Dict],
+    silence_state: Any,
+) -> Dict[str, int]:
+    """
+    Calcule les scores de style de jeu pour determiner l'archetype.
+
+    Returns:
+        {
+            "hawk_score": -100 to 100 (dove to hawk),
+            "action_score": -100 to 100 (silent to active),
+            "escalation_avoided": True/False,
+        }
+    """
+    hawk_score = 0
+    action_score = 0
+    escalation_avoided = True
+
+    turn_history = turn_history or []
+
+    # Analyser les actions du joueur
+    military_actions = 0
+    diplomatic_actions = 0
+    covert_actions = 0
+    total_actions = 0
+
+    for turn_data in turn_history:
+        actions = turn_data.get("actions", [])
+        for action in actions:
+            action_type = action.get("type", "").upper()
+            total_actions += 1
+
+            if "MIL" in action_type or "BLOCKADE" in action_type or "THREAT" in action_type:
+                military_actions += 1
+                hawk_score += 15
+            elif "DIPLO" in action_type or "SUMMIT" in action_type or "BACKCHANNEL" in action_type:
+                diplomatic_actions += 1
+                hawk_score -= 10
+            elif "COV" in action_type:
+                covert_actions += 1
+                hawk_score += 5  # Covert is slightly hawkish
+
+            # Check for escalation
+            if "ESCALATE" in action_type:
+                escalation_avoided = False
+                hawk_score += 20
+
+    # Score d'action basé sur le silence
+    if silence_state:
+        empty_jumps = getattr(silence_state, 'total_empty_jumps', 0)
+        silence_streak = getattr(silence_state, 'silence_streak', 0)
+
+        # Plus de silence = moins d'action
+        action_score = 50 - (empty_jumps * 15) - (silence_streak * 10)
+    else:
+        # Estimer basé sur les actions
+        action_score = min(100, total_actions * 20 - 20)
+
+    # Check DEFCON pour escalation
+    defcon = getattr(world_state, 'defcon', 3)
+    if defcon <= 2:
+        escalation_avoided = False
+
+    # Clamp scores
+    hawk_score = max(-100, min(100, hawk_score))
+    action_score = max(-100, min(100, action_score))
+
+    return {
+        "hawk_score": hawk_score,
+        "action_score": action_score,
+        "escalation_avoided": escalation_avoided,
+    }
+
+
+def select_archetype(
+    victory: bool,
+    playstyle: Dict[str, int],
+) -> PresidentialArchetype:
+    """
+    Selectionne l'archetype presidentiel basé sur le style de jeu.
+
+    Args:
+        victory: True si victoire
+        playstyle: Scores de style (hawk_score, action_score, escalation_avoided)
+
+    Returns:
+        PresidentialArchetype correspondant
+    """
+    hawk = playstyle.get("hawk_score", 0)
+    action = playstyle.get("action_score", 0)
+    escalation_avoided = playstyle.get("escalation_avoided", True)
+
+    # Chercher le meilleur match
+    best_match = None
+    best_score = -1
+
+    for archetype in PRESIDENTIAL_ARCHETYPES:
+        # Filtrer par victoire/defaite
+        if archetype.requires_victory is not None:
+            if archetype.requires_victory != victory:
+                continue
+
+        # Verifier les criteres
+        if not (archetype.min_hawk_score <= hawk <= archetype.max_hawk_score):
+            continue
+        if not (archetype.min_action_score <= action <= archetype.max_action_score):
+            continue
+        if archetype.escalation_avoided is not None:
+            if archetype.escalation_avoided != escalation_avoided:
+                continue
+
+        # Calculer un score de match (plus les criteres sont stricts, meilleur le match)
+        match_score = 0
+        hawk_range = archetype.max_hawk_score - archetype.min_hawk_score
+        action_range = archetype.max_action_score - archetype.min_action_score
+        match_score += (200 - hawk_range) + (200 - action_range)  # Smaller range = more specific
+
+        if archetype.escalation_avoided is not None:
+            match_score += 50  # Bonus for having this criterion
+
+        if match_score > best_score:
+            best_score = match_score
+            best_match = archetype
+
+    # Fallback
+    if not best_match:
+        if victory:
+            best_match = PRESIDENTIAL_ARCHETYPES[0]  # compromiser
+        else:
+            best_match = PRESIDENTIAL_ARCHETYPES[-1]  # overwhelmed
+
+    return best_match
+
+
+def get_presidential_archetype(
+    victory: bool,
+    world_state: Any,
+    turn_history: List[Dict] = None,
+    silence_state: Any = None,
+) -> Dict[str, str]:
+    """
+    Determine l'archetype presidentiel pour le debrief.
+
+    Args:
+        victory: True si victoire
+        world_state: Etat final du monde
+        turn_history: Historique des tours
+        silence_state: Etat du silence
+
+    Returns:
+        Dict avec id, title, phrase, history_line
+    """
+    # Calculer le style de jeu
+    playstyle = calculate_playstyle_scores(world_state, turn_history, silence_state)
+
+    # Selectionner l'archetype
+    archetype = select_archetype(victory, playstyle)
+
+    return {
+        "id": archetype.id,
+        "title": archetype.title_fr,
+        "phrase": archetype.phrase_fr,
+        "history_line": archetype.history_line_fr,
+    }
 
 
 # =============================================================================
@@ -747,6 +1047,14 @@ def compose_debrief(
     # 9. Replay hook (derniere ligne qui pousse au replay)
     replay_hook = get_hook_line(end_reason, victory, causes)
 
+    # 10. Presidential archetype - "Quel President ai-je ete?"
+    archetype = get_presidential_archetype(
+        victory=victory,
+        world_state=world_state,
+        turn_history=turn_history,
+        silence_state=silence_state,
+    )
+
     debrief = GameDebrief(
         end_reason=end_reason,
         victory=victory,
@@ -760,9 +1068,13 @@ def compose_debrief(
         victory_scar=victory_scar,
         defeat_wisdom=defeat_wisdom,
         replay_hook=replay_hook,
+        archetype_id=archetype["id"],
+        archetype_title=archetype["title"],
+        archetype_phrase=archetype["phrase"],
+        archetype_history_line=archetype["history_line"],
     )
 
-    logger.info(f"Debrief composed: {end_reason}, {len(causes)} causes, hook={bool(replay_hook)}")
+    logger.info(f"Debrief composed: {end_reason}, archetype={archetype['id']}, hook={bool(replay_hook)}")
     return debrief
 
 
