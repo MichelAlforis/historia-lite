@@ -25,8 +25,8 @@ class Settings(BaseSettings):
         "https://historia.alforis.fr",
     ]
 
-    # Ollama Configuration
-    ollama_url: str = "http://localhost:11434"
+    # Ollama Configuration (use localhost with SSH tunnel, or server IP directly)
+    ollama_url: str = "http://localhost:11434"  # Via SSH tunnel: ssh -L 11434:localhost:11434 root@159.69.108.234
     ollama_model: str = "qwen2.5:3b"
     ollama_timeout: float = 10.0  # Reduced from 30s for faster fallback
     ollama_tiers: List[int] = [1, 2]

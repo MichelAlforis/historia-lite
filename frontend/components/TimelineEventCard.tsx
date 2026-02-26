@@ -41,10 +41,16 @@ const EVENT_FAMILY_NAMES: Record<string, string> = {
 export default function TimelineEventCard({
   event,
   onEventClick,
-  expanded: initialExpanded = false,
+  expanded = false,
   showCausalChain = true,
 }: TimelineEventCardProps) {
-  const [isExpanded, setIsExpanded] = useState(initialExpanded);
+  // Use controlled expanded state from parent, or internal state
+  const [internalExpanded, setInternalExpanded] = useState(expanded);
+  const isExpanded = expanded || internalExpanded;
+
+  const toggleExpanded = () => {
+    setInternalExpanded(!internalExpanded);
+  };
   const [showCauses, setShowCauses] = useState(false);
   const [showEffects, setShowEffects] = useState(false);
 
@@ -65,7 +71,7 @@ export default function TimelineEventCard({
       {/* Header */}
       <div
         className="p-3 cursor-pointer hover:bg-stone-50 transition-colors"
-        onClick={() => setIsExpanded(!isExpanded)}
+        onClick={toggleExpanded}
       >
         {/* Date row */}
         <div className="flex items-center justify-between mb-2">
@@ -111,11 +117,27 @@ export default function TimelineEventCard({
           )}
         </div>
 
+        {/* Quick preview of description (truncated) - always visible */}
+        {!isExpanded && event.description_fr && (
+          <p className="mt-2 text-xs text-stone-500 line-clamp-2 italic">
+            {event.description_fr.substring(0, 120)}
+            {event.description_fr.length > 120 && '...'}
+          </p>
+        )}
+
         {/* Ripple indicator */}
         {event.ripple_targets && event.ripple_targets.length > 0 && (
           <div className="mt-2 flex items-center gap-1 text-xs text-amber-600">
             <Zap className="w-3 h-3" />
             <span>Cascade: {event.ripple_targets.length} pays affectes</span>
+          </div>
+        )}
+
+        {/* Click hint when not expanded */}
+        {!isExpanded && (event.caused_by_chain?.length > 0 || event.effects_chain?.length > 0) && (
+          <div className="mt-2 text-[10px] text-stone-400 flex items-center gap-1">
+            <Link2 className="w-3 h-3" />
+            <span>Cliquez pour voir les details et liens causaux</span>
           </div>
         )}
 

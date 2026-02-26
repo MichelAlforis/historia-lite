@@ -35,6 +35,7 @@ interface DialogueMessage {
 interface DialogueDropupProps {
   isOpen: boolean;
   onClose: () => void;
+  initialTarget?: string;  // Pre-select this country and go directly to chat
 }
 
 type ViewMode = 'list' | 'select-countries' | 'chat';
@@ -42,7 +43,7 @@ type ViewMode = 'list' | 'select-countries' | 'chat';
 // ============================================================================
 // Component
 // ============================================================================
-export default function DialogueDropup({ isOpen, onClose }: DialogueDropupProps) {
+export default function DialogueDropup({ isOpen, onClose, initialTarget }: DialogueDropupProps) {
   const { world, playerCountryId, pendingDilemmas, isLoading } = useGameStore();
 
   // State
@@ -100,37 +101,74 @@ export default function DialogueDropup({ isOpen, onClose }: DialogueDropupProps)
   );
 
   // ============================================================================
-  // TIER 1.3: Real AI API call
+  // TIER 1.3: Real AI API call - POST /chat for immersive dialogue
   // ============================================================================
   const callDiplomaticAI = useCallback(async (
     targetCountryId: string,
     playerMessage: string,
-    action: string = 'diplomatic_discussion'
+    conversationHistory: DialogueMessage[] = []
   ): Promise<string> => {
     if (!playerCountryId) return '';
 
+    // Get target country info for context
+    const targetCountry = world?.countries.find(c => c.id === targetCountryId);
+    const targetName = targetCountry?.name || targetCountryId;
+
+    // Build conversation history for context
+    const historyForAPI = conversationHistory.slice(-4).map(msg => ({
+      role: msg.senderId === 'player' ? 'user' : 'assistant',
+      content: msg.content
+    }));
+
     try {
-      const response = await fetch(
-        `${API_BASE}/ai-advisor/dialogue/${playerCountryId}/${targetCountryId}?action=${action}`,
-        { method: 'GET' }
-      );
+      // Use POST /chat endpoint which takes player's message
+      const response = await fetch(`${API_BASE}/ai-advisor/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          country_id: targetCountryId,  // AI responds AS this country
+          message: `[En tant que dirigeant de ${targetName}, réponds à ce message diplomatique de ${playerCountryId}:]
+
+"${playerMessage}"
+
+Réponds en tant que dirigeant de ${targetName}. Sois bref (2-3 phrases), diplomatique mais avec du caractère. Utilise le vouvoiement formel.`,
+          context: {
+            diplomatic_context: {
+              player_country: playerCountryId,
+              target_country: targetCountryId,
+              mode: 'diplomatic_dialogue'
+            }
+          },
+          conversation_history: historyForAPI
+        })
+      });
 
       if (!response.ok) {
         throw new Error('API error');
       }
 
       const data = await response.json();
-      if (data.success && data.dialogue) {
-        return data.dialogue.message || data.dialogue.content || '';
+      if (data.success && data.response) {
+        return data.response;
       }
 
-      // Fallback response if API fails
-      return `La délégation de ${targetCountryId} prend note de votre message.`;
+      // Fallback to diplomatic dialogue endpoint if chat fails
+      const fallbackResponse = await fetch(
+        `${API_BASE}/ai-advisor/dialogue/${playerCountryId}/${targetCountryId}?action=diplomatic_discussion`,
+        { method: 'GET' }
+      );
+      const fallbackData = await fallbackResponse.json();
+      if (fallbackData.success && fallbackData.dialogue?.message_fr) {
+        return fallbackData.dialogue.message_fr;
+      }
+
+      // Final fallback
+      return `Le représentant de ${targetName} vous écoute avec attention et prend note de vos propos.`;
     } catch (error) {
       console.error('Error calling diplomatic AI:', error);
-      return `La délégation de ${targetCountryId} réfléchit à votre proposition.`;
+      return `La délégation de ${targetName} étudie votre proposition avec intérêt.`;
     }
-  }, [playerCountryId]);
+  }, [playerCountryId, world]);
 
   // ============================================================================
   // TIER 1: Memoized handlers (prevent re-renders)
@@ -197,7 +235,8 @@ export default function DialogueDropup({ isOpen, onClose }: DialogueDropupProps)
 
       try {
         const responderId = dialogue.participants[Math.floor(Math.random() * dialogue.participants.length)];
-        const aiResponse = await callDiplomaticAI(responderId, msgContent, 'diplomatic_discussion');
+        // Pass conversation history for context-aware responses
+        const aiResponse = await callDiplomaticAI(responderId, msgContent, dialogue.messages);
 
         const aiMsg: DialogueMessage = {
           id: `msg-${Date.now()}-ai`,
@@ -238,9 +277,17 @@ export default function DialogueDropup({ isOpen, onClose }: DialogueDropupProps)
   const handleGiveFloor = useCallback(async (countryId: string) => {
     if (!selectedDialogueId) return;
 
+    const dialogue = dialogues.find(d => d.id === selectedDialogueId);
+    if (!dialogue) return;
+
     setIsAIThinking(true);
     try {
-      const aiResponse = await callDiplomaticAI(countryId, 'general_statement', 'general');
+      // When giving floor, ask the country to share their position
+      const aiResponse = await callDiplomaticAI(
+        countryId,
+        'Quel est votre position sur cette discussion diplomatique?',
+        dialogue.messages
+      );
 
       const aiMsg: DialogueMessage = {
         id: `msg-${Date.now()}-floor`,
@@ -257,7 +304,7 @@ export default function DialogueDropup({ isOpen, onClose }: DialogueDropupProps)
     } finally {
       setIsAIThinking(false);
     }
-  }, [selectedDialogueId, callDiplomaticAI]);
+  }, [selectedDialogueId, dialogues, callDiplomaticAI]);
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     // TIER 2: Input validation - limit length
@@ -341,6 +388,40 @@ export default function DialogueDropup({ isOpen, onClose }: DialogueDropupProps)
       return [...userDialogues, ...dilemmaDialogues];
     });
   }, [pendingDilemmas, currentYear]);
+
+  // Handle initialTarget - pre-select country and go directly to chat
+  useEffect(() => {
+    if (isOpen && initialTarget && world) {
+      // Find the country name for the title
+      const country = world.countries.find(c => c.id === initialTarget);
+      const countryName = country?.name || initialTarget;
+
+      // Create a new dialogue with this country
+      const newDialogue: Dialogue = {
+        id: `direct-${initialTarget}-${Date.now()}`,
+        title: `Discussion avec ${countryName}`,
+        date: currentYear,
+        status: 'ongoing',
+        participants: [initialTarget],
+        messages: [],
+        attitudes: { [initialTarget]: 'neutral' }
+      };
+
+      setDialogues(prev => {
+        // Check if we already have a dialogue with this country
+        const existing = prev.find(d =>
+          d.participants.length === 1 && d.participants[0] === initialTarget && d.status === 'ongoing'
+        );
+        if (existing) {
+          setSelectedDialogueId(existing.id);
+          return prev;
+        }
+        return [...prev, newDialogue];
+      });
+      setSelectedDialogueId(newDialogue.id);
+      setViewMode('chat');
+    }
+  }, [isOpen, initialTarget, world, currentYear]);
 
   // ============================================================================
   // TIER 2: Memoized sub-components
@@ -507,11 +588,11 @@ export default function DialogueDropup({ isOpen, onClose }: DialogueDropupProps)
               )}
 
               {viewMode === 'select-countries' && (
-                <div className="flex-1 flex flex-col p-4">
-                  <h3 className="text-sm font-medium text-stone-700 mb-3">
+                <div className="flex-1 flex flex-col p-4 min-h-0">
+                  <h3 className="text-sm font-medium text-stone-700 mb-3 flex-shrink-0">
                     Selectionnez les pays participants
                   </h3>
-                  <div className="flex-1 overflow-y-auto">
+                  <div className="flex-1 overflow-y-auto min-h-0 max-h-48">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {availableCountries.map(country => (
                         <button
@@ -530,7 +611,7 @@ export default function DialogueDropup({ isOpen, onClose }: DialogueDropupProps)
                       ))}
                     </div>
                   </div>
-                  <div className="flex justify-between items-center mt-4 pt-3 border-t border-stone-200">
+                  <div className="flex justify-between items-center mt-4 pt-3 border-t border-stone-200 flex-shrink-0">
                     <button
                       onClick={handleCancelSelection}
                       className="px-4 py-2 text-stone-600 hover:text-stone-800 transition text-sm"

@@ -47,6 +47,8 @@ export default function TimelineModal({ isOpen, onClose }: TimelineModalProps) {
     fetchTimeline,
     canGoBack,
     advanceMonth,
+    playerCountryId,
+    world,
   } = useGameStore();
 
   // Filter state
@@ -54,6 +56,8 @@ export default function TimelineModal({ isOpen, onClose }: TimelineModalProps) {
   const [typeFilter, setTypeFilter] = useState<TimelineEventType | 'all'>('all');
   const [countryFilter, setCountryFilter] = useState<string>('all');
   const [importanceFilter, setImportanceFilter] = useState(1);
+  // NEW: "Mes affaires" filter - show only player-relevant events by default
+  const [playerOnlyFilter, setPlayerOnlyFilter] = useState(true);
 
   // Selected event for detailed view
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
@@ -82,11 +86,48 @@ export default function TimelineModal({ isOpen, onClose }: TimelineModalProps) {
     return Array.from(countries).sort();
   }, [timeline]);
 
+  // Get player's allies and rivals for relevance filtering
+  const playerCountry = useMemo(() => {
+    if (!world || !playerCountryId) return null;
+    return world.countries.find(c => c.id === playerCountryId);
+  }, [world, playerCountryId]);
+
+  const playerRelevantCountries = useMemo(() => {
+    if (!playerCountry || !playerCountryId) return new Set<string>();
+    const relevant = new Set<string>([playerCountryId]);
+    // Add allies
+    playerCountry.allies?.forEach(a => relevant.add(a));
+    // Add rivals
+    playerCountry.rivals?.forEach(r => relevant.add(r));
+    // Add countries at war
+    playerCountry.at_war?.forEach(w => relevant.add(w));
+    // Add sphere of influence
+    playerCountry.sphere_of_influence?.forEach(s => relevant.add(s));
+    // Add Tier 1-2 major powers (always relevant)
+    world?.countries.filter(c => c.tier <= 2).forEach(c => relevant.add(c.id));
+    return relevant;
+  }, [playerCountry, playerCountryId, world]);
+
   // Filter events for current month
   const eventsForMonth = useMemo(() => {
     let filtered = timeline.filter(event =>
       event.date.year === displayDate.year && event.date.month === displayDate.month
     );
+
+    // Apply "Mes affaires" filter - only show player-relevant events
+    if (playerOnlyFilter && playerCountryId) {
+      filtered = filtered.filter(e => {
+        // Always show player actions
+        if (e.type === 'player_action') return true;
+        // Always show wars, crises, nuclear events
+        if (['war', 'crisis', 'nuclear'].includes(e.type)) return true;
+        // Always show high importance events (4+)
+        if (e.importance >= 4) return true;
+        // Show events involving player or relevant countries
+        const involvedCountries = [e.actor_country, ...e.target_countries];
+        return involvedCountries.some(c => playerRelevantCountries.has(c));
+      });
+    }
 
     // Apply type filter
     if (typeFilter !== 'all') {
@@ -108,7 +149,7 @@ export default function TimelineModal({ isOpen, onClose }: TimelineModalProps) {
 
     // Sort by day within month (descending)
     return filtered.sort((a, b) => b.date.day - a.date.day);
-  }, [timeline, displayDate, typeFilter, countryFilter, importanceFilter]);
+  }, [timeline, displayDate, typeFilter, countryFilter, importanceFilter, playerOnlyFilter, playerCountryId, playerRelevantCountries]);
 
   // Navigation handlers
   const handlePrevMonth = () => {
@@ -212,6 +253,18 @@ export default function TimelineModal({ isOpen, onClose }: TimelineModalProps) {
 
           {/* Actions */}
           <div className="flex items-center gap-2">
+            {/* Toggle "Mes affaires" - player-relevant events only */}
+            <button
+              onClick={() => setPlayerOnlyFilter(!playerOnlyFilter)}
+              className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                playerOnlyFilter
+                  ? 'bg-sky-500 text-white'
+                  : 'bg-stone-200 text-stone-600 hover:bg-stone-300'
+              }`}
+              title={playerOnlyFilter ? 'Voir tous les evenements' : 'Voir mes affaires uniquement'}
+            >
+              {playerOnlyFilter ? 'Mes affaires' : 'Tout voir'}
+            </button>
             <button
               onClick={() => setShowFilters(!showFilters)}
               className={`p-2 rounded-lg transition-colors ${

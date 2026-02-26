@@ -147,6 +147,9 @@ export default function PaxPage() {
   // Selected country on map
   const [selectedMapCountry, setSelectedMapCountry] = useState<string | null>(null);
 
+  // Direct dialogue with a specific country
+  const [dialogueTarget, setDialogueTarget] = useState<string | null>(null);
+
   // Scenario status for victory/defeat
   const [scenarioStatus, setScenarioStatus] = useState<ScenarioStatus | null>(null);
   const [startYear, setStartYear] = useState<number>(2025);
@@ -189,6 +192,12 @@ export default function PaxPage() {
     await selectPlayerCountry(countryId);
   };
 
+
+  // Handle opening dialogue with a specific country
+  const handleContactNation = useCallback((countryId: string) => {
+    setDialogueTarget(countryId);
+    setShowDiscuter(true);
+  }, []);
 
   // Handle restart game
   const handleRestart = useCallback(async () => {
@@ -524,6 +533,14 @@ export default function PaxPage() {
               <div className="pt-2 border-t border-stone-100 text-sm text-stone-500">
                 Score de puissance: <span className="font-medium text-stone-700">{selectedCountry.power_score}</span>
               </div>
+              {/* Bouton Contacter - Agency diplomatique */}
+              <button
+                onClick={() => handleContactNation(selectedCountry.id)}
+                className="w-full mt-3 py-2 bg-sky-600 hover:bg-sky-500 rounded-lg text-white flex items-center justify-center gap-2 transition"
+              >
+                <MessageCircle className="w-4 h-4" />
+                Ouvrir un canal
+              </button>
             </div>
           </div>
         )}
@@ -582,7 +599,14 @@ export default function PaxPage() {
 
       {/* Modals */}
       <ActionDropup isOpen={showAgir} onClose={() => setShowAgir(false)} />
-      <DialogueDropup isOpen={showDiscuter} onClose={() => setShowDiscuter(false)} />
+      <DialogueDropup
+        isOpen={showDiscuter}
+        onClose={() => {
+          setShowDiscuter(false);
+          setDialogueTarget(null);  // Reset target when closing
+        }}
+        initialTarget={dialogueTarget || undefined}
+      />
       <AdvisorDropleft isOpen={showConseil} onClose={() => setShowConseil(false)} />
 
       {/* Event Toast - Only player country events */}

@@ -1656,8 +1656,8 @@ def _update_player_reputation(world: World, recent_events: List[Event]) -> None:
     if len(player_country.allies) >= 5:
         rep_change += 1
 
-    # World sees you based on your bloc
-    if player_country.bloc:
+    # World sees you based on your blocs
+    if player_country.blocs:
         bloc_reputation = {
             "NATO": 10,      # Generally positive in Western view
             "EU": 15,        # Very positive
@@ -1666,8 +1666,9 @@ def _update_player_reputation(world: World, recent_events: List[Event]) -> None:
             "ASEAN": 5,      # Positive (neutral bloc)
             "AU": 5,         # Positive
         }
-        # Slowly drift toward bloc baseline
-        bloc_base = bloc_reputation.get(player_country.bloc, 0)
+        # Slowly drift toward bloc baseline (use first bloc)
+        primary_bloc = player_country.blocs[0] if player_country.blocs else None
+        bloc_base = bloc_reputation.get(primary_bloc, 0) if primary_bloc else 0
         if world.mood.player_reputation < bloc_base:
             rep_change += 1
         elif world.mood.player_reputation > bloc_base + 20:

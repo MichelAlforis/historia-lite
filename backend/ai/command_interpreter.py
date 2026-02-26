@@ -1,6 +1,7 @@
 """Command interpreter for natural language player commands"""
 import json
 import logging
+import random
 import re
 import uuid
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
@@ -134,8 +135,8 @@ Commande a analyser: "{command}"
         # Validate feasibility
         feasible, reason = self._validate_feasibility(interpretation, country, world)
 
-        # Calculate costs
-        cost = self._calculate_cost(interpretation, country)
+        # Calculate costs (dynamic based on target strength + random)
+        cost = self._calculate_cost(interpretation, country, world)
 
         # Generate confirmation message
         confirm_msg, confirm_msg_fr = self._generate_confirmation(
@@ -474,35 +475,102 @@ Commande a analyser: "{command}"
     def _calculate_cost(
         self,
         interpretation: CommandInterpretation,
-        country: "Country"
+        country: "Country",
+        world: "World" = None
     ) -> CommandCost:
-        """Calculate resource costs for the command"""
+        """Calculate dynamic resource costs based on target strength + random factor"""
         action = interpretation.action
+        target_id = interpretation.target_country_id
 
-        costs = {
-            CommandAction.ATTACK: CommandCost(military=-15, economy=-10, stability=-5),
-            CommandAction.DEFEND: CommandCost(military=-5, economy=-3),
-            CommandAction.MOBILIZE: CommandCost(economy=-5, stability=-3),
-            CommandAction.DEMOBILIZE: CommandCost(stability=+5),
-            CommandAction.DECLARE_WAR: CommandCost(stability=-10, soft_power=-15),
-            CommandAction.PROPOSE_ALLIANCE: CommandCost(soft_power=-2),
-            CommandAction.PEACE_OFFER: CommandCost(soft_power=+5),
-            CommandAction.SANCTIONS: CommandCost(economy=-3, soft_power=-5),
-            CommandAction.LIFT_SANCTIONS: CommandCost(soft_power=+3),
-            CommandAction.TAX_INCREASE: CommandCost(economy=+10, stability=-8),
-            CommandAction.TAX_DECREASE: CommandCost(economy=-10, stability=+5),
-            CommandAction.INVEST: CommandCost(economy=-10, technology=+3),
-            CommandAction.EMBARGO: CommandCost(economy=-5),
-            CommandAction.START_PROJECT: CommandCost(economy=-5),
-            CommandAction.CANCEL_PROJECT: CommandCost(stability=-3),
-            CommandAction.ACCELERATE_PROJECT: CommandCost(economy=-8),
-            CommandAction.REFORM: CommandCost(stability=-5, economy=+5),
-            CommandAction.PROPAGANDA: CommandCost(economy=-3, stability=+5),
-            CommandAction.SUPPRESS: CommandCost(stability=-10, soft_power=-10),
-            CommandAction.ELECTION: CommandCost(stability=-5),
-        }
+        # Get target country strength for comparison
+        target_military = 50  # default
+        target_economy = 50
+        target_tier = 3  # medium power by default
 
-        return costs.get(action, CommandCost())
+        if target_id and world:
+            # Use get_any_country to find Tier 4-6 countries too
+            target = world.get_any_country(target_id)
+            if target:
+                target_military = getattr(target, 'military', 20)  # Lower default for minor countries
+                target_economy = getattr(target, 'economy', 30)
+                target_tier = getattr(target, 'tier', 4)  # Default to Tier 4 for minor countries
+
+        # Calculate difficulty modifier based on target strength
+        # Stronger targets = higher costs, weaker targets = lower costs
+        # Range: 0.5 (very weak target) to 1.5 (very strong target)
+        difficulty = max(0.5, min(1.5, target_military / max(20, country.military) + 0.5))
+
+        # Tier modifier: Tier 1 = 1.3x, Tier 4+ = 0.7x
+        tier_modifier = {1: 1.3, 2: 1.1, 3: 1.0, 4: 0.7, 5: 0.6, 6: 0.5}.get(target_tier, 0.8)
+
+        # Random factor: +/- 15% variation
+        random_factor = random.uniform(0.85, 1.15)
+
+        def dynamic_cost(base: int, uses_strength: bool = True) -> int:
+            """Apply modifiers to base cost"""
+            if uses_strength:
+                # Cap total multiplier to avoid extreme costs
+                total_mult = min(2.0, difficulty * tier_modifier * random_factor)
+                modified = base * total_mult
+            else:
+                modified = base * random_factor
+            return int(round(modified))
+
+        # Base costs with dynamic calculation
+        if action == CommandAction.ATTACK:
+            return CommandCost(
+                military=-dynamic_cost(15, True),
+                economy=-dynamic_cost(10, True),
+                stability=-dynamic_cost(5, False)
+            )
+        elif action == CommandAction.DEFEND:
+            return CommandCost(military=-dynamic_cost(5, False), economy=-dynamic_cost(3, False))
+        elif action == CommandAction.MOBILIZE:
+            return CommandCost(economy=-dynamic_cost(5, False), stability=-dynamic_cost(3, False))
+        elif action == CommandAction.DEMOBILIZE:
+            return CommandCost(stability=dynamic_cost(5, False))
+        elif action == CommandAction.DECLARE_WAR:
+            return CommandCost(
+                stability=-dynamic_cost(10, True),
+                soft_power=-dynamic_cost(15, True)
+            )
+        elif action == CommandAction.PROPOSE_ALLIANCE:
+            return CommandCost(soft_power=-dynamic_cost(2, False))
+        elif action == CommandAction.PEACE_OFFER:
+            return CommandCost(soft_power=dynamic_cost(5, False))
+        elif action == CommandAction.SANCTIONS:
+            # Sanctioning a stronger economy costs more
+            eco_ratio = target_economy / max(10, country.economy)
+            return CommandCost(
+                economy=-int(round(3 * eco_ratio * random_factor)),
+                soft_power=-dynamic_cost(5, False)
+            )
+        elif action == CommandAction.LIFT_SANCTIONS:
+            return CommandCost(soft_power=dynamic_cost(3, False))
+        elif action == CommandAction.TAX_INCREASE:
+            return CommandCost(economy=dynamic_cost(10, False), stability=-dynamic_cost(8, False))
+        elif action == CommandAction.TAX_DECREASE:
+            return CommandCost(economy=-dynamic_cost(10, False), stability=dynamic_cost(5, False))
+        elif action == CommandAction.INVEST:
+            return CommandCost(economy=-dynamic_cost(10, False), technology=dynamic_cost(3, False))
+        elif action == CommandAction.EMBARGO:
+            return CommandCost(economy=-dynamic_cost(5, False))
+        elif action == CommandAction.START_PROJECT:
+            return CommandCost(economy=-dynamic_cost(5, False))
+        elif action == CommandAction.CANCEL_PROJECT:
+            return CommandCost(stability=-dynamic_cost(3, False))
+        elif action == CommandAction.ACCELERATE_PROJECT:
+            return CommandCost(economy=-dynamic_cost(8, False))
+        elif action == CommandAction.REFORM:
+            return CommandCost(stability=-dynamic_cost(5, False), economy=dynamic_cost(5, False))
+        elif action == CommandAction.PROPAGANDA:
+            return CommandCost(economy=-dynamic_cost(3, False), stability=dynamic_cost(5, False))
+        elif action == CommandAction.SUPPRESS:
+            return CommandCost(stability=-dynamic_cost(10, False), soft_power=-dynamic_cost(10, False))
+        elif action == CommandAction.ELECTION:
+            return CommandCost(stability=-dynamic_cost(5, False))
+
+        return CommandCost()
 
     def _generate_confirmation(
         self,
@@ -593,23 +661,165 @@ Commande a analyser: "{command}"
 
         # Execute action-specific logic
         if action == CommandAction.ATTACK and target_id:
-            if target_id not in country.at_war:
-                country.at_war.append(target_id)
-            target = world.get_country(target_id)
-            if target and country.id not in target.at_war:
-                target.at_war.append(country.id)
+            # Use get_any_country to find countries in all tiers (1-6)
+            target = world.get_any_country(target_id)
+            if not target:
+                return False, []
 
-            events.append(Event(
-                id=f"war_{world.year}_{country.id}_{target_id}",
-                year=world.year,
-                type="military",
-                title="War Declared",
-                title_fr="Guerre declaree",
-                description=f"{country.name} attacks {target.name if target else target_id}",
-                description_fr=f"{country.name_fr} attaque {target.name_fr if target else target_id}",
-                country_id=country.id,
-                target_id=target_id
-            ))
+            # COMBAT RESOLUTION
+            # Calculate combat power with random factor
+            attacker_power = country.military * random.uniform(0.8, 1.2)
+            target_military = getattr(target, 'military', 20)  # Default for Tier 4-6
+            defender_power = target_military * random.uniform(0.7, 1.1)  # Slight defender disadvantage
+
+            # Nuclear deterrence check (only for Tier 1-3 with nuclear attribute)
+            target_nuclear = getattr(target, 'nuclear', 0)
+            if target_nuclear > 50 and country.nuclear < 50:
+                # Cannot conquer nuclear power without nukes
+                events.append(Event(
+                    id=f"attack_blocked_{world.year}_{country.id}_{target_id}",
+                    year=world.year,
+                    type="military",
+                    title="Attack Repelled",
+                    title_fr="Attaque repoussee",
+                    description=f"{target.name}'s nuclear deterrence blocks {country.name}'s attack",
+                    description_fr=f"La dissuasion nucleaire de {target.name_fr} bloque l'attaque de {country.name_fr}",
+                    country_id=country.id,
+                    target_id=target_id
+                ))
+                # War is declared but no conquest
+                if target_id not in country.at_war:
+                    country.at_war.append(target_id)
+                if hasattr(target, 'at_war') and country.id not in target.at_war:
+                    target.at_war.append(country.id)
+            elif attacker_power > defender_power:
+                # ATTACKER WINS - FULL ANNEXATION
+                victory_margin = (attacker_power - defender_power) / max(defender_power, 1)
+
+                # Apply losses to both sides
+                attacker_losses = int(10 + random.randint(0, 10))
+                defender_losses = int(15 + random.randint(5, 20))
+
+                country.military = max(10, country.military - attacker_losses)
+
+                # Get target resources BEFORE destroying them
+                target_economy = getattr(target, 'economy', 30)
+                target_population = getattr(target, 'population', 10)  # millions
+
+                # Update target stats (handle both Tier 1-3 Country and Tier 4-6)
+                if hasattr(target, 'military'):
+                    target.military = max(0, target.military - defender_losses)
+                if hasattr(target, 'stability'):
+                    target.stability = max(0, target.stability - 30)
+                if hasattr(target, 'economy'):
+                    target.economy = max(5, target.economy - 20)
+
+                # ===========================================
+                # ANNEXATION: Target becomes part of attacker
+                # ===========================================
+
+                # 1. Add to sphere of influence (represents annexed territories)
+                if target_id not in country.sphere_of_influence:
+                    country.sphere_of_influence.append(target_id)
+
+                # 2. Mark target as annexed
+                if hasattr(target, 'under_influence_of'):
+                    if isinstance(target.under_influence_of, dict):
+                        target.under_influence_of = {country.id: 100}  # 100 = full annexation
+                    else:
+                        target.under_influence_of = country.id
+
+                # 3. Target loses independence and sovereignty
+                if hasattr(target, 'stability'):
+                    target.stability = max(0, target.stability - 30)
+                if hasattr(target, 'allies'):
+                    target.allies = []  # No more independent alliances
+                if hasattr(target, 'at_war'):
+                    target.at_war = []  # Wars end with annexation
+
+                # 4. ECONOMIC BENEFITS from annexation
+                # Conqueror gains portion of target's economy (pillage + integration)
+                economic_gain = int(target_economy * 0.3)  # 30% of target economy
+                country.economy = min(100, country.economy + economic_gain)
+
+                # 5. Population boost (more manpower)
+                if hasattr(country, 'population') and target_population:
+                    country.population += target_population
+
+                # 6. Occupation cost: stability drops due to resistance
+                occupation_cost = min(10, int(target_population / 5) + 3)
+                country.stability = max(20, country.stability - occupation_cost)
+
+                # 7. Remove from rivals/enemies lists
+                if target_id in country.rivals:
+                    country.rivals.remove(target_id)
+                if target_id in country.at_war:
+                    country.at_war.remove(target_id)
+
+                target_name = getattr(target, 'name', target_id)
+                target_name_fr = getattr(target, 'name_fr', target_name)
+
+                events.append(Event(
+                    id=f"annexation_{world.year}_{country.id}_{target_id}",
+                    year=world.year,
+                    type="military",
+                    title="Territory Annexed",
+                    title_fr="Territoire annexe",
+                    description=f"{country.name} annexes {target_name}! Gained {economic_gain} economy. Occupation costs {occupation_cost} stability.",
+                    description_fr=f"{country.name_fr} annexe {target_name_fr}! Gain de {economic_gain} en economie. L'occupation coute {occupation_cost} en stabilite.",
+                    country_id=country.id,
+                    target_id=target_id
+                ))
+
+                # 8. Global reaction - SEVERE diplomatic consequences
+                # All countries lose trust (aggressor reputation)
+                country.soft_power = max(0, country.soft_power - 15)
+
+                # Allies especially upset
+                for other_id in country.allies:
+                    other = world.get_country(other_id)
+                    if other and hasattr(other, 'modify_relation'):
+                        other.modify_relation(country.id, -20)
+
+                # World tension increases
+                if hasattr(world, 'tension'):
+                    world.tension = min(100, world.tension + 10)
+
+            else:
+                # DEFENDER WINS (or stalemate)
+                attacker_losses = int(15 + random.randint(5, 15))
+                defender_losses = int(5 + random.randint(0, 10))
+
+                country.military = max(10, country.military - attacker_losses)
+                country.stability = max(20, country.stability - 10)
+
+                if hasattr(target, 'military'):
+                    target.military = max(10, target.military - defender_losses)
+
+                # War declared but attack repelled
+                if target_id not in country.at_war:
+                    country.at_war.append(target_id)
+                if hasattr(target, 'at_war') and country.id not in target.at_war:
+                    target.at_war.append(country.id)
+
+                target_name = getattr(target, 'name', target_id)
+                target_name_fr = getattr(target, 'name_fr', target_name)
+
+                events.append(Event(
+                    id=f"attack_failed_{world.year}_{country.id}_{target_id}",
+                    year=world.year,
+                    type="military",
+                    title="Attack Failed",
+                    title_fr="Attaque echouee",
+                    description=f"{country.name}'s attack on {target_name} is repelled! War continues.",
+                    description_fr=f"L'attaque de {country.name_fr} sur {target_name_fr} est repoussee! La guerre continue.",
+                    country_id=country.id,
+                    target_id=target_id
+                ))
+
+            # Relation drops to minimum (only for Tier 1-3 countries with modify_relation)
+            if hasattr(country, 'modify_relation'):
+                country.modify_relation(target_id, -100)
 
         elif action == CommandAction.DECLARE_WAR and target_id:
             if target_id not in country.at_war:

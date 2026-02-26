@@ -87,7 +87,7 @@ class AIAdvisor:
         model: str = None,
     ):
         self.base_url = base_url or settings.ollama_url
-        self.model = model or "qwen2.5:7b"
+        self.model = model or settings.ollama_model
         self.timeout = 30.0
 
         # Current personality (can be changed per session)
@@ -114,27 +114,31 @@ class AIAdvisor:
         """Get all available personalities"""
         return get_all_personalities()
 
-    async def _call_ollama(self, prompt: str, max_tokens: int = 500) -> Optional[str]:
+    async def _call_ollama(self, prompt: str, max_tokens: int = 500, use_json: bool = True) -> Optional[str]:
         """Call Ollama API and return response"""
         try:
+            payload = {
+                "model": self.model,
+                "prompt": prompt,
+                "stream": False,
+                "options": {
+                    "temperature": 0.8,
+                    "num_predict": max_tokens,
+                },
+            }
+            if use_json:
+                payload["format"] = "json"
+
             async with httpx.AsyncClient() as client:
                 response = await client.post(
                     f"{self.base_url}/api/generate",
-                    json={
-                        "model": self.model,
-                        "prompt": prompt,
-                        "stream": False,
-                        "format": "json",
-                        "options": {
-                            "temperature": 0.8,
-                            "num_predict": max_tokens,
-                        },
-                    },
+                    json=payload,
                     timeout=self.timeout,
                 )
                 if response.status_code == 200:
                     result = response.json()
                     return result.get("response", "")
+                logger.warning(f"Ollama returned status {response.status_code}")
                 return None
         except Exception as e:
             logger.warning(f"Ollama call failed: {e}")
@@ -667,40 +671,76 @@ CONFLITS MONDIAUX:
         conversation_history: list = None,
         personality: str = None
     ) -> Optional[str]:
-        """Have a free-form conversation with the AI advisor"""
+        """Have a free-form conversation with the AI advisor or simulate diplomatic dialogue"""
 
-        # Use specified personality or current default
-        active_personality = personality or self.current_personality
-        personality_info = get_personality(active_personality)
+        # Check if this is a diplomatic dialogue (player talking to another country)
+        diplomatic_context = context.get("diplomatic_context") if context else None
 
-        # Build game context
-        game_context = self._build_player_context(world, player)
+        if diplomatic_context and diplomatic_context.get("mode") == "diplomatic_dialogue":
+            # DIPLOMATIC MODE: AI responds AS the target country to the player
+            player_country_id = diplomatic_context.get("player_country", "???")
+            player_country = world.get_country(player_country_id)
+            player_name = player_country.name_fr if player_country else player_country_id
 
-        # Add extra context if provided
-        extra_context = ""
-        if context:
-            if context.get("dilemmas"):
-                dilemmas_text = "\n".join([
-                    f"- {d.get('title', 'Dilemme')}: {d.get('description', '')}"
-                    for d in context["dilemmas"][:3]
-                ])
-                extra_context += f"\nDILEMMES EN COURS:\n{dilemmas_text}"
+            # player here is actually the TARGET country (the one responding)
+            target_name = player.name_fr
+            relation = player.get_relation(player_country_id) if player_country else 0
+            relation_desc = "cordiales" if relation > 30 else "tendues" if relation < -30 else "neutres"
 
-            if context.get("recentEvents"):
-                events_text = "\n".join([
-                    f"- {e.get('year', '')}: {e.get('description', e.get('type', ''))}"
-                    for e in context["recentEvents"][:5]
-                ])
-                extra_context += f"\nEVENEMENTS RECENTS:\n{events_text}"
+            # Determine tone based on message content
+            aggressive_words = ["attaque", "guerre", "envahir", "detruire", "mourir", "connard", "merde", "foutre", "chier"]
+            is_aggressive = any(word in message.lower() for word in aggressive_words)
 
-        # Build conversation history
-        history_text = ""
-        if conversation_history:
-            for msg in conversation_history[-4:]:  # Last 4 messages
-                role = "Joueur" if msg.get("role") == "user" else "Conseiller"
-                history_text += f"{role}: {msg.get('content', '')}\n"
+            if is_aggressive:
+                tone_instruction = "Le message est agressif/insultant. Reponds avec dignite mais fermete. Montre que tu ne te laisses pas intimider. Tu peux exprimer ton mecontentement."
+            else:
+                tone_instruction = "Reponds de maniere diplomatique et professionnelle."
 
-        base_prompt = f"""Tu es un conseiller strategique expert en geopolitique pour le jeu PAX Mundi.
+            base_prompt = f"""Tu es le dirigeant de {target_name} dans un jeu de simulation geopolitique.
+Tu recois un message diplomatique de {player_name}.
+
+CONTEXTE:
+- Tu representes: {target_name}
+- Message de: {player_name}
+- Relations actuelles: {relation_desc} ({relation}/100)
+- Ton pays: Economie {player.economy}/100, Militaire {player.military}/100
+
+MESSAGE RECU: "{message}"
+
+{tone_instruction}
+Reponds en 2-3 phrases maximum, en francais, avec le vouvoiement formel.
+Tu es le dirigeant de {target_name}, pas un conseiller. Parle a la premiere personne."""
+
+            prompt = base_prompt
+        else:
+            # ADVISOR MODE: Normal strategic advice
+            active_personality = personality or self.current_personality
+
+            game_context = self._build_player_context(world, player)
+
+            extra_context = ""
+            if context:
+                if context.get("dilemmas"):
+                    dilemmas_text = "\n".join([
+                        f"- {d.get('title', 'Dilemme')}: {d.get('description', '')}"
+                        for d in context["dilemmas"][:3]
+                    ])
+                    extra_context += f"\nDILEMMES EN COURS:\n{dilemmas_text}"
+
+                if context.get("recentEvents"):
+                    events_text = "\n".join([
+                        f"- {e.get('year', '')}: {e.get('description', e.get('type', ''))}"
+                        for e in context["recentEvents"][:5]
+                    ])
+                    extra_context += f"\nEVENEMENTS RECENTS:\n{events_text}"
+
+            history_text = ""
+            if conversation_history:
+                for msg in conversation_history[-4:]:
+                    role = "Joueur" if msg.get("role") == "user" else "Conseiller"
+                    history_text += f"{role}: {msg.get('content', '')}\n"
+
+            base_prompt = f"""Tu es un conseiller strategique expert en geopolitique pour le jeu PAX Mundi.
 Tu conseilles le dirigeant de {player.name_fr}.
 
 {game_context}
@@ -714,10 +754,10 @@ Reponds de maniere concise, strategique et utile en francais.
 Donne des conseils actionables bases sur la situation actuelle.
 Maximum 3-4 phrases."""
 
-        # Apply personality to prompt
-        prompt = apply_personality_to_prompt(base_prompt, active_personality)
+            prompt = apply_personality_to_prompt(base_prompt, active_personality)
 
-        response = await self._call_ollama(prompt, 400)
+        # Chat uses plain text, not JSON format
+        response = await self._call_ollama(prompt, 400, use_json=False)
         if not response:
             return None
 
