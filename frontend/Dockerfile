@@ -15,9 +15,9 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Set API URL for build
-ARG NEXT_PUBLIC_API_URL=https://historia.alforis.fr/api
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+# Set API URL for build (proxied via Next.js rewrites in prod)
+ARG NEXT_PUBLIC_HISTORIA_API_URL=/api
+ENV NEXT_PUBLIC_HISTORIA_API_URL=$NEXT_PUBLIC_HISTORIA_API_URL
 
 RUN npm run build
 

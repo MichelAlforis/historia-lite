@@ -31,7 +31,7 @@ import {
 } from './types';
 
 // Historia Lite specific API URL - use dedicated env var to avoid CRM conflicts
-const API_BASE = process.env.NEXT_PUBLIC_HISTORIA_API_URL || 'http://localhost:8001/api';
+const API_BASE = process.env.NEXT_PUBLIC_HISTORIA_API_URL || '/api';
 
 const api = axios.create({
   baseURL: API_BASE,

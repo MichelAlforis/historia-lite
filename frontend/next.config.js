@@ -5,9 +5,17 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
-  // Désactiver styled-jsx pour éviter les problèmes SSR
   compiler: {
     styledJsx: false,
+  },
+  async rewrites() {
+    const backendUrl = process.env.HISTORIA_BACKEND_URL || 'http://localhost:8001'
+    return [
+      {
+        source: '/api/:path*',
+        destination: `${backendUrl}/api/:path*`,
+      },
+    ]
   },
 }
 
